@@ -4,7 +4,8 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    getAdditionalUserInfo
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { ref, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
@@ -57,8 +58,7 @@ if (registerForm) {
                 // Signed in 
                 const user = userCredential.user;
                 writeUserData(user.uid, name, user.email);
-                alert("¡Registro exitoso! Serás redirigido a la página de inicio de sesión.");
-                window.location.href = 'login.html';
+                window.location.href = 'index.html';
             })
             .catch((error) => {
                 const errorCode = error.code;
@@ -75,14 +75,11 @@ if (googleRegisterButton) {
         signInWithPopup(auth, provider)
             .then((result) => {
                 const user = result.user;
-                // Check if the user is new, if so, write to DB
-                const isNewUser = getAdditionalUserInfo(result).isNewUser;
-                if (isNewUser) {
+                const additionalUserInfo = getAdditionalUserInfo(result);
+                if (additionalUserInfo?.isNewUser) {
                     writeUserData(user.uid, user.displayName, user.email);
                 }
-                alert("¡Has iniciado sesión con Google! Serás redirigido...");
-                // TODO: Redirect to a dashboard or protected page
-                 window.location.href = 'login.html';
+                window.location.href = 'index.html';
             }).catch((error) => {
                 const errorCode = error.code;
                 const errorMessage = error.message;
@@ -106,9 +103,7 @@ if (loginForm) {
         signInWithEmailAndPassword(auth, email, password)
             .then((userCredential) => {
                 // Signed in
-                alert("¡Inicio de sesión exitoso!");
-                // TODO: Redirect to dashboard
-                 window.location.href = '#'; // Placeholder
+                window.location.href = 'index.html';
             })
             .catch((error) => {
                 const errorCode = error.code;
@@ -125,16 +120,11 @@ if (loginGoogleButton) {
         signInWithPopup(auth, provider)
             .then((result) => {
                 const user = result.user;
-                 // Check if the user is new, if so, write to DB
-                const {
-                    isNewUser
-                } = getAdditionalUserInfo(result);
-                if (isNewUser) {
+                const additionalUserInfo = getAdditionalUserInfo(result);
+                if (additionalUserInfo?.isNewUser) {
                     writeUserData(user.uid, user.displayName, user.email);
                 }
-                alert("¡Has iniciado sesión con Google!");
-                 // TODO: Redirect to a dashboard or protected page
-                window.location.href = '#'; // Placeholder
+                window.location.href = 'index.html';
             }).catch((error) => {
                 const errorCode = error.code;
                 const errorMessage = error.message;
