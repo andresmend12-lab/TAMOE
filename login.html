@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="es"><head>
+<html lang="es">
+<head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Página de inicio de sesión - Tamoe Innovation</title>
@@ -44,14 +45,14 @@
         },
       };
     </script>
-<script src="script.js" type="module"></script>
+<script src="script.js" defer></script>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-body text-text-light dark:text-text-dark min-h-screen flex items-center justify-center transition-colors duration-300 antialiased selection:bg-primary selection:text-white relative overflow-hidden">
 <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
 <div class="absolute -top-1/2 -left-1/4 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl dark:bg-primary/10"></div>
 <div class="absolute -bottom-1/2 -right-1/4 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-3xl dark:bg-secondary/20"></div>
 </div>
-<button class="absolute top-6 right-6 p-2 rounded-full bg-surface-light dark:bg-surface-dark shadow-sm border border-border-light dark:border-border-dark text-text-muted-light dark:text-text-muted-dark hover:text-primary dark:hover:text-primary transition-colors z-20" onclick="toggleDarkMode()">
+<button id="theme-toggle" class="absolute top-6 right-6 p-2 rounded-full bg-surface-light dark:bg-surface-dark shadow-sm border border-border-light dark:border-border-dark text-text-muted-light dark:text-text-muted-dark hover:text-primary dark:hover:text-primary transition-colors z-20">
 <span class="material-icons-outlined text-xl">brightness_4</span>
 </button>
 <main class="w-full max-w-md mx-4 z-10">
