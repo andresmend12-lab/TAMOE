@@ -1,5 +1,5 @@
 import { auth, firestore } from './firebase.js';
-import { collection, addDoc, getDocs, query, where, Timestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { collection, doc, setDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeModalBtn = document.getElementById('close-modal-btn');
     const cancelAddClientBtn = document.getElementById('cancel-add-client');
     const companyNameInput = document.getElementById('company-name');
+    const saveClientBtn = addClientForm ? addClientForm.querySelector('button[type="submit"]') : null;
 
     let allClients = [];
     let currentUser = null;
@@ -102,19 +103,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleAddClientSubmit = async (e) => {
         e.preventDefault();
         const companyName = companyNameInput.value.trim();
-        if (companyName && currentUser) {
-            try {
-                const docRef = await addDoc(collection(db, "clients"), {
-                    name: companyName,
-                    ownerId: currentUser.uid,
-                    createdAt: Timestamp.now()
-                });
-                allClients.push({ id: docRef.id, name: companyName });
-                renderClients();
-                closeModal();
-            } catch (error) {
-                console.error("Error adding client: ", error);
-                alert("Hubo un error al guardar el cliente.");
+        if (!companyName) return;
+        if (!currentUser) {
+            alert("No hay una sesi\u00f3n activa. Vuelve a iniciar sesi\u00f3n.");
+            return;
+        }
+
+        try {
+            if (saveClientBtn) {
+                saveClientBtn.disabled = true;
+                saveClientBtn.textContent = "Guardando...";
+            }
+
+            const clientsRef = collection(db, "clients");
+            const docRef = doc(clientsRef); // generamos el id antes para guardarlo
+            const clientData = {
+                name: companyName,
+                ownerId: currentUser.uid,
+                clientId: docRef.id,
+                createdAt: serverTimestamp()
+            };
+
+            await setDoc(docRef, clientData);
+            allClients.push({ id: docRef.id, ...clientData });
+            renderClients();
+            closeModal();
+        } catch (error) {
+            console.error("Error adding client: ", error);
+            alert(`Hubo un error al guardar el cliente: ${error.message}`);
+        } finally {
+            if (saveClientBtn) {
+                saveClientBtn.disabled = false;
+                saveClientBtn.textContent = "Guardar Cliente";
             }
         }
     };
