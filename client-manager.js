@@ -1,12 +1,9 @@
-import { app } from './firebase-config.js';
-import { getDatabase, ref, push, onValue, query, orderByChild, equalTo, set } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+import { auth, database } from './firebase.js';
+import { ref, push, onValue, query, orderByChild, equalTo, set } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const auth = getAuth(app);
-    const db = getDatabase(app);
-
-    // --- DOM Elements ---
+    // DOM elements
     const clientView = document.getElementById('client-view');
     const projectView = document.getElementById('project-view');
     const addClientBtn = document.getElementById('add-client-btn');
@@ -19,14 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeModalBtn = document.getElementById('close-modal-btn');
     const cancelAddClientBtn = document.getElementById('cancel-add-client');
     const companyNameInput = document.getElementById('company-name');
+    const saveClientBtn = addClientForm ? addClientForm.querySelector('button[type="submit"]') : null;
 
     let allClients = [];
     let currentUser = null;
     let clientsRef = null;
+    let listenersAttached = false;
 
-    // --- UI Rendering ---
+    // Render list of clients
     const renderClients = () => {
-        clientListNav.innerHTML = ''; // Clear the list
+        clientListNav.innerHTML = '';
         if (allClients.length > 0) {
             noClientsMessage.classList.add('hidden');
             allClients.sort((a, b) => a.name.localeCompare(b.name));
@@ -51,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- View Management ---
+    // View toggles
     const showClientView = () => {
         projectView.classList.add('hidden');
         projectView.classList.remove('flex');
@@ -69,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         projectView.classList.add('flex');
     };
 
-    // --- Modal Management ---
+    // Modal handling
     const openModal = () => {
         addClientModal.classList.remove('hidden');
         setTimeout(() => companyNameInput.focus(), 50);
@@ -80,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addClientForm.reset();
     };
 
-    // --- Data Fetching (Realtime DB) ---
+    // Fetch clients from RTDB
     const fetchClients = () => {
         if (!clientsRef) return;
         noClientsMessage.textContent = 'Cargando clientes...';
@@ -102,43 +101,75 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- Form Submission (Realtime DB) ---
+    // Handle add client form submit
     const handleAddClientSubmit = async (e) => {
         e.preventDefault();
         const companyName = companyNameInput.value.trim();
-        if (companyName && currentUser) {
-            try {
-                const newClientRef = push(ref(db, 'clients'));
-                await set(newClientRef, {
-                    name: companyName,
-                    ownerId: currentUser.uid,
-                    createdAt: new Date().toISOString()
-                });
-                closeModal();
-                // The onValue listener will automatically update the UI
-            } catch (error) {
-                console.error("Error adding client: ", error);
-                alert("Hubo un error al guardar el cliente.");
+        if (!companyName) return;
+        if (!currentUser) {
+            alert("Debes iniciar sesión para añadir clientes.");
+            return;
+        }
+
+        try {
+            if (saveClientBtn) {
+                saveClientBtn.disabled = true;
+                saveClientBtn.textContent = "Guardando...";
+            }
+
+            const newClientRef = push(ref(database, 'clients'));
+            const clientData = {
+                name: companyName,
+                ownerId: currentUser.uid,
+                createdAt: new Date().toISOString(),
+                clientId: newClientRef.key
+            };
+
+            await set(newClientRef, clientData);
+            closeModal();
+            // UI updates via onValue listener
+        } catch (error) {
+            console.error("Error adding client: ", error);
+            alert(`Hubo un error al guardar el cliente: ${error.message}`);
+        } finally {
+            if (saveClientBtn) {
+                saveClientBtn.disabled = false;
+                saveClientBtn.textContent = "Guardar Cliente";
             }
         }
     };
 
-    // --- Initialization ---
+    // Attach UI listeners once
+    const attachListeners = () => {
+        if (listenersAttached) return;
+        listenersAttached = true;
+
+        if (addClientBtn) {
+            addClientBtn.addEventListener('click', () => {
+                if (!currentUser) {
+                    alert("Debes iniciar sesión para añadir clientes.");
+                    return;
+                }
+                openModal();
+            });
+        }
+
+        if (addClientForm) addClientForm.addEventListener('submit', handleAddClientSubmit);
+        if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+        if (cancelAddClientBtn) cancelAddClientBtn.addEventListener('click', closeModal);
+        if (addClientModal) addClientModal.addEventListener('click', e => { if (e.target === addClientModal) closeModal(); });
+        if (backToClientsBtn) backToClientsBtn.addEventListener('click', showClientView);
+    };
+
+    // Init with user
     const initializeApp = (user) => {
         currentUser = user;
-        clientsRef = query(ref(db, 'clients'), orderByChild('ownerId'), equalTo(user.uid));
-        
-        // Attach event listeners
-        addClientBtn.addEventListener('click', openModal);
-        addClientForm.addEventListener('submit', handleAddClientSubmit);
-        closeModalBtn.addEventListener('click', closeModal);
-        cancelAddClientBtn.addEventListener('click', closeModal);
-        addClientModal.addEventListener('click', e => { if (e.target === addClientModal) closeModal(); });
-        backToClientsBtn.addEventListener('click', showClientView);
-        
+        clientsRef = query(ref(database, 'clients'), orderByChild('ownerId'), equalTo(user.uid));
+        attachListeners();
         fetchClients();
     };
 
+    // Cleanup when user logs out
     const cleanup = () => {
         currentUser = null;
         clientsRef = null;
@@ -146,8 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderClients();
         noClientsMessage.textContent = "Por favor, inicie sesión.";
         noClientsMessage.classList.remove('hidden');
-        // Detach listeners if necessary, though onAuthStateChanged handles re-initialization
-    }
+        attachListeners();
+    };
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
