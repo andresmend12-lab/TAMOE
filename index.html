@@ -1,33 +1,140 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login/Register</title>
-    <link rel="stylesheet" href="style.css">
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Página de inicio de sesión - Tamoe Innovation</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,600;0,700;1,400&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#c50f75", // Magenta from logo
+              secondary: "#555555", // Dark Grey from logo
+              "primary-hover": "#a00c5e",
+              "background-light": "#f8f9fa",
+              "background-dark": "#121212",
+              "surface-light": "#ffffff",
+              "surface-dark": "#1e1e1e",
+              "text-light": "#333333",
+              "text-dark": "#e0e0e0",
+              "text-muted-light": "#6b7280",
+              "text-muted-dark": "#9ca3af",
+              "border-light": "#e5e7eb",
+              "border-dark": "#374151",
+            },
+            fontFamily: {
+              display: ["'Exo 2'", "sans-serif"], // Tech/Modern feel matching the logo style
+              body: ["'Inter'", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+            },
+            boxShadow: {
+                'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                'glow': '0 0 15px rgba(197, 15, 117, 0.3)',
+            }
+          },
+        },
+      };
+    </script>
+<script src="script.js"></script>
 </head>
-<body>
-    <div class="container">
-        <div class="form-container" id="login-form">
-            <h1>Login</h1>
-            <form>
-                <input type="email" placeholder="Email" required>
-                <input type="password" placeholder="Password" required>
-                <button type="submit">Login</button>
-            </form>
-            <p>Don't have an account? <a href="#" id="show-register">Register</a></p>
-        </div>
-        <div class="form-container" id="register-form" style="display: none;">
-            <h1>Register</h1>
-            <form>
-                <input type="text" placeholder="Username" required>
-                <input type="email" placeholder="Email" required>
-                <input type="password" placeholder="Password" required>
-                <button type="submit">Register</button>
-            </form>
-            <p>Already have an account? <a href="#" id="show-login">Login</a></p>
-        </div>
-    </div>
-    <script src="script.js"></script>
-</body>
-</html>
+<body class="bg-background-light dark:bg-background-dark font-body text-text-light dark:text-text-dark min-h-screen flex items-center justify-center transition-colors duration-300 antialiased selection:bg-primary selection:text-white relative overflow-hidden">
+<div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+<div class="absolute -top-1/2 -left-1/4 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl dark:bg-primary/10"></div>
+<div class="absolute -bottom-1/2 -right-1/4 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-3xl dark:bg-secondary/20"></div>
+</div>
+<button class="absolute top-6 right-6 p-2 rounded-full bg-surface-light dark:bg-surface-dark shadow-sm border border-border-light dark:border-border-dark text-text-muted-light dark:text-text-muted-dark hover:text-primary dark:hover:text-primary transition-colors z-20" onclick="toggleDarkMode()">
+<span class="material-icons-outlined text-xl">brightness_4</span>
+</button>
+<main class="w-full max-w-md mx-4 z-10">
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-none border border-border-light dark:border-border-dark p-8 sm:p-10 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+<div class="text-center mb-8">
+<div class="flex justify-center">
+<img alt="Tamoe Innovation Full Logo" class="h-12 w-auto object-contain dark:hidden" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnDNUpHEr8pogkz3Cf5h1_D7QzSjZaKBAY6nBETj7ODZzry3ApKA9UCepOKTmA_5leaIeDV1sRde9jAWBN0B49HOGLmTew1CkIwsvI9TXTq6MMGKVNsSfKuhwi2SJIafXkxxmd1duA5xhyltgFncVfWtMxAC-CzVWwebbcBJ72eKdTHo_zyHMedfw0BKrBnh2KJxsvEN0BGNLV_1Wl4hGjM8-RY72YOH2P3iImZV73F9M0ytShlpeCT22zznLH40mwwtee1DSSiw"/>
+<img alt="Tamoe Innovation Full Logo" class="h-12 w-auto object-contain hidden dark:block brightness-[3] contrast-[0.8] saturate-[0.8]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVWlbA-eaftlGYnNvLW8OjcHiAqzB1_WSEekVQE8i66WfpjtRmhVzAj60aQ4TO-rhFQV44BaCZDlbpbrY4J8knH7TduOzMdG2_AiZrpp0cb35nw01M13VpGkpKp7w2ivyq_CjY-1CEyBrsK7M_6nEbpq2Z46p-b-aL-yIIgx0N3pF8NGF3Pjw8CqB9NTV0izg_giysBKPAfQcDNASUsT_xKSfg1aKoyec7kww9uKs908LHtMnuw-cVQoBR2eLY6eKL4pH7zGtZDQ"/>
+</div>
+<h2 class="mt-6 text-2xl font-display font-semibold text-secondary dark:text-gray-200">
+                    Bienvenido de nuevo
+                </h2>
+<p class="mt-2 text-sm text-text-muted-light dark:text-text-muted-dark">
+                    Ingresa tus credenciales para acceder a tu panel de proyectos.
+                </p>
+</div>
+<form action="#" class="space-y-6" method="POST">
+<div>
+<label class="block text-sm font-medium text-text-light dark:text-gray-300 mb-2" for="email">
+                        Correo Electrónico
+                    </label>
+<div class="relative rounded-md shadow-sm">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-icons-outlined text-gray-400 text-lg">email</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2.5 border border-border-light dark:border-border-dark rounded-lg bg-gray-50 dark:bg-gray-800/50 text-text-light dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow sm:text-sm" id="email" name="email" placeholder="nombre@empresa.com" required="" type="email"/>
+</div>
+</div>
+<div>
+<div class="flex items-center justify-between mb-2">
+<label class="block text-sm font-medium text-text-light dark:text-gray-300" for="password">
+                            Contraseña
+                        </label>
+<a class="text-sm font-medium text-primary hover:text-primary-hover transition-colors" href="#">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+</div>
+<div class="relative rounded-md shadow-sm">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-icons-outlined text-gray-400 text-lg">lock</span>
+</div>
+<input class="block w-full pl-10 pr-10 py-2.5 border border-border-light dark:border-border-dark rounded-lg bg-gray-50 dark:bg-gray-800/50 text-text-light dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow sm:text-sm" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer">
+<span class="material-icons-outlined text-gray-400 text-lg hover:text-gray-600 dark:hover:text-gray-200">visibility</span>
+</div>
+</div>
+</div>
+<div class="flex items-center">
+<input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 cursor-pointer" id="remember-me" name="remember-me" type="checkbox"/>
+<label class="ml-2 block text-sm text-text-muted-light dark:text-text-muted-dark select-none cursor-pointer" for="remember-me">
+                        Recordar dispositivo por 30 días
+                    </label>
+</div>
+<div>
+<button class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-surface-dark focus:ring-primary transition-all transform active:scale-[0.98]" type="submit">
+                        Iniciar Sesión
+                    </button>
+</div>
+</form>
+<div class="mt-8 relative">
+<div aria-hidden="true" class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-border-light dark:border-border-dark"></div>
+</div>
+<div class="relative flex justify-center text-sm">
+<span class="px-2 bg-surface-light dark:bg-surface-dark text-text-muted-light dark:text-text-muted-dark">
+                        O continuar con
+                    </span>
+</div>
+</div>
+<div class="mt-6">
+<button class="w-full inline-flex justify-center py-2.5 px-4 border border-border-light dark:border-border-dark rounded-lg shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-text-muted-light dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" type="button">
+<svg aria-hidden="true" class="h-5 w-5 text-blue-500" viewBox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+<span class="ml-2">Google</span>
+</button>
+</div>
+<p class="mt-8 text-center text-xs text-text-muted-light dark:text-gray-500">
+            © 2023 Tamoe Innovation. Todos los derechos reservados.
+            <br/>
+<a class="hover:text-primary underline mt-2 inline-block" href="#">Política de Privacidad</a> • <a class="hover:text-primary underline inline-block" href="#">Términos de Servicio</a>
+</p>
+</div></main>
+</body></html>

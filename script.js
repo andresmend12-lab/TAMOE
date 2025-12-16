@@ -1,14 +1,22 @@
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-const showRegister = document.getElementById('show-register');
-const showLogin = document.getElementById('show-login');
 
-showRegister.addEventListener('click', () => {
-    loginForm.style.display = 'none';
-    registerForm.style.display = 'block';
-});
+function toggleDarkMode() {
+    document.documentElement.classList.toggle('dark');
+}
 
-showLogin.addEventListener('click', () => {
-    registerForm.style.display = 'none';
-    loginForm.style.display = 'block';
+document.addEventListener('DOMContentLoaded', () => {
+    const passwordInput = document.getElementById('password');
+    const visibilityToggle = document.querySelector('.cursor-pointer span');
+
+    if (passwordInput && visibilityToggle) {
+        const parent = visibilityToggle.parentElement;
+        parent.addEventListener('click', () => {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                visibilityToggle.textContent = 'visibility_off';
+            } else {
+                passwordInput.type = 'password';
+                visibilityToggle.textContent = 'visibility';
+            }
+        });
+    }
 });
