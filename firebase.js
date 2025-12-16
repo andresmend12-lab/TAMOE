@@ -3,11 +3,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDidzpojgcd8wMtFLXyXRmZMk6BHELEbSI",
   authDomain: "tamoe-86320208-a33cf.firebaseapp.com",
+  databaseURL: "https://tamoe-86320208-a33cf-default-rtdb.europe-west1.firebasedatabase.app/",
   projectId: "tamoe-86320208-a33cf",
   storageBucket: "tamoe-86320208-a33cf.appspot.com",
   messagingSenderId: "322898199328",
@@ -17,6 +19,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Export auth and database services
+// Export auth, database, and storage services
 export const auth = getAuth(app);
 export const database = getDatabase(app);
+export const storage = getStorage(app);
