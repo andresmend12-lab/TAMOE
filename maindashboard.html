@@ -1,14 +1,13 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Tamoe - Project Management</title>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<script id="tailwind-config">
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Tamoe - Project Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -23,87 +22,114 @@
                         "border-dark": "#47243b",
                         "text-muted": "#c893b6",
                     },
-                    fontFamily: {
-                        "display": ["Manrope", "sans-serif"]
-                    },
+                    fontFamily: { "display": ["Manrope", "sans-serif"] },
                     borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
                 },
             },
         }
     </script>
-<script src="auth-guard.js" type="module"></script>
+    <script src="auth-guard.js" type="module"></script>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-900 dark:text-white h-screen overflow-hidden selection:bg-primary selection:text-white">
+
 <div class="flex h-full w-full">
-<!-- Sidebar -->
-<aside class="w-64 h-full flex flex-col bg-surface-darker border-r border-border-dark flex-shrink-0 z-20">
-<!-- App Header -->
-<div class="p-4 flex items-center gap-3">
-<img src="imagotipo_tamoe.png" alt="Tamoe Logo" class="h-10 w-auto"/>
-<div class="flex flex-col">
-<h1 id="sidebar-user-name" class="text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
-<p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
+    <!-- Sidebar -->
+    <aside class="w-64 h-full flex flex-col bg-surface-darker border-r border-border-dark flex-shrink-0 z-20">
+        <!-- App Header -->
+        <div class="p-4 flex items-center gap-3">
+            <img src="imagotipo_tamoe.png" alt="Tamoe Logo" class="h-10 w-auto"/>
+            <div class="flex flex-col">
+                <h1 id="sidebar-user-name" class="text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
+                <p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
+            </div>
+        </div>
+        
+        <!-- Create Client Button -->
+        <div class="px-4 py-2">
+            <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined text-[20px]">add</span>
+                <span>Añadir Cliente</span>
+            </button>
+        </div>
+
+        <!-- Add Client Form (hidden) -->
+        <div id="add-client-form-container" class="hidden px-4 py-2">
+             <form id="add-client-form" class="flex flex-col gap-2">
+                <input type="text" id="company-name" name="company-name" required
+                       class="block w-full bg-surface-dark border border-border-dark rounded-md shadow-sm py-2 px-3 text-sm text-white focus:outline-none focus:ring-primary focus:border-primary transition-all"
+                       placeholder="Nombre de la Empresa">
+                <div class="flex justify-end gap-2">
+                    <button type="button" id="cancel-add-client" class="px-3 py-1 text-xs font-medium text-text-muted rounded-md hover:bg-white/5 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary-hover rounded-md shadow-lg shadow-primary/20 transition-all">Guardar</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Navigation / Client List -->
+        <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+            <!-- Client links will be inserted here by JS -->
+             <p id="no-clients-message" class="px-3 py-2 text-sm text-text-muted">No hay clientes.</p>
+        </nav>
+
+        <!-- Bottom Actions -->
+        <div class="p-2 border-t border-border-dark flex flex-col gap-1">
+            <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
+                <span class="material-symbols-outlined">settings</span>
+                <span class="text-sm font-medium">Ajustes</span>
+            </a>
+            <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="profile.html">
+                <span class="material-symbols-outlined">person</span>
+                <span class="text-sm font-medium">Editar perfil</span>
+            </a>
+            <button id="logout-button" class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors">
+                <span class="material-symbols-outlined">logout</span>
+                <span class="text-sm font-medium">Cerrar Sesión</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex flex-col flex-1 h-full min-w-0 bg-background-light dark:bg-background-dark relative">
+        <!-- Top Navigation -->
+        <header class="h-16 flex items-center justify-between px-8 border-b border-gray-200 dark:border-border-dark bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-10">
+            <div class="flex items-center gap-6">
+                <!-- Search Bar -->
+                <div class="hidden md:flex items-center w-64 h-9 bg-gray-100 dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-border-dark focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                    <span class="material-symbols-outlined text-gray-500 dark:text-text-muted px-3 text-[20px]">search</span>
+                    <input class="bg-transparent border-none text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-text-muted focus:ring-0 w-full h-full p-0 pr-3" placeholder="Search" type="text"/>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">brightness_4</span>
+                </button>
+                <button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">notifications</span>
+                </button>
+                <button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">help</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <div class="flex-1 overflow-y-auto">
+            <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
+                
+                <!-- Welcome & Stats -->
+                <div id="welcome-message" class="flex flex-col gap-2">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Good afternoon, Jane</h1>
+                </div>
+
+            </div>
+        </div>
+    </main>
 </div>
-</div>
-<!-- Create Button Removed -->
-<!-- Navigation -->
-<nav class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-<!-- Navigation items removed as requested -->
-</nav>
-<!-- Bottom Actions -->
-<div class="p-2 border-t border-border-dark flex flex-col gap-1">
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
-<span class="material-symbols-outlined">settings</span>
-<span class="text-sm font-medium">Ajustes</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="profile.html">
-<span class="material-symbols-outlined">person</span>
-<span class="text-sm font-medium">Editar perfil</span>
-</a>
-<button id="logout-button" class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors">
-<span class="material-symbols-outlined">logout</span>
-<span class="text-sm font-medium">Cerrar Sesión</span>
-</button>
-<!-- User info removed as requested -->
-</div>
-</aside>
-<!-- Main Content -->
-<main class="flex flex-col flex-1 h-full min-w-0 bg-background-light dark:bg-background-dark relative">
-<!-- Top Navigation -->
-<header class="h-16 flex items-center justify-between px-8 border-b border-gray-200 dark:border-border-dark bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-10">
-<div class="flex items-center gap-6">
-<!-- Dashboard Title Removed -->
-<!-- Search Bar -->
-<div class="hidden md:flex items-center w-64 h-9 bg-gray-100 dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-border-dark focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-<span class="material-symbols-outlined text-gray-500 dark:text-text-muted px-3 text-[20px]">search</span>
-<input class="bg-transparent border-none text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-text-muted focus:ring-0 w-full h-full p-0 pr-3" placeholder="Search" type="text"/>
-</div>
-</div>
-<div class="flex items-center gap-3">
-<button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
-    <span class="material-symbols-outlined text-[20px]">brightness_4</span>
-</button>
-<button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
-<span class="material-symbols-outlined text-[20px]">notifications</span>
-</button>
-<button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
-<span class="material-symbols-outlined text-[20px]">help</span>
-</button>
-</div>
-</header>
-<!-- Dashboard Content -->
-<div class="flex-1 overflow-y-auto">
-<div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
-<!-- Welcome & Stats -->
-<div class="flex flex-col gap-2">
-<h1 id="welcome-message" class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Good afternoon, Jane</h1>
-</div>
-</div>
-</div>
-</main>
-</div>
+
 <script src="dashboard-data.js" type="module"></script>
 <script src="logout.js" type="module"></script>
 <script src="theme-toggle.js" type="module"></script>
+<script src="client-manager.js" type="module"></script>
+
 </body>
 </html>
