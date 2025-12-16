@@ -1,17 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar elements
     const addClientBtn = document.getElementById('add-client-btn');
-    const addClientFormContainer = document.getElementById('add-client-form-container');
-    const addClientForm = document.getElementById('add-client-form');
-    const cancelAddClientBtn = document.getElementById('cancel-add-client');
     const clientListNav = document.getElementById('client-list-nav');
     const noClientsMessage = document.getElementById('no-clients-message');
+
+    // Modal elements
+    const addClientModal = document.getElementById('add-client-modal');
+    const addClientForm = document.getElementById('add-client-form');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const cancelAddClientBtn = document.getElementById('cancel-add-client');
     const companyNameInput = document.getElementById('company-name');
 
     // This will be replaced with database logic later
     let clients = [];
 
     const renderClients = () => {
-        // Clear only client links, not the placeholder message
         clientListNav.querySelectorAll('a').forEach(link => link.remove());
 
         if (clients.length === 0) {
@@ -31,20 +34,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const showAddClientForm = () => {
-        addClientBtn.classList.add('hidden');
-        addClientFormContainer.classList.remove('hidden');
-        companyNameInput.focus();
+    const openModal = () => {
+        addClientModal.classList.remove('hidden');
+        setTimeout(() => companyNameInput.focus(), 50); // Focus after transition
     };
 
-    const hideAddClientForm = () => {
-        addClientFormContainer.classList.add('hidden');
-        addClientBtn.classList.remove('hidden');
+    const closeModal = () => {
+        addClientModal.classList.add('hidden');
         companyNameInput.value = ''; // Clear input
     };
 
-    addClientBtn.addEventListener('click', showAddClientForm);
-    cancelAddClientBtn.addEventListener('click', hideAddClientForm);
+    // Event Listeners
+    addClientBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelAddClientBtn.addEventListener('click', closeModal);
+
+    // Close modal if clicking on the background overlay
+    addClientModal.addEventListener('click', (e) => {
+        if (e.target === addClientModal) {
+            closeModal();
+        }
+    });
 
     addClientForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -53,10 +63,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (companyName) {
             clients.push({ name: companyName });
             renderClients();
-            hideAddClientForm();
+            closeModal();
         }
     });
 
-    // Initial render
+    // Initial render of client list
     renderClients();
 });

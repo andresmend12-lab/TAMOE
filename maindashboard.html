@@ -52,19 +52,6 @@
             </button>
         </div>
 
-        <!-- Add Client Form (hidden) -->
-        <div id="add-client-form-container" class="hidden px-4 py-2">
-             <form id="add-client-form" class="flex flex-col gap-2">
-                <input type="text" id="company-name" name="company-name" required
-                       class="block w-full bg-surface-dark border border-border-dark rounded-md shadow-sm py-2 px-3 text-sm text-white focus:outline-none focus:ring-primary focus:border-primary transition-all"
-                       placeholder="Nombre de la Empresa">
-                <div class="flex justify-end gap-2">
-                    <button type="button" id="cancel-add-client" class="px-3 py-1 text-xs font-medium text-text-muted rounded-md hover:bg-white/5 transition-colors">Cancelar</button>
-                    <button type="submit" class="px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary-hover rounded-md shadow-lg shadow-primary/20 transition-all">Guardar</button>
-                </div>
-            </form>
-        </div>
-
         <!-- Navigation / Client List -->
         <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
             <!-- Client links will be inserted here by JS -->
@@ -115,15 +102,40 @@
         <!-- Dashboard Content -->
         <div class="flex-1 overflow-y-auto">
             <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
-                
-                <!-- Welcome & Stats -->
                 <div id="welcome-message" class="flex flex-col gap-2">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Good afternoon, Jane</h1>
                 </div>
-
             </div>
         </div>
     </main>
+</div>
+
+<!-- Add Client Modal -->
+<div id="add-client-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-md bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
+        <div class="flex justify-between items-center mb-6">
+             <h2 class="text-white text-2xl font-bold">Añadir Nuevo Cliente</h2>
+             <button id="close-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-text-muted">close</span>
+             </button>
+        </div>
+        <form id="add-client-form">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="company-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Empresa</label>
+                    <input type="text" id="company-name" name="company-name" required
+                           class="block w-full bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-4">
+                     <button type="button" id="cancel-add-client" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
+                    <button type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
+                        Guardar Cliente
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script src="dashboard-data.js" type="module"></script>
