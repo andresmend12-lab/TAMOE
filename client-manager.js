@@ -1,9 +1,10 @@
-import { auth, firestore } from './firebase.js';
-import { collection, doc, setDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+import { app } from './firebase-config.js';
+import { getDatabase, ref, push, onValue, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const db = firestore;
+    const auth = getAuth(app);
+    const db = getDatabase(app);
 
     // --- DOM Elements ---
     const clientView = document.getElementById('client-view');
@@ -18,10 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeModalBtn = document.getElementById('close-modal-btn');
     const cancelAddClientBtn = document.getElementById('cancel-add-client');
     const companyNameInput = document.getElementById('company-name');
-    const saveClientBtn = addClientForm ? addClientForm.querySelector('button[type="submit"]') : null;
 
     let allClients = [];
     let currentUser = null;
+    let clientsRef = null;
 
     // --- UI Rendering ---
     const renderClients = () => {
@@ -79,62 +80,45 @@ document.addEventListener('DOMContentLoaded', () => {
         addClientForm.reset();
     };
 
-    // --- Data Fetching ---
-    const fetchClients = async () => {
-        if (!currentUser) return;
+    // --- Data Fetching (Realtime DB) ---
+    const fetchClients = () => {
+        if (!clientsRef) return;
         noClientsMessage.textContent = 'Cargando clientes...';
         noClientsMessage.classList.remove('hidden');
         clientListNav.innerHTML = '';
-        
-        const clientsRef = collection(db, "clients");
-        const q = query(clientsRef, where("ownerId", "==", currentUser.uid));
-        try {
-            const querySnapshot = await getDocs(q);
-            allClients = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        onValue(clientsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                allClients = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+            } else {
+                allClients = [];
+            }
             renderClients();
-        } catch (error) {
+        }, (error) => {
             console.error("Error fetching clients: ", error);
             noClientsMessage.textContent = `Error: ${error.message}`;
             noClientsMessage.classList.remove('hidden');
-        }
+        });
     };
 
-    // --- Form Submission ---
+    // --- Form Submission (Realtime DB) ---
     const handleAddClientSubmit = async (e) => {
         e.preventDefault();
         const companyName = companyNameInput.value.trim();
-        if (!companyName) return;
-        if (!currentUser) {
-            alert("No hay una sesi\u00f3n activa. Vuelve a iniciar sesi\u00f3n.");
-            return;
-        }
-
-        try {
-            if (saveClientBtn) {
-                saveClientBtn.disabled = true;
-                saveClientBtn.textContent = "Guardando...";
-            }
-
-            const clientsRef = collection(db, "clients");
-            const docRef = doc(clientsRef); // generamos el id antes para guardarlo
-            const clientData = {
-                name: companyName,
-                ownerId: currentUser.uid,
-                clientId: docRef.id,
-                createdAt: serverTimestamp()
-            };
-
-            await setDoc(docRef, clientData);
-            allClients.push({ id: docRef.id, ...clientData });
-            renderClients();
-            closeModal();
-        } catch (error) {
-            console.error("Error adding client: ", error);
-            alert(`Hubo un error al guardar el cliente: ${error.message}`);
-        } finally {
-            if (saveClientBtn) {
-                saveClientBtn.disabled = false;
-                saveClientBtn.textContent = "Guardar Cliente";
+        if (companyName && currentUser) {
+            try {
+                const newClientRef = push(ref(db, 'clients'));
+                await set(newClientRef, {
+                    name: companyName,
+                    ownerId: currentUser.uid,
+                    createdAt: new Date().toISOString()
+                });
+                closeModal();
+                // The onValue listener will automatically update the UI
+            } catch (error) {
+                console.error("Error adding client: ", error);
+                alert("Hubo un error al guardar el cliente.");
             }
         }
     };
@@ -142,11 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Initialization ---
     const initializeApp = (user) => {
         currentUser = user;
-        // Attach all event listeners now that we have a user
+        clientsRef = query(ref(db, 'clients'), orderByChild('ownerId'), equalTo(user.uid));
+        
+        // Attach event listeners
         addClientBtn.addEventListener('click', openModal);
         addClientForm.addEventListener('submit', handleAddClientSubmit);
-        
-        // Global listeners can be attached once
         closeModalBtn.addEventListener('click', closeModal);
         cancelAddClientBtn.addEventListener('click', closeModal);
         addClientModal.addEventListener('click', e => { if (e.target === addClientModal) closeModal(); });
@@ -156,12 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const cleanup = () => {
-        // This function could be used to remove listeners if needed, but for now, we just clear the UI
         currentUser = null;
+        clientsRef = null;
         allClients = [];
         renderClients();
         noClientsMessage.textContent = "Por favor, inicie sesión.";
         noClientsMessage.classList.remove('hidden');
+        // Detach listeners if necessary, though onAuthStateChanged handles re-initialization
     }
 
     onAuthStateChanged(auth, (user) => {

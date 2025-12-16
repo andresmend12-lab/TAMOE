@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".write": "$uid === auth.uid",
+        ".read": "auth != null"
+      }
+    },
+    "clients": {
+      ".indexOn": ["ownerId"],
+      "$clientId": {
+        ".read": "auth != null && data.child('ownerId').val() === auth.uid",
+        ".write": "auth != null && (newData.child('ownerId').val() === auth.uid || !data.exists())"
+      }
+    }
+  }
+}
