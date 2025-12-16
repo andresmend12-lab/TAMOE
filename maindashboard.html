@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 
-<html class="dark" lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Tamoe - Project Management</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -16,7 +16,7 @@
                     colors: {
                         "primary": "#e619a1",
                         "primary-hover": "#c9168d",
-                        "background-light": "#f8f6f7",
+                        "background-light": "#ffffff",
                         "background-dark": "#21111c",
                         "surface-dark": "#2f1a28",
                         "surface-darker": "#1a0d15",
@@ -49,79 +49,50 @@
 <div class="px-4 py-2">
 <button class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
 <span class="material-symbols-outlined text-[20px]">add</span>
-<span>Create</span>
+<span>Crear</span>
 </button>
 </div>
 <!-- Navigation -->
 <nav class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary border-l-2 border-primary" href="#">
-<span class="material-symbols-outlined fill-1" style="font-variation-settings: 'FILL' 1;">dashboard</span>
-<span class="text-sm font-semibold">Your Work</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
-<span class="material-symbols-outlined">folder_open</span>
-<span class="text-sm font-medium">Projects</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
-<span class="material-symbols-outlined">bug_report</span>
-<span class="text-sm font-medium">Issues</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
-<span class="material-symbols-outlined">filter_list</span>
-<span class="text-sm font-medium">Filters</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
-<span class="material-symbols-outlined">bar_chart</span>
-<span class="text-sm font-medium">Reports</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
-<span class="material-symbols-outlined">group</span>
-<span class="text-sm font-medium">Teams</span>
-</a>
+<!-- Navigation items removed as requested -->
 </nav>
 <!-- Bottom Actions -->
 <div class="p-2 border-t border-border-dark flex flex-col gap-1">
 <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
 <span class="material-symbols-outlined">settings</span>
-<span class="text-sm font-medium">Settings</span>
+<span class="text-sm font-medium">Ajustes</span>
 </a>
 <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="profile.html">
 <span class="material-symbols-outlined">person</span>
-<span class="text-sm font-medium">Edit Profile</span>
+<span class="text-sm font-medium">Editar perfil</span>
 </a>
 <button id="logout-button" class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors">
 <span class="material-symbols-outlined">logout</span>
-<span class="text-sm font-medium">Logout</span>
+<span class="text-sm font-medium">Cerrar Sesión</span>
 </button>
-<div class="flex items-center gap-3 px-3 py-3 mt-2 border-t border-white/5">
-<div id="user-avatar" class="size-8 rounded-full bg-cover bg-center ring-2 ring-primary/30" data-alt="User profile picture of a person smiling" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBVS5En7DKNBUkoAFoSxB9Arr5PCTcjS-aCM22Jd6O7y6s5S1Yk4OeAtKkztDUzDEQcWKg0vkkXssFZXveSMgu1XhWmffxhmO5EhvseMO4SA9a6M_F2fDA0noI0338m6PQ0UMRKpap3-X1gUpsUGwwpd4O31OXPiKfVFw0CDmt6ypwCqvGer7oWkz2qsd1u2SNWEHR1SBoHstlaotFcvZJV6i0vIcHSdrrtJaYzyI2qgfltXroO17wwmlRJKqJxS-ysTYz7sGHv0Q");'></div>
-<div class="flex flex-col overflow-hidden">
-<span id="user-name" class="text-sm font-semibold text-white truncate">Jane Doe</span>
-<span id="user-email" class="text-xs text-text-muted truncate">jane@taskmaster.com</span>
-</div>
-</div>
+<!-- User info removed as requested -->
 </div>
 </aside>
 <!-- Main Content -->
-<main class="flex flex-col flex-1 h-full min-w-0 bg-background-dark relative">
+<main class="flex flex-col flex-1 h-full min-w-0 bg-background-light dark:bg-background-dark relative">
 <!-- Top Navigation -->
-<header class="h-16 flex items-center justify-between px-8 border-b border-border-dark bg-background-dark/80 backdrop-blur-md sticky top-0 z-10">
+<header class="h-16 flex items-center justify-between px-8 border-b border-gray-200 dark:border-border-dark bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-10">
 <div class="flex items-center gap-6">
-<h2 class="text-white text-lg font-bold">Your Work</h2>
+<h2 class="text-lg font-bold text-gray-900 dark:text-white">Dashboard</h2>
 <!-- Search Bar -->
-<div class="hidden md:flex items-center w-64 h-9 bg-surface-dark rounded-lg border border-border-dark focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-<span class="material-symbols-outlined text-text-muted px-3 text-[20px]">search</span>
-<input class="bg-transparent border-none text-sm text-white placeholder-text-muted focus:ring-0 w-full h-full p-0 pr-3" placeholder="Search" type="text"/>
+<div class="hidden md:flex items-center w-64 h-9 bg-gray-100 dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-border-dark focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+<span class="material-symbols-outlined text-gray-500 dark:text-text-muted px-3 text-[20px]">search</span>
+<input class="bg-transparent border-none text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-text-muted focus:ring-0 w-full h-full p-0 pr-3" placeholder="Search" type="text"/>
 </div>
 </div>
 <div class="flex items-center gap-3">
-<button id="theme-toggle" class="size-9 rounded-full bg-surface-dark hover:bg-border-dark text-text-muted hover:text-white flex items-center justify-center transition-colors">
+<button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
     <span class="material-symbols-outlined text-[20px]">brightness_4</span>
 </button>
-<button class="size-9 rounded-full bg-surface-dark hover:bg-border-dark text-text-muted hover:text-white flex items-center justify-center transition-colors">
+<button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
 <span class="material-symbols-outlined text-[20px]">notifications</span>
 </button>
-<button class="size-9 rounded-full bg-surface-dark hover:bg-border-dark text-text-muted hover:text-white flex items-center justify-center transition-colors">
+<button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
 <span class="material-symbols-outlined text-[20px]">help</span>
 </button>
 </div>
@@ -131,7 +102,7 @@
 <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
 <!-- Welcome & Stats -->
 <div class="flex flex-col gap-2">
-<h1 id="welcome-message" class="text-3xl font-bold text-white tracking-tight">Good afternoon, Jane</h1>
+<h1 id="welcome-message" class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Good afternoon, Jane</h1>
 </div>
 </div>
 </div>
@@ -140,4 +111,5 @@
 <script src="dashboard-data.js" type="module"></script>
 <script src="logout.js" type="module"></script>
 <script src="theme-toggle.js" type="module"></script>
-</body></html>
+</body>
+</html>
