@@ -1,5 +1,5 @@
 import { app } from './firebase-config.js';
-import { getDatabase, ref, push, onValue, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+import { getDatabase, ref, push, onValue, query, orderByChild, equalTo, set } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
