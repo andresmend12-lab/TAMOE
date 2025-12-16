@@ -6,6 +6,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gsta
 
 const profileForm = document.getElementById('profile-form');
 const profileNameInput = document.getElementById('profile-name');
+const profileDepartmentInput = document.getElementById('profile-department');
 const profilePictureInput = document.getElementById('profile-picture');
 const submitButton = profileForm.querySelector('button[type="submit"]');
 
@@ -20,6 +21,9 @@ onAuthStateChanged(auth, (user) => {
                 const userData = snapshot.val();
                 if (profileNameInput) {
                     profileNameInput.value = userData.username || '';
+                }
+                if (profileDepartmentInput) {
+                    profileDepartmentInput.value = userData.department || 'Not specified';
                 }
             }
         });
