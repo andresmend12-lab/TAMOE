@@ -21,17 +21,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const companyNameInput = document.getElementById('company-name');
 
     let allClients = [];
+    let currentUser = null;
 
     // --- UI Rendering ---
     const renderClients = () => {
-        clientListNav.innerHTML = ''; // Clear the list completely
-        if (allClients.length === 0) {
-            noClientsMessage.textContent = 'No hay clientes.';
-            noClientsMessage.classList.remove('hidden');
-            clientListNav.appendChild(noClientsMessage);
-        } else {
+        clientListNav.innerHTML = ''; // Clear the list
+        if (allClients.length > 0) {
             noClientsMessage.classList.add('hidden');
-            allClients.sort((a, b) => a.name.localeCompare(b.name)); // Sort clients alphabetically
+            allClients.sort((a, b) => a.name.localeCompare(b.name));
             allClients.forEach(client => {
                 const clientLink = document.createElement('a');
                 clientLink.href = '#';
@@ -47,12 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 clientListNav.appendChild(clientLink);
             });
+        } else {
+            noClientsMessage.textContent = 'No hay clientes.';
+            noClientsMessage.classList.remove('hidden');
         }
     };
 
     // --- View Management ---
     const showClientView = () => {
-        projectView.classList.add('hidden', 'flex');
+        projectView.classList.add('hidden');
+        projectView.classList.remove('flex');
         clientView.classList.remove('hidden');
         clientView.classList.add('flex');
     };
@@ -61,13 +62,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const client = allClients.find(c => c.id === clientId);
         if (!client) return;
         clientNameHeader.textContent = client.name;
-        // Future: fetchAndRenderProjects(client.id);
         clientView.classList.add('hidden');
         clientView.classList.remove('flex');
         projectView.classList.remove('hidden');
         projectView.classList.add('flex');
     };
-    
+
     // --- Modal Management ---
     const openModal = () => {
         addClientModal.classList.remove('hidden');
@@ -79,68 +79,77 @@ document.addEventListener('DOMContentLoaded', () => {
         addClientForm.reset();
     };
 
-    // --- Core Logic ---
-    const initialize = (user) => {
-        // Fetch initial data
-        const fetchClients = async () => {
-            noClientsMessage.textContent = 'Cargando clientes...';
+    // --- Data Fetching ---
+    const fetchClients = async () => {
+        if (!currentUser) return;
+        noClientsMessage.textContent = 'Cargando clientes...';
+        noClientsMessage.classList.remove('hidden');
+        clientListNav.innerHTML = '';
+        
+        const clientsRef = collection(db, "clients");
+        const q = query(clientsRef, where("ownerId", "==", currentUser.uid));
+        try {
+            const querySnapshot = await getDocs(q);
+            allClients = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderClients();
+        } catch (error) {
+            console.error("Error fetching clients: ", error);
+            noClientsMessage.textContent = `Error: ${error.message}`;
             noClientsMessage.classList.remove('hidden');
-            clientListNav.innerHTML = '';
-            clientListNav.appendChild(noClientsMessage);
+        }
+    };
 
-            const clientsRef = collection(db, "clients");
-            const q = query(clientsRef, where("ownerId", "==", user.uid));
+    // --- Form Submission ---
+    const handleAddClientSubmit = async (e) => {
+        e.preventDefault();
+        const companyName = companyNameInput.value.trim();
+        if (companyName && currentUser) {
             try {
-                const querySnapshot = await getDocs(q);
-                allClients = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const docRef = await addDoc(collection(db, "clients"), {
+                    name: companyName,
+                    ownerId: currentUser.uid,
+                    createdAt: Timestamp.now()
+                });
+                allClients.push({ id: docRef.id, name: companyName });
                 renderClients();
+                closeModal();
             } catch (error) {
-                console.error("Error fetching clients: ", error);
-                noClientsMessage.textContent = 'Error al cargar clientes.';
+                console.error("Error adding client: ", error);
+                alert("Hubo un error al guardar el cliente.");
             }
-        };
+        }
+    };
 
-        // Set up event listeners that require a user
-        addClientForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const companyName = companyNameInput.value.trim();
-            if (companyName) {
-                try {
-                    const docRef = await addDoc(collection(db, "clients"), {
-                        name: companyName,
-                        ownerId: user.uid,
-                        createdAt: Timestamp.now()
-                    });
-                    allClients.push({ id: docRef.id, name: companyName, createdAt: Timestamp.now() });
-                    renderClients();
-                    closeModal();
-                } catch (error) {
-                    console.error("Error adding client: ", error);
-                    alert("Hubo un error al guardar el cliente.");
-                }
-            }
-        };
-
+    // --- Initialization ---
+    const initializeApp = (user) => {
+        currentUser = user;
+        // Attach all event listeners now that we have a user
+        addClientBtn.addEventListener('click', openModal);
+        addClientForm.addEventListener('submit', handleAddClientSubmit);
+        
+        // Global listeners can be attached once
+        closeModalBtn.addEventListener('click', closeModal);
+        cancelAddClientBtn.addEventListener('click', closeModal);
+        addClientModal.addEventListener('click', e => { if (e.target === addClientModal) closeModal(); });
+        backToClientsBtn.addEventListener('click', showClientView);
+        
         fetchClients();
     };
 
+    const cleanup = () => {
+        // This function could be used to remove listeners if needed, but for now, we just clear the UI
+        currentUser = null;
+        allClients = [];
+        renderClients();
+        noClientsMessage.textContent = "Por favor, inicie sesión.";
+        noClientsMessage.classList.remove('hidden');
+    }
 
-    // --- App Initialization ---
-    addClientBtn.addEventListener('click', openModal);
-    closeModalBtn.addEventListener('click', closeModal);
-    cancelAddClientBtn.addEventListener('click', closeModal);
-    addClientModal.addEventListener('click', e => { if (e.target === addClientModal) closeModal(); });
-    backToClientsBtn.addEventListener('click', showClientView);
-    
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            // User is signed in, initialize the main app logic.
-            initialize(user);
+            initializeApp(user);
         } else {
-            // User is signed out. Clear the UI and state.
-            allClients = [];
-            renderClients();
-            console.log("User is signed out.");
+            cleanup();
         }
     });
 });
