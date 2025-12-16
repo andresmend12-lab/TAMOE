@@ -35,31 +35,55 @@
 <div class="flex h-full w-full">
     <!-- Sidebar -->
     <aside class="w-64 h-full flex flex-col bg-surface-darker border-r border-border-dark flex-shrink-0 z-20">
-        <!-- App Header -->
-        <div class="p-4 flex items-center gap-3">
-            <img src="imagotipo_tamoe.png" alt="Tamoe Logo" class="h-10 w-auto"/>
-            <div class="flex flex-col">
-                <h1 id="sidebar-user-name" class="text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
-                <p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
-            </div>
-        </div>
         
-        <!-- Create Client Button -->
-        <div class="px-4 py-2">
-            <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
-                <span class="material-symbols-outlined text-[20px]">add</span>
-                <span>Añadir Cliente</span>
-            </button>
+        <!-- Client View -->
+        <div id="client-view" class="flex flex-col h-full">
+            <!-- App Header -->
+            <div class="p-4 flex items-center gap-3">
+                <img src="imagotipo_tamoe.png" alt="Tamoe Logo" class="h-10 w-auto"/>
+                <div class="flex flex-col">
+                    <h1 id="sidebar-user-name" class="text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
+                    <p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
+                </div>
+            </div>
+            <!-- Create Client Button -->
+            <div class="px-4 py-2">
+                <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-[20px]">add</span>
+                    <span>Añadir Cliente</span>
+                </button>
+            </div>
+            <!-- Navigation / Client List -->
+            <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+                 <p id="no-clients-message" class="px-3 py-2 text-sm text-text-muted">Cargando clientes...</p>
+            </nav>
         </div>
 
-        <!-- Navigation / Client List -->
-        <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-            <!-- Client links will be inserted here by JS -->
-             <p id="no-clients-message" class="px-3 py-2 text-sm text-text-muted">No hay clientes.</p>
-        </nav>
+        <!-- Project View (hidden) -->
+        <div id="project-view" class="hidden flex-col h-full">
+            <!-- Project Header -->
+            <div class="p-4">
+                <button id="back-to-clients-btn" class="flex items-center gap-2 text-sm font-bold text-text-muted hover:text-white transition-colors mb-4">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    <span>Clientes</span>
+                </button>
+                <h2 id="client-name-header" class="text-white text-lg font-bold">Nombre del Cliente</h2>
+            </div>
+            <!-- Create Project Button -->
+            <div class="px-4 py-2">
+                 <button id="add-project-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-[20px]">add</span>
+                    <span>Añadir Proyecto</span>
+                </button>
+            </div>
+            <!-- Navigation / Project List -->
+            <nav id="project-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+                <p id="no-projects-message" class="px-3 py-2 text-sm text-text-muted">No hay proyectos.</p>
+            </nav>
+        </div>
 
-        <!-- Bottom Actions -->
-        <div class="p-2 border-t border-border-dark flex flex-col gap-1">
+        <!-- Bottom Actions (shared) -->
+        <div class="p-2 border-t border-border-dark flex flex-col gap-1 mt-auto">
             <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
                 <span class="material-symbols-outlined">settings</span>
                 <span class="text-sm font-medium">Ajustes</span>
@@ -137,6 +161,11 @@
         </form>
     </div>
 </div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js" type="module"></script>
+<script src="firebase-config.js" type="module"></script>
 
 <script src="dashboard-data.js" type="module"></script>
 <script src="logout.js" type="module"></script>
