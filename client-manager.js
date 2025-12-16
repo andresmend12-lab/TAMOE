@@ -54,15 +54,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Data Rendering ---
     const renderClients = (clients) => {
-        clientListNav.innerHTML = ''; // Clear previous list
+        // Remove only client links, leaving the message paragraph intact
+        clientListNav.querySelectorAll('a').forEach(link => link.remove());
 
         if (clients.length === 0) {
             noClientsMessage.textContent = 'No hay clientes.';
-            clientListNav.appendChild(noClientsMessage);
+            noClientsMessage.classList.remove('hidden');
         } else {
+            noClientsMessage.classList.add('hidden');
             clients.forEach(client => {
                 const clientLink = document.createElement('a');
-                clientLink.href = '#'; 
+                clientLink.href = '#';
                 clientLink.className = 'flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
                 clientLink.setAttribute('data-client-id', client.id);
                 clientLink.innerHTML = `
@@ -81,6 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Data Fetching ---
     const fetchClients = async (user) => {
         if (!user) return;
+        
+        // Ensure the "loading" message is shown during fetch
+        noClientsMessage.textContent = 'Cargando clientes...';
+        noClientsMessage.classList.remove('hidden');
+        clientListNav.querySelectorAll('a').forEach(link => link.remove());
+
         const clientsRef = collection(db, "clients");
         const q = query(clientsRef, where("ownerId", "==", user.uid));
         
@@ -91,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Error fetching clients: ", error);
             noClientsMessage.textContent = 'Error al cargar clientes.';
+            noClientsMessage.classList.remove('hidden');
         }
     };
 
@@ -122,12 +131,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (companyName && user) {
             try {
-                await addDoc(collection(db, "clients"), {
+                const docRef = await addDoc(collection(db, "clients"), {
                     name: companyName,
                     ownerId: user.uid,
                     createdAt: Timestamp.fromDate(new Date())
                 });
-                await fetchClients(user); // Re-fetch the entire list to get the new client
+                // Optimistically update UI
+                const newClient = { id: docRef.id, name: companyName };
+                allClients.push(newClient);
+                renderClients(allClients);
                 closeModal();
             } catch (error) {
                 console.error("Error adding document: ", error);
@@ -139,8 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Initialization ---
     onAuthStateChanged(auth, (user) => {
         if (user) {
+            // User is signed in, fetch their clients.
             fetchClients(user);
         } else {
+            // User is signed out, clear the list and show "no clients".
+            allClients = [];
             renderClients([]); 
         }
     });
