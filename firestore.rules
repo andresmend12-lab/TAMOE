@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Rules for the 'clients' collection
+    match /clients/{clientId} {
+      // A user can create a client if they are logged in and the new client's ownerId is their own UID.
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+
+      // A user can read, update, or delete a client if they are logged in and they are the owner.
+      allow read, update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    // You will need to add rules for other collections like 'users' here if your app needs them.
+    // For now, we are only allowing access to the 'clients' collection.
+  }
+}
