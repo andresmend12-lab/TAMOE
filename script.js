@@ -58,7 +58,7 @@ if (registerForm) {
                 // Signed in 
                 const user = userCredential.user;
                 writeUserData(user.uid, name, user.email);
-                window.location.href = 'index.html';
+                window.location.href = 'maindashboard.html';
             })
             .catch((error) => {
                 const errorCode = error.code;
@@ -79,7 +79,7 @@ if (googleRegisterButton) {
                 if (additionalUserInfo?.isNewUser) {
                     writeUserData(user.uid, user.displayName, user.email);
                 }
-                window.location.href = 'index.html';
+                window.location.href = 'maindashboard.html';
             }).catch((error) => {
                 const errorCode = error.code;
                 const errorMessage = error.message;
@@ -103,7 +103,7 @@ if (loginForm) {
         signInWithEmailAndPassword(auth, email, password)
             .then((userCredential) => {
                 // Signed in
-                window.location.href = 'index.html';
+                window.location.href = 'maindashboard.html';
             })
             .catch((error) => {
                 const errorCode = error.code;
@@ -124,7 +124,7 @@ if (loginGoogleButton) {
                 if (additionalUserInfo?.isNewUser) {
                     writeUserData(user.uid, user.displayName, user.email);
                 }
-                window.location.href = 'index.html';
+                window.location.href = 'maindashboard.html';
             }).catch((error) => {
                 const errorCode = error.code;
                 const errorMessage = error.message;
