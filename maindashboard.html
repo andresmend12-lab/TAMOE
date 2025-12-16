@@ -85,11 +85,15 @@
 <span class="material-symbols-outlined">settings</span>
 <span class="text-sm font-medium">Settings</span>
 </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="profile.html">
+<span class="material-symbols-outlined">person</span>
+<span class="text-sm font-medium">Edit Profile</span>
+</a>
 <div class="flex items-center gap-3 px-3 py-3 mt-2 border-t border-white/5">
-<div class="size-8 rounded-full bg-cover bg-center ring-2 ring-primary/30" data-alt="User profile picture of a person smiling" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBVS5En7DKNBUkoAFoSxB9Arr5PCTcjS-aCM22Jd6O7y6s5S1Yk4OeAtKkztDUzDEQcWKg0vkkXssFZXveSMgu1XhWmffxhmO5EhvseMO4SA9a6M_F2fDA0noI0338m6PQ0UMRKpap3-X1gUpsUGwwpd4O31OXPiKfVFw0CDmt6ypwCqvGer7oWkz2qsd1u2SNWEHR1SBoHstlaotFcvZJV6i0vIcHSdrrtJaYzyI2qgfltXroO17wwmlRJKqJxS-ysTYz7sGHv0Q");'></div>
+<div id="user-avatar" class="size-8 rounded-full bg-cover bg-center ring-2 ring-primary/30" data-alt="User profile picture of a person smiling" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBVS5En7DKNBUkoAFoSxB9Arr5PCTcjS-aCM22Jd6O7y6s5S1Yk4OeAtKkztDUzDEQcWKg0vkkXssFZXveSMgu1XhWmffxhmO5EhvseMO4SA9a6M_F2fDA0noI0338m6PQ0UMRKpap3-X1gUpsUGwwpd4O31OXPiKfVFw0CDmt6ypwCqvGer7oWkz2qsd1u2SNWEHR1SBoHstlaotFcvZJV6i0vIcHSdrrtJaYzyI2qgfltXroO17wwmlRJKqJxS-ysTYz7sGHv0Q");'></div>
 <div class="flex flex-col overflow-hidden">
-<span class="text-sm font-semibold text-white truncate">Jane Doe</span>
-<span class="text-xs text-text-muted truncate">jane@taskmaster.com</span>
+<span id="user-name" class="text-sm font-semibold text-white truncate">Jane Doe</span>
+<span id="user-email" class="text-xs text-text-muted truncate">jane@taskmaster.com</span>
 </div>
 </div>
 </div>
@@ -120,7 +124,7 @@
 <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
 <!-- Welcome & Stats -->
 <div class="flex flex-col gap-2">
-<h1 class="text-3xl font-bold text-white tracking-tight">Good afternoon, Jane</h1>
+<h1 id="welcome-message" class="text-3xl font-bold text-white tracking-tight">Good afternoon, Jane</h1>
 <p class="text-text-muted">You have 4 issues assigned to you today.</p>
 </div>
 <!-- Tabs -->
@@ -282,4 +286,5 @@
 </div>
 </main>
 </div>
+<script src="dashboard-data.js" type="module"></script>
 </body></html>
