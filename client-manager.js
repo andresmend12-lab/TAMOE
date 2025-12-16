@@ -1,10 +1,9 @@
-import { app } from './firebase-config.js';
-import { getFirestore, collection, addDoc, getDocs, query, where, Timestamp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+import { auth, firestore } from './firebase.js';
+import { collection, addDoc, getDocs, query, where, Timestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const db = firestore;
 
     // --- DOM Elements ---
     const clientView = document.getElementById('client-view');
