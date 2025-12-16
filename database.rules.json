@@ -3,14 +3,16 @@
     "users": {
       "$uid": {
         ".write": "$uid === auth.uid",
-        ".read": "auth != null"
+        ".read": "auth != null && auth.uid === $uid"
       }
     },
     "clients": {
+      // allow querying /clients (parent) if logged in; per-document filter still applies
+      ".read": "auth != null",
       ".indexOn": ["ownerId"],
       "$clientId": {
         ".read": "auth != null && data.child('ownerId').val() === auth.uid",
-        ".write": "auth != null && (newData.child('ownerId').val() === auth.uid || !data.exists())"
+        ".write": "auth != null && (newData.child('ownerId').val() === auth.uid || (!data.exists() && newData.child('ownerId').val() === auth.uid))"
       }
     }
   }

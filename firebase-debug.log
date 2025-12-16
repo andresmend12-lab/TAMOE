@@ -1,0 +1,44 @@
+[debug] [2025-12-16T22:04:51.114Z] ----------------------------------------------------------------------
+[debug] [2025-12-16T22:04:51.117Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Andrés\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only database
+[debug] [2025-12-16T22:04:51.118Z] CLI Version:   15.0.0
+[debug] [2025-12-16T22:04:51.118Z] Platform:      win32
+[debug] [2025-12-16T22:04:51.118Z] Node Version:  v22.21.0
+[debug] [2025-12-16T22:04:51.118Z] Time:          Tue Dec 16 2025 23:04:51 GMT+0100 (hora estándar de Europa central)
+[debug] [2025-12-16T22:04:51.118Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-16T22:04:53.705Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-16T22:04:53.705Z] > authorizing via signed-in user (andresmend12@gmail.com)
+[debug] [2025-12-16T22:04:53.706Z] [iam] checking project tamoe-142ba for permissions ["firebase.projects.get","firebasedatabase.instances.update"]
+[debug] [2025-12-16T22:04:53.707Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:53.707Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:53.708Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/tamoe-142ba:testIamPermissions [none]
+[debug] [2025-12-16T22:04:53.708Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/tamoe-142ba:testIamPermissions x-goog-quota-user=projects/tamoe-142ba
+[debug] [2025-12-16T22:04:53.709Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/tamoe-142ba:testIamPermissions {"permissions":["firebase.projects.get","firebasedatabase.instances.update"]}
+[debug] [2025-12-16T22:04:54.418Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/tamoe-142ba:testIamPermissions 200
+[debug] [2025-12-16T22:04:54.419Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/tamoe-142ba:testIamPermissions {"permissions":["firebase.projects.get","firebasedatabase.instances.update"]}
+[debug] [2025-12-16T22:04:54.419Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:54.419Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:54.419Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/tamoe-142ba [none]
+[debug] [2025-12-16T22:04:54.694Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/tamoe-142ba 200
+[debug] [2025-12-16T22:04:54.694Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/tamoe-142ba {"projectId":"tamoe-142ba","projectNumber":"80473224542","displayName":"TAMOE","name":"projects/tamoe-142ba","resources":{"hostingSite":"tamoe-142ba","realtimeDatabaseInstance":"tamoe-142ba-default-rtdb"},"state":"ACTIVE","etag":"1_e80c0b93-4131-4f6a-9e49-d7a0ad6ce260"}
+[info] 
+[info] === Deploying to 'tamoe-142ba'...
+[info] 
+[info] i  deploying database 
+[info] i  database: checking rules syntax... 
+[debug] [2025-12-16T22:04:54.701Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:54.701Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:54.701Z] >>> [apiv2][query] GET https://firebasedatabase.googleapis.com/v1beta/projects/tamoe-142ba/locations/-/instances/tamoe-142ba-default-rtdb [none]
+[debug] [2025-12-16T22:04:55.546Z] <<< [apiv2][status] GET https://firebasedatabase.googleapis.com/v1beta/projects/tamoe-142ba/locations/-/instances/tamoe-142ba-default-rtdb 200
+[debug] [2025-12-16T22:04:55.546Z] <<< [apiv2][body] GET https://firebasedatabase.googleapis.com/v1beta/projects/tamoe-142ba/locations/-/instances/tamoe-142ba-default-rtdb {"name":"projects/80473224542/locations/europe-west1/instances/tamoe-142ba-default-rtdb","project":"projects/80473224542","databaseUrl":"https://tamoe-142ba-default-rtdb.europe-west1.firebasedatabase.app","type":"DEFAULT_DATABASE","state":"ACTIVE"}
+[debug] [2025-12-16T22:04:55.547Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:55.547Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:55.547Z] >>> [apiv2][query] PUT https://tamoe-142ba-default-rtdb.europe-west1.firebasedatabase.app/.settings/rules.json dryRun=true
+[debug] [2025-12-16T22:04:55.547Z] >>> [apiv2][body] PUT https://tamoe-142ba-default-rtdb.europe-west1.firebasedatabase.app/.settings/rules.json "{\r\n  \"rules\": {\r\n    \"users\": {\r\n      \"$uid\": {\r\n        \".write\": \"$uid === auth.uid\",\r\n        \".read\": \"auth != null && auth.uid === $uid\"\r\n      }\r\n    },\r\n    \"clients\": {\r\n      // allow querying /clients (parent) if logged in; per-document filter still applies\r\n      \".read\": \"auth != null\",\r\n      \".indexOn\": [\"ownerId\"],\r\n      \"$clientId\": {\r\n        \".read\": \"auth != null && data.child('ownerId').val() === auth.uid\",\r\n        \".write\": \"auth != null && (newData.child('ownerId').val() === auth.uid || (!data.exists() && newData.child('ownerId').val() === auth.uid))\"\r\n      }\r\n    }\r\n  }\r\n}\r\n"
+[debug] [2025-12-16T22:04:55.675Z] <<< [apiv2][status] PUT https://tamoe-142ba-default-rtdb.europe-west1.firebasedatabase.app/.settings/rules.json 401
+[debug] [2025-12-16T22:04:55.675Z] <<< [apiv2][body] PUT https://tamoe-142ba-default-rtdb.europe-west1.firebasedatabase.app/.settings/rules.json {"error":"Unauthorized request."}
+[debug] [2025-12-16T22:04:55.675Z] Got a 401 Unauthenticated error for a call that required authentication. Refreshing tokens.
+[debug] [2025-12-16T22:04:55.675Z] Checked if tokens are valid: true, expires at: 1765923875890
+[debug] [2025-12-16T22:04:55.675Z] Checked if tokens are valid: true, expires at: 1765923875890
+[error] 
+[error] Error: Unexpected error while deploying database rules.
