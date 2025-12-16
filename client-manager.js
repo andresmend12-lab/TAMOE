@@ -1,6 +1,6 @@
 import { app } from './firebase-config.js';
 import { getFirestore, collection, addDoc, getDocs, query, where, Timestamp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
-import { getAuth } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const db = getFirestore(app);
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelAddClientBtn = document.getElementById('cancel-add-client');
     const companyNameInput = document.getElementById('company-name');
 
-    let allClients = []; // Store all fetched clients
+    let allClients = [];
 
     // --- View Switching Logic ---
     const showClientView = () => {
@@ -54,13 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Data Rendering ---
     const renderClients = (clients) => {
-        clientListNav.querySelectorAll('a').forEach(link => link.remove());
+        clientListNav.innerHTML = ''; // Clear previous list
 
         if (clients.length === 0) {
             noClientsMessage.textContent = 'No hay clientes.';
-            noClientsMessage.classList.remove('hidden');
+            clientListNav.appendChild(noClientsMessage);
         } else {
-            noClientsMessage.classList.add('hidden');
             clients.forEach(client => {
                 const clientLink = document.createElement('a');
                 clientLink.href = '#'; 
@@ -92,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Error fetching clients: ", error);
             noClientsMessage.textContent = 'Error al cargar clientes.';
-            noClientsMessage.classList.remove('hidden');
         }
     };
 
@@ -104,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const closeModal = () => {
         addClientModal.classList.add('hidden');
-        companyNameInput.value = '';
+        addClientForm.reset();
     };
 
     // --- Event Listeners ---
@@ -124,15 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (companyName && user) {
             try {
-                // Add to Firestore
-                const docRef = await addDoc(collection(db, "clients"), {
+                await addDoc(collection(db, "clients"), {
                     name: companyName,
                     ownerId: user.uid,
                     createdAt: Timestamp.fromDate(new Date())
                 });
-                // Add to local array and re-render
-                allClients.push({ id: docRef.id, name: companyName });
-                renderClients(allClients);
+                await fetchClients(user); // Re-fetch the entire list to get the new client
                 closeModal();
             } catch (error) {
                 console.error("Error adding document: ", error);
@@ -142,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Initialization ---
-    auth.onAuthStateChanged((user) => {
+    onAuthStateChanged(auth, (user) => {
         if (user) {
             fetchClients(user);
         } else {
