@@ -11,6 +11,7 @@ onAuthStateChanged(auth, (user) => {
             if (snapshot.exists()) {
                 const userData = snapshot.val();
                 const userName = userData.username || 'User';
+                const department = userData.department || 'No Department';
 
                 // Update Welcome Message
                 const welcomeMessage = document.getElementById('welcome-message');
@@ -19,12 +20,16 @@ onAuthStateChanged(auth, (user) => {
                 }
 
                 // Update Sidebar User Info
-                const-side-bar-user-name = document.getElementById('user-name');
-                const-side-bar-user-email = document.getElementById('user-email');
-                const-side-bar-user-avatar = document.getElementById('user-avatar');
+                const sideBarUserName = document.getElementById('sidebar-user-name');
+                const sideBarUserDepartment = document.getElementById('sidebar-user-department');
+                const sideBarUserEmail = document.getElementById('user-email');
+                const sideBarUserAvatar = document.getElementById('user-avatar');
 
                 if(sideBarUserName) {
                     sideBarUserName.textContent = userName;
+                }
+                 if(sideBarUserDepartment) {
+                    sideBarUserDepartment.textContent = department;
                 }
                 if(sideBarUserEmail) {
                     sideBarUserEmail.textContent = user.email;
