@@ -77,11 +77,12 @@ if (profileForm) {
         Promise.all(updatePromises)
             .then(() => {
                 alert("Profile updated successfully!");
-                window.location.href = 'maindashboard.html';
             })
             .catch(error => {
                 console.error("Error updating profile:", error);
                 alert(`Error: ${error.message}`);
+            })
+            .finally(() => {
                 submitButton.disabled = false;
                 submitButton.textContent = 'Save Changes';
             });
