@@ -45,7 +45,7 @@
         },
       };
     </script>
-<script src="script.js" defer></script>
+<script src="script.js" type="module" defer></script>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-body text-text-light dark:text-text-dark min-h-screen flex items-center justify-center transition-colors duration-300 antialiased selection:bg-primary selection:text-white relative overflow-hidden">
 <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -68,21 +68,21 @@
                     Ingresa tus credenciales para acceder a tu panel de proyectos.
                 </p>
 </div>
-<form onsubmit="return false;" class="space-y-6">
+<form id="login-form" class="space-y-6">
 <div>
-<label class="block text-sm font-medium text-text-light dark:text-gray-300 mb-2" for="email">
+<label class="block text-sm font-medium text-text-light dark:text-gray-300 mb-2" for="login-email">
                         Correo Electrónico
                     </label>
 <div class="relative rounded-md shadow-sm">
 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
 <span class="material-icons-outlined text-gray-400 text-lg">email</span>
 </div>
-<input class="block w-full pl-10 pr-3 py-2.5 border border-border-light dark:border-border-dark rounded-lg bg-gray-50 dark:bg-gray-800/50 text-text-light dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow sm:text-sm" id="email" name="email" placeholder="nombre@empresa.com" required="" type="email"/>
+<input class="block w-full pl-10 pr-3 py-2.5 border border-border-light dark:border-border-dark rounded-lg bg-gray-50 dark:bg-gray-800/50 text-text-light dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow sm:text-sm" id="login-email" name="email" placeholder="nombre@empresa.com" required type="email"/>
 </div>
 </div>
 <div>
 <div class="flex items-center justify-between mb-2">
-<label class="block text-sm font-medium text-text-light dark:text-gray-300" for="password">
+<label class="block text-sm font-medium text-text-light dark:text-gray-300" for="login-password">
                             Contraseña
                         </label>
 <a class="text-sm font-medium text-primary hover:text-primary-hover transition-colors" href="#">
@@ -93,7 +93,7 @@
 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
 <span class="material-icons-outlined text-gray-400 text-lg">lock</span>
 </div>
-<input class="block w-full pl-10 pr-10 py-2.5 border border-border-light dark:border-border-dark rounded-lg bg-gray-50 dark:bg-gray-800/50 text-text-light dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow sm:text-sm" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<input class="block w-full pl-10 pr-10 py-2.5 border border-border-light dark:border-border-dark rounded-lg bg-gray-50 dark:bg-gray-800/50 text-text-light dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow sm:text-sm" id="login-password" name="password" placeholder="••••••••" required type="password"/>
 <div class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer">
 <span class="material-icons-outlined text-gray-400 text-lg hover:text-gray-600 dark:hover:text-gray-200">visibility</span>
 </div>
@@ -106,7 +106,7 @@
                     </label>
 </div>
 <div>
-<button id="login-button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-surface-dark focus:ring-primary transition-all transform active:scale-[0.98]">
+<button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-surface-dark focus:ring-primary transition-all transform active:scale-[0.98]">
                         Iniciar Sesión
                     </button>
 </div>
