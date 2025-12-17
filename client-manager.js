@@ -585,19 +585,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         button.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const isOpen = !menu.classList.contains('hidden');
-            closeAllActionMenus(menu);
-            if (isOpen) {
-                menu.classList.add('hidden');
-                return;
-            }
-            buildMenu();
-            refreshMenuChecks();
-            positionMenu();
-            menu.classList.remove('hidden');
-        });
+    e.preventDefault();
+    e.stopPropagation();
+    const isOpen = !menu.classList.contains('hidden');
+    closeAllActionMenus(menu);
+    if (isOpen) {
+        menu.classList.add('hidden');
+        return;
+    }
+    buildMenu(); // <--- IMPORTANTE: Volver a generar la lista cada vez que se abre
+    refreshMenuChecks();
+    positionMenu();
+    menu.classList.remove('hidden');
+});
 
         wrapper.append(button, menu);
         return wrapper;
