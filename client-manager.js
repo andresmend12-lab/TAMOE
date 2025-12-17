@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyStatusChipStyle(button, label, status);
 
         const menu = document.createElement('div');
-        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-50';
+        menu.className = 'action-menu hidden absolute right-0 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
 
         let saving = false;
         const setSaving = (isSaving) => {
@@ -230,12 +230,74 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
+        const findClippingContainer = () => {
+            let node = wrapper.parentElement;
+            while (node && node !== document.body && node !== document.documentElement) {
+                const style = window.getComputedStyle(node);
+                const overflowY = style.overflowY;
+                const overflowX = style.overflowX;
+                if (
+                    ['auto', 'scroll', 'hidden', 'clip'].includes(overflowY) ||
+                    ['auto', 'scroll', 'hidden', 'clip'].includes(overflowX)
+                ) {
+                    return node;
+                }
+                node = node.parentElement;
+            }
+            return document.documentElement;
+        };
+
+        const positionMenu = () => {
+            const clipping = findClippingContainer();
+            const clipRect = clipping.getBoundingClientRect();
+            const btnRect = button.getBoundingClientRect();
+            const padding = 8;
+
+            menu.style.maxHeight = '';
+            menu.style.minWidth = '';
+
+            const wasHidden = menu.classList.contains('hidden');
+            if (wasHidden) {
+                menu.classList.remove('hidden');
+                menu.style.visibility = 'hidden';
+            }
+
+            const menuRect = menu.getBoundingClientRect();
+            const menuHeight = menuRect.height || 140;
+
+            const availableBelow = clipRect.bottom - btnRect.bottom;
+            const availableAbove = btnRect.top - clipRect.top;
+            const shouldOpenUp = availableBelow < (menuHeight + padding) && availableAbove > availableBelow;
+
+            menu.classList.remove('top-full', 'mt-2', 'bottom-full', 'mb-2');
+            if (shouldOpenUp) {
+                menu.classList.add('bottom-full', 'mb-2');
+                const maxHeight = Math.max(120, Math.floor(availableAbove - padding));
+                menu.style.maxHeight = `${maxHeight}px`;
+            } else {
+                menu.classList.add('top-full', 'mt-2');
+                const maxHeight = Math.max(120, Math.floor(availableBelow - padding));
+                menu.style.maxHeight = `${maxHeight}px`;
+            }
+
+            if (wasHidden) {
+                menu.style.visibility = '';
+                menu.classList.add('hidden');
+            }
+        };
+
         button.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            refreshMenuChecks();
+            const isOpen = !menu.classList.contains('hidden');
             closeAllActionMenus(menu);
-            menu.classList.toggle('hidden');
+            if (isOpen) {
+                menu.classList.add('hidden');
+                return;
+            }
+            refreshMenuChecks();
+            positionMenu();
+            menu.classList.remove('hidden');
         });
 
         wrapper.append(button, menu);
@@ -1114,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         sortedClients.forEach(client => {
             const clientDetails = document.createElement('details');
-            clientDetails.className = 'bg-surface-dark border border-border-dark rounded-lg overflow-hidden';
+            clientDetails.className = 'bg-surface-dark border border-border-dark rounded-lg';
             const clientManage = client.manageId || '';
             clientDetails.dataset.manageId = client.manageId || `client:${client.id}`;
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
@@ -1134,7 +1196,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 projectArray.forEach(proj => {
                     const projDetails = document.createElement('details');
-                    projDetails.className = 'border border-border-dark/70 rounded-lg overflow-hidden';
+                    projDetails.className = 'border border-border-dark/70 rounded-lg';
                     projDetails.dataset.manageId = proj.manageId || `project:${client.id}:${proj.id}`;
                     projDetails.appendChild(makeSummary(
                         'layers',
@@ -1235,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         productArray.forEach(prod => {
                             const productBasePath = `clients/${client.id}/projects/${proj.id}/products/${prod.id}`;
                             const prodDetails = document.createElement('details');
-                            prodDetails.className = 'border border-border-dark/60 rounded-lg overflow-hidden';
+                            prodDetails.className = 'border border-border-dark/60 rounded-lg';
                             prodDetails.dataset.manageId = prod.manageId || `product:${client.id}:${proj.id}:${prod.id}`;
                             prodDetails.appendChild(makeSummary(
                                 'category',
