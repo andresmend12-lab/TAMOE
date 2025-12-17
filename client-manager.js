@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const users = Object.entries(usersByUid || {})
                 .map(([uid, user]) => ({ uid, ...user }))
-                .filter(entry => entry.uid && (entry.username || entry.email));
+                .filter(entry => entry.uid);
 
             users.sort((a, b) => (a.username || a.email || '').localeCompare(b.username || b.email || ''));
 
@@ -2037,18 +2037,23 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(clientListSection);
     };
 
-    const subscribeUsers = () => {
-        if (usersUnsubscribe) usersUnsubscribe();
-        usersUnsubscribe = onValue(ref(database, 'users'), (snapshot) => {
-            usersByUid = snapshot.val() || {};
-            if (selectedClientId && selectedProjectId) {
-                renderTasks(selectedClientId, selectedProjectId, selectedProductId);
-            }
-            renderTree();
-        }, (error) => {
-            console.error('Error fetching users:', error);
-        });
-    };
+   const subscribeUsers = () => {
+    if (usersUnsubscribe) usersUnsubscribe();
+    
+    // Escuchamos la rama 'users' para obtener todos los perfiles de la base de datos
+    usersUnsubscribe = onValue(ref(database, 'users'), (snapshot) => {
+        usersByUid = snapshot.val() || {};
+        console.log("Usuarios cargados para asignación:", Object.keys(usersByUid).length);
+        
+        // Refrescamos la vista actual si hay un proyecto seleccionado para que se vean los nombres
+        if (selectedClientId && selectedProjectId) {
+            renderTasks(selectedClientId, selectedProjectId, selectedProductId);
+        }
+        renderTree();
+    }, (error) => {
+        console.error('Error al cargar la lista de usuarios:', error);
+    });
+};
 
     // Fetch clients from RTDB
     const fetchClients = () => {
