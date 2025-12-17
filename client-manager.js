@@ -1,5 +1,5 @@
 ﻿import { auth, database } from './firebase.js';
-import { ref, push, onValue, query, set, update, remove, runTransaction } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { ref, push, onValue, query, set, update, remove, runTransaction, serverTimestamp, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const treeExpandToggle = document.getElementById('tree-expand-toggle');
     const treeExpandIcon = document.getElementById('tree-expand-icon');
     const treeExpandLabel = document.getElementById('tree-expand-label');
+    const clientSearchInput = document.getElementById('client-search-input');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -84,6 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedProductId = null;
     let selectedTaskId = null;
     let selectedSubtaskId = null;
+    let clientSearchQuery = '';
+    let clientsLoading = false;
 
     // User dropdown
     const userMenuToggle = document.getElementById('user-menu-toggle');
@@ -192,6 +195,220 @@ document.addEventListener('DOMContentLoaded', () => {
         'Finalizado': 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
     };
 
+    const parseClientPath = (pathValue) => {
+        const path = String(pathValue || '').trim();
+        if (!path) return null;
+        const parts = path.split('/').filter(Boolean);
+        if (parts[0] !== 'clients') return null;
+
+        const clientId = parts[1] || '';
+        if (!clientId) return null;
+
+        const projectIndex = parts.indexOf('projects');
+        const projectId = projectIndex >= 0 ? (parts[projectIndex + 1] || '') : '';
+        const productIndex = parts.indexOf('products');
+        const productId = productIndex >= 0 ? (parts[productIndex + 1] || '') : '';
+        const taskIndex = parts.indexOf('tasks');
+        const taskId = taskIndex >= 0 ? (parts[taskIndex + 1] || '') : '';
+        const subtaskIndex = parts.indexOf('subtasks');
+        const subtaskId = subtaskIndex >= 0 ? (parts[subtaskIndex + 1] || '') : '';
+
+        const type = subtaskId
+            ? 'subtask'
+            : taskId
+                ? 'task'
+                : productId
+                    ? 'product'
+                    : projectId
+                        ? 'project'
+                        : 'client';
+
+        return { type, clientId, projectId, productId, taskId, subtaskId, path };
+    };
+
+    const getItemFromState = (parsed) => {
+        const clientId = parsed?.clientId;
+        if (!clientId) return null;
+        const client = allClients.find(c => c.id === clientId);
+        if (!client) return null;
+        if (parsed.type === 'client') return client;
+
+        const projectId = parsed?.projectId;
+        const project = projectId ? client?.projects?.[projectId] : null;
+        if (!project) return null;
+        if (parsed.type === 'project') return project;
+
+        const productId = parsed?.productId;
+        const product = productId ? project?.products?.[productId] : null;
+        if (parsed.type === 'product') return product;
+
+        const taskId = parsed?.taskId;
+        const task = taskId
+            ? (productId ? product?.tasks?.[taskId] : project?.tasks?.[taskId])
+            : null;
+        if (parsed.type === 'task') return task;
+
+        const subtaskId = parsed?.subtaskId;
+        if (!subtaskId || !task?.subtasks) return null;
+        return task.subtasks[subtaskId] || null;
+    };
+
+    const getTypeLabel = (type) => {
+        if (type === 'client') return 'Cliente';
+        if (type === 'project') return 'Proyecto';
+        if (type === 'product') return 'Producto';
+        if (type === 'task') return 'Tarea';
+        if (type === 'subtask') return 'Subtarea';
+        return 'Elemento';
+    };
+
+    const getCurrentActorName = () => {
+        const uid = currentUser?.uid;
+        return (
+            getUserDisplayNameByUid(uid)
+            || currentUser?.displayName
+            || currentUser?.email
+            || uid
+            || 'Usuario'
+        );
+    };
+
+    const sendNotification = async (targetUidValue, titleValue, taskNameValue) => {
+        const targetUid = String(targetUidValue || '').trim();
+        if (!targetUid) return;
+        const title = String(titleValue || '').trim() || 'Notificación';
+        const taskName = String(taskNameValue || '').trim();
+        const fromUid = currentUser?.uid || '';
+
+        try {
+            await push(ref(database, `notifications/${targetUid}`), {
+                title,
+                taskName,
+                fromUid,
+                fromName: getCurrentActorName(),
+                read: false,
+                createdAt: serverTimestamp(),
+            });
+        } catch (error) {
+            console.warn('No se pudo enviar la notificación:', error);
+        }
+    };
+
+    const logActivity = async (clientIdValue, descriptionValue, meta = {}) => {
+        const clientId = String(clientIdValue || '').trim();
+        const description = String(descriptionValue || '').trim();
+        if (!clientId || !description || !currentUser) return;
+        try {
+            await push(ref(database, `clients/${clientId}/activity_logs`), {
+                actorUid: currentUser.uid,
+                actorName: getCurrentActorName(),
+                description,
+                timestamp: serverTimestamp(),
+                ...meta,
+            });
+        } catch (error) {
+            console.warn('No se pudo registrar el log de actividad:', error);
+        }
+    };
+
+    const QC_TASK_TEMPLATE = 'qc_review';
+    const QC_TASK_NAME = '✅ Revisión de Control de Calidad';
+
+    const isQualityControlTask = (task) => task?.automation?.template === QC_TASK_TEMPLATE;
+
+    const fetchTasksObject = async (tasksPathValue) => {
+        const tasksPath = String(tasksPathValue || '').trim();
+        if (!tasksPath) return {};
+        try {
+            const snap = await get(ref(database, tasksPath));
+            return snap.val() || {};
+        } catch (error) {
+            console.warn('No se pudo leer tareas para automatización:', error);
+            return {};
+        }
+    };
+
+    const qcTaskExistsForSource = (tasksObject, sourcePathValue) => {
+        const sourcePath = String(sourcePathValue || '').trim();
+        if (!sourcePath) return false;
+        return Object.values(tasksObject || {}).some((task) => (
+            task
+            && task.automation?.template === QC_TASK_TEMPLATE
+            && String(task.automation?.sourcePath || '') === sourcePath
+        ));
+    };
+
+    const ensureQualityControlTask = async ({ clientId, tasksPath, sourcePath, sourceType, sourceName, sourceManageId }) => {
+        const safeClientId = String(clientId || '').trim();
+        const safeTasksPath = String(tasksPath || '').trim();
+        const safeSourcePath = String(sourcePath || '').trim();
+        if (!safeClientId || !safeTasksPath || !safeSourcePath) return null;
+
+        const existingTasks = await fetchTasksObject(safeTasksPath);
+        if (qcTaskExistsForSource(existingTasks, safeSourcePath)) return null;
+
+        const manageId = await allocateNextManageId(safeClientId);
+        const newTaskRef = push(ref(database, safeTasksPath));
+        const taskId = newTaskRef.key;
+
+        const taskData = {
+            name: QC_TASK_NAME,
+            status: 'Pendiente',
+            assigneeUid: '',
+            createdAt: new Date().toISOString(),
+            taskId,
+            manageId,
+            automation: {
+                template: QC_TASK_TEMPLATE,
+                sourcePath: safeSourcePath,
+                sourceType: String(sourceType || '').trim(),
+                sourceName: String(sourceName || '').trim(),
+                sourceManageId: String(sourceManageId || '').trim(),
+                createdByUid: currentUser?.uid || '',
+                createdAt: new Date().toISOString(),
+            },
+        };
+
+        await set(newTaskRef, taskData);
+        const sourceLabel = getTypeLabel(sourceType);
+        const sourceTitle = String(sourceName || '').trim() || sourceLabel;
+        await logActivity(
+            safeClientId,
+            `Creó tarea automática "${QC_TASK_NAME}" para ${sourceLabel} "${sourceTitle}".`,
+            { action: 'automation_qc', path: safeTasksPath, entityType: 'task', sourcePath: safeSourcePath }
+        );
+
+        return taskData;
+    };
+
+    const maybeCascadeFinalizeProduct = async ({ clientId, projectId, productId }) => {
+        const safeClientId = String(clientId || '').trim();
+        const safeProjectId = String(projectId || '').trim();
+        const safeProductId = String(productId || '').trim();
+        if (!safeClientId || !safeProjectId || !safeProductId) return;
+
+        const productTasksPath = `clients/${safeClientId}/projects/${safeProjectId}/products/${safeProductId}/tasks`;
+        const tasksObject = await fetchTasksObject(productTasksPath);
+        const tasks = Object.values(tasksObject || {}).filter(Boolean);
+        if (!tasks.length) return;
+
+        const allFinalized = tasks.every(t => normalizeStatus(t.status) === 'Finalizado');
+        if (!allFinalized) return;
+
+        const productPath = `clients/${safeClientId}/projects/${safeProjectId}/products/${safeProductId}`;
+        let currentStatus = 'Pendiente';
+        try {
+            const snap = await get(ref(database, productPath));
+            currentStatus = normalizeStatus(snap.val()?.status);
+        } catch (error) {
+            console.warn('No se pudo leer el estado del producto para cierre en cascada:', error);
+            currentStatus = 'Pendiente';
+        }
+        if (currentStatus === 'Finalizado') return;
+
+        await updateStatusAtPath(productPath, 'Finalizado', { source: 'cascade' });
+    };
+
     const applyStatusChipStyle = (button, labelEl, status) => {
         const normalized = normalizeStatus(status);
         if (labelEl) labelEl.textContent = normalized;
@@ -202,13 +419,73 @@ document.addEventListener('DOMContentLoaded', () => {
         button.title = normalized;
     };
 
-    const updateStatusAtPath = async (path, nextStatus) => {
+    const updateStatusAtPath = async (path, nextStatus, options = {}) => {
         if (!currentUser) {
             alert("Debes iniciar sesión para cambiar el estado.");
             return;
         }
+        const source = String(options?.source || '').trim() || 'user';
+        const skipAutomations = Boolean(options?.skipAutomations);
+        const parsed = parseClientPath(path);
+        const itemBefore = parsed ? getItemFromState(parsed) : null;
+        const prevStatus = normalizeStatus(itemBefore?.status);
         const normalized = normalizeStatus(nextStatus);
         await update(ref(database, path), { status: normalized });
+
+        if (parsed?.clientId && prevStatus !== normalized) {
+            const label = getTypeLabel(parsed.type);
+            const itemName = itemBefore?.name || label;
+            await logActivity(
+                parsed.clientId,
+                `Actualizó estado de ${label} "${itemName}" de "${prevStatus}" a "${normalized}".`,
+                { action: 'status_update', path, entityType: parsed.type, source }
+            );
+        }
+
+        if (!skipAutomations) {
+            try {
+                const shouldTriggerFinalization = prevStatus !== 'Finalizado' && normalized === 'Finalizado';
+
+                if (shouldTriggerFinalization && parsed?.clientId && parsed.projectId) {
+                    if (parsed.type === 'task') {
+                        if (!isQualityControlTask(itemBefore)) {
+                            const tasksPath = parsed.productId
+                                ? `clients/${parsed.clientId}/projects/${parsed.projectId}/products/${parsed.productId}/tasks`
+                                : `clients/${parsed.clientId}/projects/${parsed.projectId}/tasks`;
+
+                            await ensureQualityControlTask({
+                                clientId: parsed.clientId,
+                                tasksPath,
+                                sourcePath: path,
+                                sourceType: parsed.type,
+                                sourceName: itemBefore?.name || 'Tarea',
+                                sourceManageId: itemBefore?.manageId || ''
+                            });
+                        }
+                    } else if (parsed.type === 'product') {
+                        const tasksPath = `clients/${parsed.clientId}/projects/${parsed.projectId}/tasks`;
+                        await ensureQualityControlTask({
+                            clientId: parsed.clientId,
+                            tasksPath,
+                            sourcePath: path,
+                            sourceType: parsed.type,
+                            sourceName: itemBefore?.name || 'Producto',
+                            sourceManageId: itemBefore?.manageId || ''
+                        });
+                    }
+                }
+
+                if (parsed?.type === 'task' && parsed.clientId && parsed.projectId && parsed.productId && normalized === 'Finalizado') {
+                    await maybeCascadeFinalizeProduct({
+                        clientId: parsed.clientId,
+                        projectId: parsed.projectId,
+                        productId: parsed.productId
+                    });
+                }
+            } catch (error) {
+                console.warn('Error ejecutando automatizaciones de estado:', error);
+            }
+        }
     };
 
     const updateAssigneeAtPath = async (path, nextUid) => {
@@ -216,8 +493,27 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Debes iniciar sesi▋ para asignar tareas.");
             return;
         }
+        const parsed = parseClientPath(path);
+        const itemBefore = parsed ? getItemFromState(parsed) : null;
+        const prevUid = String(itemBefore?.assigneeUid || '').trim();
         const uid = String(nextUid || '').trim();
         await update(ref(database, path), { assigneeUid: uid });
+
+        if (parsed?.clientId && prevUid !== uid) {
+            const label = getTypeLabel(parsed.type);
+            const itemName = itemBefore?.name || label;
+            const toName = uid ? (getUserDisplayNameByUid(uid) || uid) : 'Sin asignar';
+            await logActivity(
+                parsed.clientId,
+                `Asignó ${label} "${itemName}" a ${toName}.`,
+                { action: 'assignee_update', path, entityType: parsed.type, assigneeUid: uid }
+            );
+        }
+
+        if (uid && prevUid !== uid) {
+            const itemName = itemBefore?.name || 'Tarea';
+            await sendNotification(uid, 'Nueva asignación', itemName);
+        }
     };
 
     const createStatusControl = ({ status, onChange }) => {
@@ -599,19 +895,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         button.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const isOpen = !menu.classList.contains('hidden');
-    closeAllActionMenus(menu);
-    if (isOpen) {
-        menu.classList.add('hidden');
-        return;
-    }
-    buildMenu(); // <--- IMPORTANTE: Volver a generar la lista cada vez que se abre
-    refreshMenuChecks();
-    positionMenu();
-    menu.classList.remove('hidden');
-});
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = !menu.classList.contains('hidden');
+            closeAllActionMenus(menu);
+            if (isOpen) {
+                menu.classList.add('hidden');
+                return;
+            }
+            buildMenu();
+            refreshMenuChecks();
+            positionMenu();
+            menu.classList.remove('hidden');
+        });
 
         wrapper.append(button, menu);
         return wrapper;
@@ -826,13 +1122,173 @@ document.addEventListener('DOMContentLoaded', () => {
         return formatManageId(prefix, allocatedNumber);
     };
 
+    const normalizeSearchText = (value) => stripDiacritics(String(value ?? '')).toLowerCase();
+
+    const getClientSearchQueryNormalized = () => normalizeSearchText(clientSearchQuery).trim();
+
+    const clientMatchesQuery = (client, queryNorm) => {
+        if (!queryNorm) return true;
+
+        const includes = (value) => normalizeSearchText(value).includes(queryNorm);
+        if (includes(client?.name) || includes(client?.manageId) || includes(client?.id)) return true;
+
+        const projects = client?.projects || {};
+        for (const [projectId, project] of Object.entries(projects)) {
+            if (!project) continue;
+            if (includes(project?.name) || includes(project?.manageId) || includes(projectId)) return true;
+
+            const projectTasks = project?.tasks || {};
+            for (const [taskId, task] of Object.entries(projectTasks)) {
+                if (!task) continue;
+                if (includes(task?.name) || includes(task?.manageId) || includes(taskId)) return true;
+
+                const subtasks = task?.subtasks || {};
+                for (const [subtaskId, subtask] of Object.entries(subtasks)) {
+                    if (!subtask) continue;
+                    if (includes(subtask?.name) || includes(subtask?.manageId) || includes(subtaskId)) return true;
+                }
+            }
+
+            const products = project?.products || {};
+            for (const [productId, product] of Object.entries(products)) {
+                if (!product) continue;
+                if (includes(product?.name) || includes(product?.manageId) || includes(productId)) return true;
+
+                const productTasks = product?.tasks || {};
+                for (const [taskId, task] of Object.entries(productTasks)) {
+                    if (!task) continue;
+                    if (includes(task?.name) || includes(task?.manageId) || includes(taskId)) return true;
+
+                    const subtasks = task?.subtasks || {};
+                    for (const [subtaskId, subtask] of Object.entries(subtasks)) {
+                        if (!subtask) continue;
+                        if (includes(subtask?.name) || includes(subtask?.manageId) || includes(subtaskId)) return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    };
+
+    const getVisibleClients = () => {
+        const queryNorm = getClientSearchQueryNormalized();
+        if (!queryNorm) return allClients;
+        return allClients.filter(client => clientMatchesQuery(client, queryNorm));
+    };
+
+    const renderMessageCard = (container, { icon, title, description }) => {
+        if (!container) return;
+        container.innerHTML = '';
+
+        const card = document.createElement('div');
+        card.className = 'flex items-start gap-3 rounded-lg border border-border-dark bg-surface-dark/60 p-3';
+
+        const ic = document.createElement('span');
+        ic.className = 'material-symbols-outlined text-primary';
+        ic.textContent = icon || 'info';
+
+        const textWrap = document.createElement('div');
+        textWrap.className = 'flex flex-col min-w-0';
+
+        const titleEl = document.createElement('p');
+        titleEl.className = 'text-sm font-semibold text-white';
+        titleEl.textContent = title || '';
+
+        const descEl = document.createElement('p');
+        descEl.className = 'text-xs text-text-muted mt-1';
+        descEl.textContent = description || '';
+
+        textWrap.append(titleEl, descEl);
+        card.append(ic, textWrap);
+        container.appendChild(card);
+        container.classList.remove('hidden');
+    };
+
+    const renderClientListSkeleton = (rows = 6) => {
+        if (!clientListNav) return;
+        clientListNav.innerHTML = '';
+        for (let i = 0; i < rows; i += 1) {
+            const row = document.createElement('div');
+            row.className = 'animate-pulse flex items-center gap-3 px-3 py-2 rounded-lg border border-border-dark bg-surface-dark/40';
+
+            const icon = document.createElement('div');
+            icon.className = 'h-6 w-6 rounded bg-white/10';
+
+            const lines = document.createElement('div');
+            lines.className = 'flex flex-col gap-2 flex-1 min-w-0';
+
+            const line1 = document.createElement('div');
+            line1.className = 'h-3 w-2/3 rounded bg-white/10';
+
+            const line2 = document.createElement('div');
+            line2.className = 'h-3 w-1/3 rounded bg-white/5';
+
+            lines.append(line1, line2);
+            row.append(icon, lines);
+            clientListNav.appendChild(row);
+        }
+    };
+
+    const renderTreeSkeleton = (rows = 4) => {
+        if (!treeBody) return;
+        treeBody.innerHTML = '';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-col gap-2 animate-pulse';
+
+        for (let i = 0; i < rows; i += 1) {
+            const row = document.createElement('div');
+            row.className = 'h-10 rounded-lg bg-white/5 border border-border-dark';
+            wrap.appendChild(row);
+        }
+
+        treeBody.appendChild(wrap);
+    };
+
     // Render list of clients
     const renderClients = () => {
         clientListNav.innerHTML = '';
-        if (allClients.length > 0) {
-            noClientsMessage.classList.add('hidden');
-            allClients.sort((a, b) => a.name.localeCompare(b.name));
-            allClients.forEach(client => {
+
+        if (clientsLoading) {
+            noClientsMessage?.classList.add('hidden');
+            renderClientListSkeleton();
+            return;
+        }
+
+        if (!currentUser) {
+            renderMessageCard(noClientsMessage, {
+                icon: 'lock',
+                title: 'Inicia sesi\u00F3n',
+                description: 'Inicia sesi\u00F3n para ver tus clientes.',
+            });
+            return;
+        }
+
+        const query = String(clientSearchQuery || '').trim();
+        const visibleClients = getVisibleClients();
+
+        if (!allClients.length) {
+            renderMessageCard(noClientsMessage, {
+                icon: 'inbox',
+                title: 'Comienza creando tu primer cliente',
+                description: 'Usa "Añadir Cliente" para empezar.',
+            });
+            return;
+        }
+
+        if (!visibleClients.length) {
+            renderMessageCard(noClientsMessage, {
+                icon: 'search_off',
+                title: 'Sin resultados',
+                description: query ? `No encontramos coincidencias para "${query}".` : 'No encontramos coincidencias.',
+            });
+            return;
+        }
+
+        noClientsMessage?.classList.add('hidden');
+        visibleClients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        visibleClients.forEach(client => {
                 const row = document.createElement('div');
                 row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
                 row.dataset.clientId = client.id;
@@ -872,7 +1328,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!nextName || nextName === client.name) return;
 
                         try {
+                            const previousName = client.name;
                             await update(ref(database, `clients/${client.id}`), { name: nextName });
+                            await logActivity(
+                                client.id,
+                                `Renombró cliente "${previousName}" a "${nextName}".`,
+                                { action: 'rename', path: `clients/${client.id}`, entityType: 'client' }
+                            );
                             client.name = nextName;
                             nameSpan.textContent = nextName;
                             if (selectedClientId === client.id) {
@@ -893,28 +1355,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         const confirmed = confirm(`¿Eliminar el cliente "${client.name}"?\n\nSe borrarán también sus proyectos, productos y tareas.`);
                         if (!confirmed) return;
 
-            try {
-                await remove(ref(database, `clients/${client.id}`));
-                allClients = allClients.filter(c => c.id !== client.id);
-                if (selectedClientId === client.id) {
-                    showClientView();
-                }
-                renderClients();
-                renderTree();
-            } catch (error) {
-                console.error('Error deleting client:', error);
-                alert(`No se pudo eliminar el cliente: ${error.message}`);
-            }
-        },
+                        try {
+                            await remove(ref(database, `clients/${client.id}`));
+                            allClients = allClients.filter(c => c.id !== client.id);
+                            if (selectedClientId === client.id) {
+                                showClientView();
+                            }
+                            renderClients();
+                            renderTree();
+                        } catch (error) {
+                            console.error('Error deleting client:', error);
+                            alert(`No se pudo eliminar el cliente: ${error.message}`);
+                        }
+                    },
                 });
 
                 row.append(selectButton, actions);
                 clientListNav.appendChild(row);
             });
-        } else {
-            noClientsMessage.textContent = 'No hay clientes.';
-            noClientsMessage.classList.remove('hidden');
-        }
     };
 
     // View toggles
@@ -1116,7 +1574,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!nextName || nextName === proj.name) return;
 
                     try {
+                        const previousName = proj.name;
                         await update(ref(database, `clients/${clientId}/projects/${proj.id}`), { name: nextName });
+                        await logActivity(
+                            clientId,
+                            `Renombró proyecto "${previousName}" a "${nextName}".`,
+                            { action: 'rename', path: `clients/${clientId}/projects/${proj.id}`, entityType: 'project' }
+                        );
                         proj.name = nextName;
                         if (client?.projects?.[proj.id]) client.projects[proj.id].name = nextName;
                         nameSpan.textContent = nextName;
@@ -1141,6 +1605,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     try {
                         await remove(ref(database, `clients/${clientId}/projects/${proj.id}`));
+                        await logActivity(
+                            clientId,
+                            `Eliminó proyecto "${proj.name}".`,
+                            { action: 'delete', path: `clients/${clientId}/projects/${proj.id}`, entityType: 'project' }
+                        );
                         if (client?.projects?.[proj.id]) delete client.projects[proj.id];
                         if (selectedClientId === clientId && selectedProjectId === proj.id) {
                             showProjectView(clientId);
@@ -1224,7 +1693,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!nextName || nextName === prod.name) return;
 
                     try {
+                        const previousName = prod.name;
                         await update(ref(database, `clients/${clientId}/projects/${projectId}/products/${prod.id}`), { name: nextName });
+                        await logActivity(
+                            clientId,
+                            `Renombró producto "${previousName}" a "${nextName}".`,
+                            { action: 'rename', path: `clients/${clientId}/projects/${projectId}/products/${prod.id}`, entityType: 'product' }
+                        );
                         prod.name = nextName;
                         if (project?.products?.[prod.id]) project.products[prod.id].name = nextName;
                         if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
@@ -1247,6 +1722,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     try {
                         await remove(ref(database, `clients/${clientId}/projects/${projectId}/products/${prod.id}`));
+                        await logActivity(
+                            clientId,
+                            `Eliminó producto "${prod.name}".`,
+                            { action: 'delete', path: `clients/${clientId}/projects/${projectId}/products/${prod.id}`, entityType: 'product' }
+                        );
                         if (project?.products?.[prod.id]) delete project.products[prod.id];
                         if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
                             selectedProductId = null;
@@ -1374,7 +1854,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!nextName || nextName === subtask.name) return;
 
                     try {
+                        const previousName = subtask.name;
                         await update(ref(database, `${basePath}/${subtask.id}`), { name: nextName });
+                        await logActivity(
+                            clientId,
+                            `Renombró subtarea "${previousName}" a "${nextName}".`,
+                            { action: 'rename', path: `${basePath}/${subtask.id}`, entityType: 'subtask' }
+                        );
                         subtask.name = nextName;
                         if (subtasks?.[subtask.id]) subtasks[subtask.id].name = nextName;
                         renderSubtasks(clientId, projectId, productId, taskId);
@@ -1393,6 +1879,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     try {
                         await remove(ref(database, `${basePath}/${subtask.id}`));
+                        await logActivity(
+                            clientId,
+                            `Eliminó subtarea "${subtask.name}".`,
+                            { action: 'delete', path: `${basePath}/${subtask.id}`, entityType: 'subtask' }
+                        );
                         if (subtasks?.[subtask.id]) delete subtasks[subtask.id];
                         if (selectedSubtaskId === subtask.id) selectedSubtaskId = null;
                         renderSubtasks(clientId, projectId, productId, taskId);
@@ -1419,20 +1910,93 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         treeBody.innerHTML = '';
 
-        if (!allClients.length) {
-            const emptyMsg = document.createElement('p');
-            emptyMsg.className = 'text-text-muted text-sm';
-            emptyMsg.textContent = 'No hay clientes.';
-            treeBody.appendChild(emptyMsg);
+        if (clientsLoading) {
+            renderTreeSkeleton();
             updateTreeExpandToggle();
             return;
         }
 
-        const sortedClients = [...allClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const query = String(clientSearchQuery || '').trim();
+        const visibleClients = getVisibleClients();
+
+        const renderTreeState = ({ icon, title, description }) => {
+            const card = document.createElement('div');
+            card.className = 'flex items-start gap-3 rounded-lg border border-border-dark bg-surface-dark/60 p-4';
+
+            const ic = document.createElement('span');
+            ic.className = 'material-symbols-outlined text-primary';
+            ic.textContent = icon || 'info';
+
+            const textWrap = document.createElement('div');
+            textWrap.className = 'flex flex-col min-w-0';
+
+            const titleEl = document.createElement('p');
+            titleEl.className = 'text-sm font-semibold text-white';
+            titleEl.textContent = title || '';
+
+            const descEl = document.createElement('p');
+            descEl.className = 'text-xs text-text-muted mt-1';
+            descEl.textContent = description || '';
+
+            textWrap.append(titleEl, descEl);
+            card.append(ic, textWrap);
+            treeBody.appendChild(card);
+        };
+
+        if (!currentUser) {
+            renderTreeState({
+                icon: 'lock',
+                title: 'Inicia sesi\u00F3n',
+                description: 'Inicia sesi\u00F3n para ver tus clientes.',
+            });
+            updateTreeExpandToggle();
+            return;
+        }
+
+        if (!allClients.length) {
+            renderTreeState({
+                icon: 'inbox',
+                title: 'Comienza creando tu primer cliente',
+                description: 'Usa "Añadir Cliente" para empezar.',
+            });
+            updateTreeExpandToggle();
+            return;
+        }
+
+        if (!visibleClients.length) {
+            renderTreeState({
+                icon: 'search_off',
+                title: 'Sin resultados',
+                description: query ? `No encontramos coincidencias para "${query}".` : 'No encontramos coincidencias.',
+            });
+            updateTreeExpandToggle();
+            return;
+        }
+
+        const sortedClients = [...visibleClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
         const treeGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_90px] items-center gap-2';
 
-        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null) => {
+        const computeTasksProgress = (tasksObject) => {
+            const tasks = Object.values(tasksObject || {}).filter(Boolean);
+            const total = tasks.length;
+            const done = tasks.reduce((acc, task) => (normalizeStatus(task?.status) === 'Finalizado' ? acc + 1 : acc), 0);
+            return { done, total };
+        };
+
+        const computeProjectProgress = (project) => {
+            const progress = computeTasksProgress(project?.tasks);
+            const products = project?.products || {};
+            for (const product of Object.values(products)) {
+                if (!product) continue;
+                const productProgress = computeTasksProgress(product.tasks);
+                progress.done += productProgress.done;
+                progress.total += productProgress.total;
+            }
+            return progress;
+        };
+
+        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null) => {
             const summary = document.createElement('summary');
             summary.className = `${treeGrid} cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg`;
 
@@ -1459,11 +2023,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusCell.appendChild(statusControl);
             }
 
-            const assigneeCell = document.createElement('div');
+            const metaCell = document.createElement('div');
+            metaCell.className = 'min-w-0';
+
+            if (progressInfo && typeof progressInfo === 'object') {
+                const total = Number(progressInfo.total) || 0;
+                const done = Number(progressInfo.done) || 0;
+                const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
+
+                const wrap = document.createElement('div');
+                wrap.className = 'flex items-center gap-2 min-w-0';
+                wrap.title = total > 0 ? `Progreso: ${done}/${total} finalizadas` : 'Sin tareas';
+
+                const barOuter = document.createElement('div');
+                barOuter.className = 'flex-1 h-2 rounded-full bg-white/10 overflow-hidden';
+
+                const barInner = document.createElement('div');
+                barInner.className = `h-full ${percent === 100 ? 'bg-emerald-400' : 'bg-primary'}`;
+                barInner.style.width = `${percent}%`;
+
+                const pctText = document.createElement('span');
+                pctText.className = 'text-[11px] text-text-muted tabular-nums w-10 text-right';
+                pctText.textContent = total > 0 ? `${percent}%` : '--';
+
+                barOuter.appendChild(barInner);
+                wrap.append(barOuter, pctText);
+                metaCell.appendChild(wrap);
+            }
 
             const chip = createIdChip(manageId);
             chip.classList.add('text-xs', 'justify-self-end');
-            summary.append(nameCell, statusCell, assigneeCell, chip);
+            summary.append(nameCell, statusCell, metaCell, chip);
             return summary;
         };
 
@@ -1533,6 +2123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const projDetails = document.createElement('details');
                     projDetails.className = 'border border-border-dark/70 rounded-lg';
                     projDetails.dataset.manageId = proj.manageId || `project:${client.id}:${proj.id}`;
+                    const projProgress = computeProjectProgress(proj);
                     projDetails.appendChild(makeSummary(
                         'layers',
                         proj.name || 'Proyecto',
@@ -1545,7 +2136,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (selectedClientId === client.id && !selectedProjectId) {
                                 renderProjects(client.id);
                             }
-                        }
+                        },
+                        projProgress
                     ));
 
                     const projContent = document.createElement('div');
@@ -1669,6 +2261,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const prodDetails = document.createElement('details');
                             prodDetails.className = 'border border-border-dark/60 rounded-lg';
                             prodDetails.dataset.manageId = prod.manageId || `product:${client.id}:${proj.id}:${prod.id}`;
+                            const prodProgress = computeTasksProgress(prod.tasks);
                             prodDetails.appendChild(makeSummary(
                                 'category',
                                 prod.name || 'Producto',
@@ -1685,7 +2278,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ) {
                                         renderProducts(client.id, proj.id);
                                     }
-                                }
+                                },
+                                prodProgress
                             ));
 
                             const prodContent = document.createElement('div');
@@ -1942,7 +2536,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         : `clients/${clientId}/projects/${projectId}/tasks/${task.id}`;
 
                     try {
+                        const previousName = task.name;
                         await update(ref(database, taskPath), { name: nextName });
+                        await logActivity(
+                            clientId,
+                            `Renombró tarea "${previousName}" a "${nextName}".`,
+                            { action: 'rename', path: taskPath, entityType: 'task' }
+                        );
                         task.name = nextName;
                         if (tasks?.[task.id]) tasks[task.id].name = nextName;
                         renderTasks(clientId, projectId, productId);
@@ -1966,6 +2566,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     try {
                         await remove(ref(database, taskPath));
+                        await logActivity(
+                            clientId,
+                            `Eliminó tarea "${task.name}".`,
+                            { action: 'delete', path: taskPath, entityType: 'task' }
+                        );
                         if (tasks?.[task.id]) delete tasks[task.id];
                         if (selectedTaskId === task.id) {
                             selectedTaskId = null;
@@ -2072,11 +2677,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch clients from RTDB
     const fetchClients = () => {
         if (!clientsRef) return;
-        noClientsMessage.textContent = 'Cargando clientes...';
-        noClientsMessage.classList.remove('hidden');
-        clientListNav.innerHTML = '';
+        clientsLoading = true;
+        noClientsMessage?.classList.add('hidden');
+        renderClientListSkeleton();
+        renderTreeSkeleton();
 
         onValue(clientsRef, (snapshot) => {
+            clientsLoading = false;
             const data = snapshot.val();
             if (data) {
                 allClients = Object.keys(data).map(key => ({ id: key, ...data[key] }));
@@ -2096,8 +2703,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTree();
         }, (error) => {
             console.error("Error fetching clients: ", error);
-            noClientsMessage.textContent = `Error: ${error.message}`;
-            noClientsMessage.classList.remove('hidden');
+            clientsLoading = false;
+            renderMessageCard(noClientsMessage, {
+                icon: 'error',
+                title: 'No se pudieron cargar los clientes',
+                description: error?.message || 'Error desconocido.'
+            });
         });
     };
 
@@ -2336,6 +2947,12 @@ document.addEventListener('DOMContentLoaded', () => {
         addTaskBtn?.addEventListener('click', openTaskModal);
         addSubtaskBtn?.addEventListener('click', openSubtaskModal);
 
+        clientSearchInput?.addEventListener('input', (event) => {
+            clientSearchQuery = String(event?.target?.value || '');
+            renderClients();
+            renderTree();
+        });
+
         addClientForm?.addEventListener('submit', handleAddClientSubmit);
         addProjectForm?.addEventListener('submit', handleAddProjectSubmit);
         addProductForm?.addEventListener('submit', handleAddProductSubmit);
@@ -2409,6 +3026,7 @@ document.addEventListener('DOMContentLoaded', () => {
         usersByUid = {};
         allClients = [];
         renderClients();
+        renderTree();
         noClientsMessage.textContent = "Por favor, inicie sesión.";
         noClientsMessage.classList.remove('hidden');
         resetProjectDetail();

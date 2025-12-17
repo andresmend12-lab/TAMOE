@@ -222,7 +222,7 @@
 
     <script type="module">
         import { auth, database } from './firebase.js';
-        import { ref, get, update, push, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import { ref, get, update, push, onValue, serverTimestamp, runTransaction } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
         import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const qs = (id) => document.getElementById(id);
@@ -230,6 +230,264 @@
         const showError = (msg) => { const box = qs('error-box'); if (!box) return; box.classList.remove('hidden'); box.textContent = msg; };
 
         const TYPE_LABELS = { client: 'Cliente', project: 'Proyecto', product: 'Producto', task: 'Tarea', subtask: 'Subtarea' };
+
+        const parseClientPath = (pathValue) => {
+            const path = String(pathValue || '').trim();
+            if (!path) return null;
+            const parts = path.split('/').filter(Boolean);
+            if (parts[0] !== 'clients') return null;
+            const clientId = parts[1] || '';
+            if (!clientId) return null;
+
+            const projectIndex = parts.indexOf('projects');
+            const projectId = projectIndex >= 0 ? (parts[projectIndex + 1] || '') : '';
+            const productIndex = parts.indexOf('products');
+            const productId = productIndex >= 0 ? (parts[productIndex + 1] || '') : '';
+            const taskIndex = parts.indexOf('tasks');
+            const taskId = taskIndex >= 0 ? (parts[taskIndex + 1] || '') : '';
+            const subtaskIndex = parts.indexOf('subtasks');
+            const subtaskId = subtaskIndex >= 0 ? (parts[subtaskIndex + 1] || '') : '';
+
+            const type = subtaskId
+                ? 'subtask'
+                : taskId
+                    ? 'task'
+                    : productId
+                        ? 'product'
+                        : projectId
+                            ? 'project'
+                            : 'client';
+
+            return { type, clientId, projectId, productId, taskId, subtaskId, path };
+        };
+
+        const stripDiacritics = (textValue) => (
+            String(textValue || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+        );
+
+        const buildManagePrefixFromName = (name) => {
+            const cleaned = stripDiacritics(String(name || '')).trim();
+            if (!cleaned) return 'XX';
+
+            const words = cleaned.split(/\s+/).filter(Boolean);
+            const pickFirstAlnum = (word) => {
+                const match = String(word).match(/[A-Za-z0-9]/);
+                return match ? match[0].toUpperCase() : '';
+            };
+
+            if (words.length >= 2) {
+                const initials = words.map(pickFirstAlnum).filter(Boolean).join('');
+                return initials || 'XX';
+            }
+
+            const chars = (words[0].match(/[A-Za-z0-9]/g) || []).join('');
+            const prefix = chars.slice(0, 2).toUpperCase();
+            return (prefix || 'XX').padEnd(2, 'X');
+        };
+
+        const formatManageId = (prefix, number) => {
+            const safePrefix = String(prefix || 'XX').toUpperCase();
+            const safeNumber = Number.isFinite(Number(number)) ? Number(number) : 0;
+            return `${safePrefix}-${String(safeNumber).padStart(3, '0')}`;
+        };
+
+        const parseManageNumber = (manageIdValue) => {
+            const manageIdText = String(manageIdValue || '');
+            const match = manageIdText.match(/-(\d{3,})$/);
+            if (!match) return null;
+            const num = Number.parseInt(match[1], 10);
+            return Number.isFinite(num) ? num : null;
+        };
+
+        const getMaxManageNumberForClient = (client) => {
+            let max = parseManageNumber(client?.manageId) || 0;
+            const projects = client?.projects || {};
+            for (const project of Object.values(projects)) {
+                if (!project) continue;
+                max = Math.max(max, parseManageNumber(project.manageId) || 0);
+
+                const projectTasks = project.tasks || {};
+                for (const task of Object.values(projectTasks)) {
+                    if (!task) continue;
+                    max = Math.max(max, parseManageNumber(task.manageId) || 0);
+                    const subtasks = task.subtasks || {};
+                    for (const subtask of Object.values(subtasks)) {
+                        if (!subtask) continue;
+                        max = Math.max(max, parseManageNumber(subtask.manageId) || 0);
+                    }
+                }
+
+                const products = project.products || {};
+                for (const product of Object.values(products)) {
+                    if (!product) continue;
+                    max = Math.max(max, parseManageNumber(product.manageId) || 0);
+                    const productTasks = product.tasks || {};
+                    for (const task of Object.values(productTasks)) {
+                        if (!task) continue;
+                        max = Math.max(max, parseManageNumber(task.manageId) || 0);
+                        const subtasks = task.subtasks || {};
+                        for (const subtask of Object.values(subtasks)) {
+                            if (!subtask) continue;
+                            max = Math.max(max, parseManageNumber(subtask.manageId) || 0);
+                        }
+                    }
+                }
+            }
+            return max;
+        };
+
+        const ensureClientManageConfig = async (clientIdValue) => {
+            const clientId = String(clientIdValue || '').trim();
+            if (!clientId) throw new Error('CLIENT_ID_REQUIRED');
+
+            const snap = await get(ref(database, `clients/${clientId}`));
+            const client = snap.val() || {};
+
+            const prefix = String(client.managePrefix || '').trim() || buildManagePrefixFromName(client.name);
+            const maxNumber = getMaxManageNumberForClient(client);
+            const desiredNext = Math.max(2, maxNumber + 1);
+
+            const updatesPayload = {};
+            if (!client.managePrefix) updatesPayload.managePrefix = prefix;
+            if (!client.manageId) updatesPayload.manageId = formatManageId(prefix, 1);
+            if (typeof client.manageNextNumber !== 'number' || !Number.isFinite(client.manageNextNumber) || client.manageNextNumber < desiredNext) {
+                updatesPayload.manageNextNumber = desiredNext;
+            }
+
+            if (Object.keys(updatesPayload).length > 0) {
+                await update(ref(database, `clients/${clientId}`), updatesPayload);
+                Object.assign(client, updatesPayload);
+            }
+
+            return { client, prefix };
+        };
+
+        const allocateNextManageId = async (clientIdValue) => {
+            const clientId = String(clientIdValue || '').trim();
+            const { client, prefix } = await ensureClientManageConfig(clientId);
+
+            const nextRef = ref(database, `clients/${clientId}/manageNextNumber`);
+            const result = await runTransaction(nextRef, (current) => {
+                const safeCurrent = (typeof current === 'number' && Number.isFinite(current) && current >= 2)
+                    ? current
+                    : (typeof client.manageNextNumber === 'number' && Number.isFinite(client.manageNextNumber) && client.manageNextNumber >= 2 ? client.manageNextNumber : 2);
+                return safeCurrent + 1;
+            });
+
+            if (!result.committed) throw new Error('No se pudo reservar un manageId.');
+            const storedNext = result.snapshot.val();
+            const allocatedNumber = storedNext - 1;
+            client.manageNextNumber = storedNext;
+            return formatManageId(prefix, allocatedNumber);
+        };
+
+        const QC_TASK_TEMPLATE = 'qc_review';
+        const QC_TASK_NAME = '✅ Revisión de Control de Calidad';
+
+        const isQualityControlTask = (task) => task?.automation?.template === QC_TASK_TEMPLATE;
+
+        const fetchTasksObject = async (tasksPathValue) => {
+            const tasksPath = String(tasksPathValue || '').trim();
+            if (!tasksPath) return {};
+            try {
+                const snap = await get(ref(database, tasksPath));
+                return snap.val() || {};
+            } catch (e) {
+                console.warn('No se pudo leer tareas para automatización:', e);
+                return {};
+            }
+        };
+
+        const qcTaskExistsForSource = (tasksObject, sourcePathValue) => {
+            const sourcePath = String(sourcePathValue || '').trim();
+            if (!sourcePath) return false;
+            return Object.values(tasksObject || {}).some((task) => (
+                task
+                && task.automation?.template === QC_TASK_TEMPLATE
+                && String(task.automation?.sourcePath || '') === sourcePath
+            ));
+        };
+
+        const ensureQualityControlTask = async ({ clientId, tasksPath, sourcePath, sourceType, sourceName, sourceManageId }) => {
+            const safeClientId = String(clientId || '').trim();
+            const safeTasksPath = String(tasksPath || '').trim();
+            const safeSourcePath = String(sourcePath || '').trim();
+            if (!safeClientId || !safeTasksPath || !safeSourcePath) return null;
+
+            const existingTasks = await fetchTasksObject(safeTasksPath);
+            if (qcTaskExistsForSource(existingTasks, safeSourcePath)) return null;
+
+            const manageIdValue = await allocateNextManageId(safeClientId);
+            const newTaskRef = push(ref(database, safeTasksPath));
+            const taskId = newTaskRef.key;
+
+            const taskData = {
+                name: QC_TASK_NAME,
+                status: 'Pendiente',
+                assigneeUid: '',
+                createdAt: new Date().toISOString(),
+                taskId,
+                manageId: manageIdValue,
+                automation: {
+                    template: QC_TASK_TEMPLATE,
+                    sourcePath: safeSourcePath,
+                    sourceType: String(sourceType || '').trim(),
+                    sourceName: String(sourceName || '').trim(),
+                    sourceManageId: String(sourceManageId || '').trim(),
+                    createdByUid: currentUser?.uid || '',
+                    createdAt: new Date().toISOString(),
+                },
+            };
+
+            await update(newTaskRef, taskData);
+
+            const sourceLabel = TYPE_LABELS[sourceType] || 'Elemento';
+            const sourceTitle = String(sourceName || '').trim() || sourceLabel;
+            try {
+                await push(ref(database, `clients/${safeClientId}/activity_logs`), {
+                    actorUid: currentUser.uid,
+                    actorName: getCurrentDisplayName(),
+                    description: `Creó tarea automática \"${QC_TASK_NAME}\" para ${sourceLabel} \"${sourceTitle}\".`,
+                    timestamp: serverTimestamp(),
+                    action: 'automation_qc',
+                    path: `${safeTasksPath}/${taskId}`,
+                    entityType: 'task',
+                    sourcePath: safeSourcePath
+                });
+            } catch (e) {
+                console.warn('No se pudo registrar el log de actividad:', e);
+            }
+
+            return taskData;
+        };
+
+        const maybeCascadeFinalizeProduct = async ({ clientId, projectId, productId }) => {
+            const safeClientId = String(clientId || '').trim();
+            const safeProjectId = String(projectId || '').trim();
+            const safeProductId = String(productId || '').trim();
+            if (!safeClientId || !safeProjectId || !safeProductId) return;
+
+            const productTasksPath = `clients/${safeClientId}/projects/${safeProjectId}/products/${safeProductId}/tasks`;
+            const tasksObject = await fetchTasksObject(productTasksPath);
+            const tasks = Object.values(tasksObject || {}).filter(Boolean);
+            if (!tasks.length) return;
+
+            const allFinalized = tasks.every(t => normalizeStatus(t.status) === 'Finalizado');
+            if (!allFinalized) return;
+
+            const productPath = `clients/${safeClientId}/projects/${safeProjectId}/products/${safeProductId}`;
+            try {
+                const snap = await get(ref(database, productPath));
+                const currentStatus = normalizeStatus(snap.val()?.status);
+                if (currentStatus === 'Finalizado') return;
+            } catch (e) {
+                console.warn('No se pudo leer el estado del producto para cierre en cascada:', e);
+            }
+
+            await updateStatusAtPath(productPath, 'Finalizado');
+        };
 
         let manageId = null;
         let loadedClients = [];
@@ -615,7 +873,7 @@
 
             const users = Object.entries(usersByUid || {})
                 .map(([uid, user]) => ({ uid, ...user }))
-                .filter(entry => entry.uid && (entry.username || entry.email));
+                .filter(entry => entry.uid);
 
             users.sort((a, b) => (a.username || a.email || '').localeCompare(b.username || b.email || ''));
 
@@ -871,8 +1129,78 @@
                 alert('Debes iniciar sesi\u00F3n para cambiar el estado.');
                 throw new Error('AUTH_REQUIRED');
             }
+            const parsed = parseClientPath(path);
+            let before = null;
+            try {
+                const snap = await get(ref(database, path));
+                before = snap.val();
+            } catch (e) {
+                before = null;
+            }
+
+            const prevStatus = normalizeStatus(before?.status);
             const status = normalizeStatus(nextStatus);
             await update(ref(database, path), { status });
+
+            if (parsed?.clientId && prevStatus !== status) {
+                const label = TYPE_LABELS[parsed.type] || 'Elemento';
+                const itemName = before?.name || label;
+                try {
+                    await push(ref(database, `clients/${parsed.clientId}/activity_logs`), {
+                        actorUid: currentUser.uid,
+                        actorName: getCurrentDisplayName(),
+                        description: `Actualizó estado de ${label} \"${itemName}\" de \"${prevStatus}\" a \"${status}\".`,
+                        timestamp: serverTimestamp(),
+                        action: 'status_update',
+                        path,
+                        entityType: parsed.type
+                    });
+                } catch (e) {
+                    console.warn('No se pudo registrar el log de actividad:', e);
+                }
+            }
+            try {
+                const shouldTriggerFinalization = prevStatus !== 'Finalizado' && status === 'Finalizado';
+
+                if (shouldTriggerFinalization && parsed?.clientId && parsed.projectId) {
+                    if (parsed.type === 'task') {
+                        if (!isQualityControlTask(before)) {
+                            const tasksPath = parsed.productId
+                                ? `clients/${parsed.clientId}/projects/${parsed.projectId}/products/${parsed.productId}/tasks`
+                                : `clients/${parsed.clientId}/projects/${parsed.projectId}/tasks`;
+
+                            await ensureQualityControlTask({
+                                clientId: parsed.clientId,
+                                tasksPath,
+                                sourcePath: path,
+                                sourceType: parsed.type,
+                                sourceName: before?.name || 'Tarea',
+                                sourceManageId: before?.manageId || ''
+                            });
+                        }
+                    } else if (parsed.type === 'product') {
+                        const tasksPath = `clients/${parsed.clientId}/projects/${parsed.projectId}/tasks`;
+                        await ensureQualityControlTask({
+                            clientId: parsed.clientId,
+                            tasksPath,
+                            sourcePath: path,
+                            sourceType: parsed.type,
+                            sourceName: before?.name || 'Producto',
+                            sourceManageId: before?.manageId || ''
+                        });
+                    }
+                }
+
+                if (parsed?.type === 'task' && parsed.clientId && parsed.projectId && parsed.productId && status === 'Finalizado') {
+                    await maybeCascadeFinalizeProduct({
+                        clientId: parsed.clientId,
+                        projectId: parsed.projectId,
+                        productId: parsed.productId
+                    });
+                }
+            } catch (e) {
+                console.warn('Error ejecutando automatizaciones de estado:', e);
+            }
             return status;
         };
 
@@ -881,8 +1209,53 @@
                 alert('Debes iniciar sesion para asignar.');
                 throw new Error('AUTH_REQUIRED');
             }
+            const parsed = parseClientPath(path);
+            let before = null;
+            try {
+                const snap = await get(ref(database, path));
+                before = snap.val();
+            } catch (e) {
+                before = null;
+            }
+
+            const prevUid = String(before?.assigneeUid || '').trim();
             const uid = String(nextUid || '').trim();
             await update(ref(database, path), { assigneeUid: uid });
+
+            if (parsed?.clientId && prevUid !== uid) {
+                const label = TYPE_LABELS[parsed.type] || 'Elemento';
+                const itemName = before?.name || label;
+                const toName = uid ? (getUserDisplayNameByUid(uid) || uid) : 'Sin asignar';
+                try {
+                    await push(ref(database, `clients/${parsed.clientId}/activity_logs`), {
+                        actorUid: currentUser.uid,
+                        actorName: getCurrentDisplayName(),
+                        description: `Asignó ${label} \"${itemName}\" a ${toName}.`,
+                        timestamp: serverTimestamp(),
+                        action: 'assignee_update',
+                        path,
+                        entityType: parsed.type,
+                        assigneeUid: uid
+                    });
+                } catch (e) {
+                    console.warn('No se pudo registrar el log de actividad:', e);
+                }
+            }
+
+            if (uid && prevUid !== uid) {
+                try {
+                    await push(ref(database, `notifications/${uid}`), {
+                        title: 'Nueva asignación',
+                        taskName: before?.name || 'Tarea',
+                        fromUid: currentUser.uid,
+                        fromName: getCurrentDisplayName(),
+                        read: false,
+                        createdAt: serverTimestamp(),
+                    });
+                } catch (e) {
+                    console.warn('No se pudo enviar la notificación:', e);
+                }
+            }
             return uid;
         };
 
@@ -1010,7 +1383,7 @@
 
                 const users = Object.entries(usersByUid || {})
                     .map(([uid, user]) => ({ uid, ...user }))
-                    .filter(entry => entry.uid && (entry.username || entry.email));
+                    .filter(entry => entry.uid);
 
                 users.sort((a, b) => (a.username || a.email || '').localeCompare(b.username || b.email || ''));
 
@@ -1893,6 +2266,24 @@
             if (descriptionStatus) descriptionStatus.textContent = 'Guardando...';
             try {
                 await update(ref(database, currentItemPath), { description: text });
+                const parsed = parseClientPath(currentItemPath);
+                if (parsed?.clientId) {
+                    const label = TYPE_LABELS[currentItemType] || TYPE_LABELS[parsed.type] || 'Elemento';
+                    const itemName = currentResult?.item?.name || label;
+                    try {
+                        await push(ref(database, `clients/${parsed.clientId}/activity_logs`), {
+                            actorUid: currentUser.uid,
+                            actorName: getCurrentDisplayName(),
+                            description: `Actualizó descripción de ${label} \"${itemName}\".`,
+                            timestamp: serverTimestamp(),
+                            action: 'description_update',
+                            path: currentItemPath,
+                            entityType: parsed.type
+                        });
+                    } catch (e) {
+                        console.warn('No se pudo registrar el log de actividad:', e);
+                    }
+                }
                 if (descriptionStatus) {
                     descriptionStatus.textContent = 'Descripción guardada';
                     setTimeout(() => { descriptionStatus.textContent = ''; }, 2000);
