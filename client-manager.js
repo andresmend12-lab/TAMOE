@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addTaskBtn = document.getElementById('add-task-btn');
     const clientListNav = document.getElementById('client-list-nav');
     const projectListNav = document.getElementById('project-list-nav');
+    const clientListSection = document.getElementById('client-list-section');
+    const projectListSection = document.getElementById('project-list-section');
     const noClientsMessage = document.getElementById('no-clients-message');
     const noProjectsMessage = document.getElementById('no-projects-message');
     const backToClientsBtn = document.getElementById('back-to-clients-btn');
@@ -58,6 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedClientId = null;
     let selectedProjectId = null;
 
+    // User dropdown
+    const userMenuToggle = document.getElementById('user-menu-toggle');
+    const userMenu = document.getElementById('user-menu');
+    const toggleUserMenu = () => {
+        if (!userMenu) return;
+        userMenu.classList.toggle('hidden');
+    };
+
     // helpers to show/hide elements
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
@@ -98,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(backToClientsBtn);
         hideEl(addProductBtn);
         resetProjectDetail();
+        hideEl(projectListSection);
+        showEl(clientListSection);
     };
 
     const resetProjectDetail = () => {
@@ -120,6 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
         projectView.classList.add('flex');
         showEl(backToClientsBtn);
         hideEl(addProductBtn);
+        showEl(projectListSection);
+        hideEl(clientListSection);
     };
 
     // Modal handling
@@ -424,6 +438,13 @@ document.addEventListener('DOMContentLoaded', () => {
         backToClientsBtn?.addEventListener('click', () => {
             resetProjectDetail();
             showClientView();
+        });
+
+        userMenuToggle?.addEventListener('click', toggleUserMenu);
+        document.addEventListener('click', (e) => {
+            if (!userMenu || !userMenuToggle) return;
+            if (userMenu.contains(e.target) || userMenuToggle.contains(e.target)) return;
+            userMenu.classList.add('hidden');
         });
     };
 

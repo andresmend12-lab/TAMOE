@@ -41,29 +41,70 @@
         <!-- Client View -->
         <div id="client-view" class="flex flex-col h-full">
             <!-- App Header -->
-            <div class="p-4 flex items-center gap-3">
-                <a href="account.html" class="flex items-center gap-3 hover:opacity-90 transition-opacity">
+            <div class="p-4 flex items-center justify-between gap-3 relative">
+                <div class="flex items-center gap-2">
                     <img src="imagotipo_tamoe.png" alt="Tamoe Logo" class="h-10 w-auto"/>
                     <div class="flex flex-col">
                         <h1 id="sidebar-user-name" class="text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
                         <p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
                     </div>
-                </a>
-            </div>
-            <div class="px-4"><button id="back-to-clients-btn" class="hidden w-full flex items-center gap-2 text-sm font-bold text-text-muted hover:text-white transition-colors mb-2"><span class="material-symbols-outlined">arrow_back</span><span>Volver a Clientes</span></button></div>
-            <!-- Create Client Button -->
-            <div class="px-4 py-2">
-                <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
-                    <span class="material-symbols-outlined text-[20px]">add</span>
-                    <span>Añadir Cliente</span>
+                </div>
+                <button id="user-menu-toggle" class="flex items-center gap-1 text-text-muted hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">expand_more</span>
                 </button>
+                <div id="user-menu" class="hidden absolute top-14 right-4 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-30">
+                    <a href="profile.html" class="flex items-center gap-2 px-4 py-2 text-sm text-white hover:bg-white/10">
+                        <span class="material-symbols-outlined text-[18px]">person</span>
+                        Editar perfil
+                    </a>
+                    <button id="logout-button" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 text-left">
+                        <span class="material-symbols-outlined text-[18px]">logout</span>
+                        Cerrar Sesión
+                    </button>
+                </div>
             </div>
-            <!-- Navigation / Client List -->
-            <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-                <!-- Client links will be dynamically injected here -->
-            </nav>
-            <div class="px-2 py-2">
-                <p id="no-clients-message" class="px-3 py-2 text-sm text-text-muted">Cargando clientes...</p>
+            <div id="client-list-section">
+                <!-- Create Client Button -->
+                <div class="px-4 py-2">
+                    <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
+                        <span class="material-symbols-outlined text-[20px]">add</span>
+                        <span>Añadir Cliente</span>
+                    </button>
+                </div>
+                <!-- Navigation / Client List -->
+                <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+                    <!-- Client links will be dynamically injected here -->
+                </nav>
+                <div class="px-2 py-2">
+                    <p id="no-clients-message" class="px-3 py-2 text-sm text-text-muted">Cargando clientes...</p>
+                </div>
+            </div>
+
+            <div id="project-list-section" class="hidden flex flex-col h-full">
+                <div class="px-4 py-2">
+                    <button id="back-to-clients-btn" class="w-full flex items-center gap-2 text-sm font-bold text-text-muted hover:text-white transition-colors mb-2">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        <span>Clientes</span>
+                    </button>
+                    <h2 id="client-name-header" class="text-white text-lg font-bold px-1">Nombre del Cliente</h2>
+                </div>
+                <!-- Create Project / Product Buttons -->
+                <div class="px-4 py-2">
+                    <div class="flex flex-col gap-2">
+                        <button id="add-project-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
+                            <span class="material-symbols-outlined text-[20px]">add</span>
+                            <span>Añadir Proyecto</span>
+                        </button>
+                        <button id="add-product-btn" class="hidden flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-surface-dark hover:bg-border-dark text-white text-sm font-bold transition-all border border-border-dark">
+                            <span class="material-symbols-outlined text-[20px]">category</span>
+                            <span>Crear Producto</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Navigation / Project List -->
+                <nav id="project-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+                    <p id="no-projects-message" class="px-3 py-2 text-sm text-text-muted">No hay proyectos.</p>
+                </nav>
             </div>
         </div>
 
@@ -108,7 +149,7 @@
             <div class="flex items-center gap-3">
                 <a class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors" href="#">
                     <span class="material-symbols-outlined">settings</span>
-                </a>
+                </div>
                 <button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
                     <span class="material-symbols-outlined text-[20px]">brightness_4</span>
                 </button>
@@ -124,10 +165,7 @@
         <!-- Dashboard Content -->
         <div class="flex-1 overflow-y-auto">
             <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
-                <div id="welcome-message" class="flex flex-col gap-2">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Good afternoon, Jane</h1>
-                </div>
-                <div id="project-detail" class="flex flex-col gap-4">
+                <div id="project-detail" class="hidden flex flex-col gap-4">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                             <p class="text-sm text-text-muted">Proyecto / Producto seleccionado</p>
