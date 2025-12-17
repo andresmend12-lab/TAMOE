@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const openDetailPage = (manageId) => {
         if (!manageId) return;
-        const url = `${window.location.origin}/detail.html?mid=${encodeURIComponent(manageId)}`;
+        const url = `${window.location.origin}/${encodeURIComponent(manageId)}`;
         window.open(url, '_blank', 'noopener');
     };
 
