@@ -1,8 +1,9 @@
-export const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-  };
+﻿export const firebaseConfig = {
+  apiKey: "AIzaSyDidzpojgcd8wMtFLXyXRmZMk6BHELEbSI",
+  authDomain: "tamoe-86320208-a33cf.firebaseapp.com",
+  databaseURL: "https://tamoe-86320208-a33cf-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "tamoe-86320208-a33cf",
+  storageBucket: "tamoe-86320208-a33cf.firebasestorage.app",
+  messagingSenderId: "322898199328",
+  appId: "1:322898199328:web:89c76af9513534ebf40d45"
+};
