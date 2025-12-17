@@ -135,6 +135,35 @@
                         <p id="status-helper" class="text-xs text-text-muted mt-2"></p>
                     </section>
 
+                    <section id="assignee-section" class="hidden bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">person</span>
+                                Asignacion
+                            </h3>
+                            <span id="assignee-save" class="text-xs text-text-muted"></span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div id="assignee-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold uppercase tracking-wide text-text-muted">Asignado a</p>
+                                    <p id="assignee-name" class="text-white font-semibold truncate">Sin asignar</p>
+                                    <p id="assignee-dept" class="text-text-muted text-xs truncate"></p>
+                                </div>
+                            </div>
+
+                            <div class="relative flex-shrink-0">
+                                <button id="assignee-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-surface-dark text-text-muted hover:text-white hover:bg-white/5 transition-colors text-sm font-semibold">
+                                    <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+                                    Cambiar
+                                </button>
+                                <div id="assignee-menu" class="action-menu hidden absolute right-0 top-full mt-2 w-72 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-y-auto max-h-80 z-50"></div>
+                            </div>
+                        </div>
+                    </section>
+
                     <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between gap-2 mb-3">
                             <h3 class="text-white text-lg font-bold flex items-center gap-2">
@@ -204,6 +233,7 @@
 
         let manageId = null;
         let loadedClients = [];
+        let currentResult = null;
         let currentItemPath = null;
         let commentsUnsubscribe = null;
         let currentUser = null;
@@ -228,9 +258,17 @@
         const statusProgress = qs('status-progress');
         const statusHelper = qs('status-helper');
         const statusStepButtons = Array.from(document.querySelectorAll('[data-status-step]'));
+        const assigneeSection = qs('assignee-section');
+        const assigneeSave = qs('assignee-save');
+        const assigneeAvatar = qs('assignee-avatar');
+        const assigneeName = qs('assignee-name');
+        const assigneeDept = qs('assignee-dept');
+        const assigneeToggle = qs('assignee-toggle');
+        const assigneeMenu = qs('assignee-menu');
 
         const STATUS_STEPS = ['Pendiente', 'En proceso', 'Finalizado'];
         const STATUS_TYPES = new Set(['project', 'product', 'task', 'subtask']);
+        const ASSIGNEE_TYPES = new Set(['task', 'subtask']);
         const STATUS_ICONS = {
             'Pendiente': 'schedule',
             'En proceso': 'autorenew',
@@ -266,6 +304,10 @@
         let currentItemType = null;
         let currentItemStatus = 'Pendiente';
         let statusSaving = false;
+        let currentAssigneeUid = '';
+        let assigneeSaving = false;
+        let usersByUid = {};
+        let usersUnsubscribe = null;
 
         const getManageIdFromUrl = () => {
             const params = new URLSearchParams(window.location.search);
@@ -324,6 +366,33 @@
             || currentUser?.photoURL
             || ''
         );
+
+        const getUserDisplayNameByUid = (uid) => {
+            const safeUid = String(uid || '').trim();
+            if (!safeUid) return '';
+            const user = usersByUid?.[safeUid];
+            return user?.username || user?.email || safeUid;
+        };
+
+        const getUserDepartmentByUid = (uid) => {
+            const safeUid = String(uid || '').trim();
+            if (!safeUid) return '';
+            const user = usersByUid?.[safeUid];
+            return user?.department || '';
+        };
+
+        const getUserPhotoByUid = (uid) => {
+            const safeUid = String(uid || '').trim();
+            if (!safeUid) return '';
+            const user = usersByUid?.[safeUid];
+            return user?.profile_picture || '';
+        };
+
+        const closeAllActionMenus = (exceptMenu = null) => {
+            document.querySelectorAll('.action-menu').forEach(menu => {
+                if (menu !== exceptMenu) menu.classList.add('hidden');
+            });
+        };
 
         const renderAvatar = (el, name, photoUrl) => {
             if (!el) return;
@@ -433,6 +502,214 @@
                 showError(err.message || 'No se pudo actualizar el estado.');
             } finally {
                 statusSaving = false;
+                updateAuthUI();
+            }
+        };
+
+        const subscribeUsers = () => {
+            if (usersUnsubscribe) usersUnsubscribe();
+            if (!currentUser) return;
+            usersUnsubscribe = onValue(ref(database, 'users'), (snapshot) => {
+                usersByUid = snapshot.val() || {};
+                renderAssigneeSection();
+                if (currentResult) renderActivities(currentResult);
+            }, (error) => {
+                console.warn('No se pudo cargar la lista de usuarios', error);
+            });
+        };
+
+        const renderAssigneeSection = () => {
+            if (!assigneeSection) return;
+            const enabledForType = ASSIGNEE_TYPES.has(currentItemType);
+            assigneeSection.classList.toggle('hidden', !enabledForType);
+            if (!enabledForType) return;
+
+            const uid = String(currentAssigneeUid || '').trim();
+            if (!uid) {
+                if (assigneeName) assigneeName.textContent = 'Sin asignar';
+                if (assigneeDept) assigneeDept.textContent = '';
+                if (assigneeAvatar) {
+                    assigneeAvatar.style.backgroundImage = '';
+                    assigneeAvatar.textContent = '—';
+                    assigneeAvatar.setAttribute('aria-label', 'Sin asignar');
+                }
+                return;
+            }
+
+            const name = getUserDisplayNameByUid(uid) || uid;
+            const dept = getUserDepartmentByUid(uid);
+            const photo = getUserPhotoByUid(uid);
+            if (assigneeName) assigneeName.textContent = name;
+            if (assigneeDept) assigneeDept.textContent = dept || '';
+            renderAvatar(assigneeAvatar, name, photo);
+        };
+
+        const buildAssigneeMenu = () => {
+            if (!assigneeMenu) return;
+            assigneeMenu.innerHTML = '';
+
+            const makeOption = ({ uid, name, dept, photo }) => {
+                const optBtn = document.createElement('button');
+                optBtn.type = 'button';
+                optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+                optBtn.dataset.uid = uid;
+
+                const left = document.createElement('div');
+                left.className = 'flex items-center gap-3 min-w-0';
+
+                const a = document.createElement('span');
+                a.className = 'w-8 h-8 rounded-full bg-primary/15 text-primary border border-primary/20 flex items-center justify-center text-xs font-bold overflow-hidden bg-center bg-cover bg-no-repeat shrink-0';
+                if (photo) {
+                    a.style.backgroundImage = `url('${photo}')`;
+                    a.textContent = '';
+                } else {
+                    a.style.backgroundImage = '';
+                    a.textContent = getInitials(name);
+                }
+
+                const txtWrap = document.createElement('div');
+                txtWrap.className = 'flex flex-col min-w-0';
+
+                const txt = document.createElement('span');
+                txt.className = 'text-sm font-semibold truncate';
+                txt.textContent = name;
+
+                const sub = document.createElement('span');
+                sub.className = 'text-xs text-text-muted truncate';
+                sub.textContent = dept || '';
+
+                txtWrap.append(txt, sub);
+                left.append(a, txtWrap);
+
+                const check = document.createElement('span');
+                check.className = 'material-symbols-outlined text-[18px] text-text-muted opacity-0';
+                check.textContent = 'check';
+
+                optBtn.append(left, check);
+                return optBtn;
+            };
+
+            const noneOpt = makeOption({ uid: '', name: 'Sin asignar', dept: '', photo: '' });
+            const noneAvatar = noneOpt.querySelector('.w-8');
+            if (noneAvatar) {
+                noneAvatar.className = 'w-8 h-8 rounded-full bg-white/10 text-text-muted border border-border-dark flex items-center justify-center text-xs font-bold shrink-0';
+                noneAvatar.textContent = '—';
+            }
+            assigneeMenu.appendChild(noneOpt);
+
+            const users = Object.entries(usersByUid || {})
+                .map(([uid, user]) => ({ uid, ...user }))
+                .filter(entry => entry.uid && (entry.username || entry.email));
+
+            users.sort((a, b) => (a.username || a.email || '').localeCompare(b.username || b.email || ''));
+
+            users.forEach(user => {
+                assigneeMenu.appendChild(makeOption({
+                    uid: user.uid,
+                    name: user.username || user.email || user.uid,
+                    dept: user.department || '',
+                    photo: user.profile_picture || ''
+                }));
+            });
+
+            const current = String(currentAssigneeUid || '').trim();
+            Array.from(assigneeMenu.querySelectorAll('button[data-uid]')).forEach((btn) => {
+                const isActive = String(btn.dataset.uid || '') === current;
+                const check = btn.querySelector('.material-symbols-outlined');
+                if (check) check.classList.toggle('opacity-0', !isActive);
+            });
+        };
+
+        const positionAssigneeMenu = () => {
+            if (!assigneeToggle || !assigneeMenu) return;
+            const wrapper = assigneeToggle.parentElement;
+            if (!wrapper) return;
+
+            const findClippingContainer = () => {
+                let node = wrapper.parentElement;
+                while (node && node !== document.body && node !== document.documentElement) {
+                    const style = window.getComputedStyle(node);
+                    const overflowY = style.overflowY;
+                    const overflowX = style.overflowX;
+                    if (
+                        ['auto', 'scroll', 'hidden', 'clip'].includes(overflowY) ||
+                        ['auto', 'scroll', 'hidden', 'clip'].includes(overflowX)
+                    ) {
+                        return node;
+                    }
+                    node = node.parentElement;
+                }
+                return document.documentElement;
+            };
+
+            const clipping = findClippingContainer();
+            const clipRect = clipping.getBoundingClientRect();
+            const btnRect = assigneeToggle.getBoundingClientRect();
+            const padding = 8;
+
+            assigneeMenu.style.maxHeight = '';
+
+            const wasHidden = assigneeMenu.classList.contains('hidden');
+            if (wasHidden) {
+                assigneeMenu.classList.remove('hidden');
+                assigneeMenu.style.visibility = 'hidden';
+            }
+
+            const menuRect = assigneeMenu.getBoundingClientRect();
+            const menuHeight = menuRect.height || 220;
+
+            const availableBelow = clipRect.bottom - btnRect.bottom;
+            const availableAbove = btnRect.top - clipRect.top;
+            const shouldOpenUp = availableBelow < (menuHeight + padding) && availableAbove > availableBelow;
+
+            assigneeMenu.classList.remove('top-full', 'mt-2', 'bottom-full', 'mb-2');
+            if (shouldOpenUp) {
+                assigneeMenu.classList.add('bottom-full', 'mb-2');
+                const maxHeight = Math.max(160, Math.floor(availableAbove - padding));
+                assigneeMenu.style.maxHeight = `${maxHeight}px`;
+            } else {
+                assigneeMenu.classList.add('top-full', 'mt-2');
+                const maxHeight = Math.max(160, Math.floor(availableBelow - padding));
+                assigneeMenu.style.maxHeight = `${maxHeight}px`;
+            }
+
+            if (wasHidden) {
+                assigneeMenu.style.visibility = '';
+                assigneeMenu.classList.add('hidden');
+            }
+        };
+
+        const saveAssignee = async (nextUid) => {
+            if (!ASSIGNEE_TYPES.has(currentItemType)) return;
+            if (!currentUser) {
+                alert('Debes iniciar sesi▋ para asignar.');
+                return;
+            }
+            if (!currentItemPath) return;
+
+            const uid = String(nextUid || '').trim();
+            if (uid === String(currentAssigneeUid || '').trim()) return;
+
+            assigneeSaving = true;
+            if (assigneeSave) assigneeSave.textContent = 'Guardando...';
+            updateAuthUI();
+
+            try {
+                await update(ref(database, currentItemPath), { assigneeUid: uid });
+                currentAssigneeUid = uid;
+                renderAssigneeSection();
+                if (assigneeSave) {
+                    assigneeSave.textContent = 'Guardado';
+                    setTimeout(() => {
+                        if (assigneeSave) assigneeSave.textContent = '';
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error(err);
+                if (assigneeSave) assigneeSave.textContent = 'No se pudo guardar';
+                showError(err.message || 'No se pudo actualizar la asignacion.');
+            } finally {
+                assigneeSaving = false;
                 updateAuthUI();
             }
         };
@@ -550,7 +827,20 @@
             return link;
         };
 
-        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null) => {
+        const createAssigneeBadge = (assigneeUid) => {
+            const uid = String(assigneeUid || '').trim();
+            const badge = document.createElement('span');
+            badge.className = 'text-xs text-text-muted truncate max-w-[12rem]';
+            if (!uid) {
+                badge.textContent = 'Sin asignar';
+                return badge;
+            }
+            const name = getUserDisplayNameByUid(uid) || uid;
+            badge.textContent = `Asignado a ${name}`;
+            return badge;
+        };
+
+        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, assigneeUid = null) => {
             const summary = document.createElement('summary');
             summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
 
@@ -568,12 +858,16 @@
             left.append(icon, title);
             if (statusValue !== null) left.appendChild(createStatusDot(statusValue));
 
-            const right = createManageLink(manageIdValue);
+            const right = document.createElement('div');
+            right.className = 'flex items-center gap-3 min-w-0';
+            if (assigneeUid !== null) right.appendChild(createAssigneeBadge(assigneeUid));
+            right.appendChild(createManageLink(manageIdValue));
+
             summary.append(left, right);
             return summary;
         };
 
-        const makeRow = (iconName, titleText, manageIdValue, statusValue = null) => {
+        const makeRow = (iconName, titleText, manageIdValue, statusValue = null, assigneeUid = null) => {
             const row = document.createElement('div');
             row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-surface-dark border border-border-dark text-white';
 
@@ -591,7 +885,12 @@
             left.append(icon, title);
             if (statusValue !== null) left.appendChild(createStatusDot(statusValue));
 
-            row.append(left, createManageLink(manageIdValue));
+            const right = document.createElement('div');
+            right.className = 'flex items-center gap-3 min-w-0';
+            if (assigneeUid !== null) right.appendChild(createAssigneeBadge(assigneeUid));
+            right.appendChild(createManageLink(manageIdValue));
+
+            row.append(left, right);
             return row;
         };
 
@@ -602,17 +901,17 @@
             subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
             if (!subArray.length) {
-                return makeRow('check_circle', taskName, task?.manageId, task?.status);
+                return makeRow('check_circle', taskName, task?.manageId, task?.status, task?.assigneeUid ?? '');
             }
 
             const details = document.createElement('details');
             details.className = 'border border-border-dark rounded-lg overflow-hidden bg-surface-dark';
-            details.appendChild(makeSummary('check_circle', taskName, task?.manageId, task?.status));
+            details.appendChild(makeSummary('check_circle', taskName, task?.manageId, task?.status, task?.assigneeUid ?? ''));
 
             const content = document.createElement('div');
             content.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
             subArray.forEach(sub => {
-                content.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status));
+                content.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status, sub.assigneeUid ?? ''));
             });
             details.appendChild(content);
             return details;
@@ -783,7 +1082,7 @@
                     return;
                 }
                 subArray.forEach(sub => {
-                    activitiesList.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status));
+                    activitiesList.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status, sub.assigneeUid ?? ''));
                 });
                 return;
             }
@@ -900,6 +1199,16 @@
                 }
             }
 
+            const canEditAssignee = canEdit && ASSIGNEE_TYPES.has(currentItemType) && !assigneeSaving;
+            if (assigneeToggle) {
+                assigneeToggle.disabled = !canEditAssignee;
+                assigneeToggle.classList.toggle('opacity-60', !canEditAssignee);
+                assigneeToggle.classList.toggle('cursor-not-allowed', !canEditAssignee);
+            }
+            if (!canEditAssignee) {
+                assigneeMenu?.classList.add('hidden');
+            }
+
             updateHeaderUser();
         };
 
@@ -921,6 +1230,10 @@
             if (statusSave) statusSave.textContent = '';
             renderStatusFlow();
 
+            currentAssigneeUid = String(item.assigneeUid || '').trim();
+            if (assigneeSave) assigneeSave.textContent = '';
+            renderAssigneeSection();
+
             renderBreadcrumb(trail);
             renderActivities(result);
             updateAuthUI();
@@ -940,6 +1253,7 @@
                     showError(`No se encontró información para ${manageId}.`);
                     return;
                 }
+                currentResult = found;
                 currentItemPath = buildItemPath(found.ids, found.type);
                 populateView(found);
                 subscribeToComments();
@@ -1002,6 +1316,7 @@
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
+                subscribeUsers();
                 try {
                     const snap = await get(ref(database, `users/${user.uid}`));
                     currentUserProfile = snap.val();
@@ -1009,6 +1324,9 @@
                     console.warn('No se pudo cargar el perfil del usuario', e);
                 }
             } else {
+                if (usersUnsubscribe) usersUnsubscribe();
+                usersUnsubscribe = null;
+                usersByUid = {};
                 currentUserProfile = null;
             }
             updateAuthUI();
@@ -1020,6 +1338,34 @@
         statusStepButtons.forEach(btn => {
             btn.addEventListener('click', () => saveStatus(btn.dataset.statusStep));
         });
+
+        assigneeToggle?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!assigneeMenu) return;
+            const canOpen = Boolean(currentUser) && ASSIGNEE_TYPES.has(currentItemType) && !assigneeSaving;
+            if (!canOpen) return;
+            const isOpen = !assigneeMenu.classList.contains('hidden');
+            closeAllActionMenus(assigneeMenu);
+            if (isOpen) {
+                assigneeMenu.classList.add('hidden');
+                return;
+            }
+            buildAssigneeMenu();
+            positionAssigneeMenu();
+            assigneeMenu.classList.remove('hidden');
+        });
+
+        assigneeMenu?.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-uid]');
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            assigneeMenu.classList.add('hidden');
+            saveAssignee(btn.dataset.uid);
+        });
+
+        document.addEventListener('click', () => closeAllActionMenus());
 
         loadData();
     </script>

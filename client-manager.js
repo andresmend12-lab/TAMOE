@@ -76,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let allClients = [];
     let currentUser = null;
     let clientsRef = null;
+    let usersByUid = {};
+    let usersUnsubscribe = null;
     let listenersAttached = false;
     let selectedClientId = null;
     let selectedProjectId = null;
@@ -95,6 +97,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // helpers to show/hide elements
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
+
+    const getUserDisplayNameByUid = (uid) => {
+        const safeUid = String(uid || '').trim();
+        if (!safeUid) return '';
+        const user = usersByUid?.[safeUid];
+        return user?.username || user?.email || safeUid;
+    };
+
+    const getUserDepartmentByUid = (uid) => {
+        const safeUid = String(uid || '').trim();
+        if (!safeUid) return '';
+        const user = usersByUid?.[safeUid];
+        return user?.department || '';
+    };
+
+    const getUserPhotoByUid = (uid) => {
+        const safeUid = String(uid || '').trim();
+        if (!safeUid) return '';
+        const user = usersByUid?.[safeUid];
+        return user?.profile_picture || '';
+    };
+
+    const getInitials = (value) => {
+        const text = String(value || '').trim();
+        if (!text) return '?';
+        const parts = text.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        if (parts[0].length >= 2) return parts[0].slice(0, 2).toUpperCase();
+        return parts[0][0].toUpperCase();
+    };
 
     const getTreeDetailsElements = () => treeBody ? Array.from(treeBody.querySelectorAll('details')) : [];
 
@@ -162,6 +194,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const normalized = normalizeStatus(nextStatus);
         await update(ref(database, path), { status: normalized });
+    };
+
+    const updateAssigneeAtPath = async (path, nextUid) => {
+        if (!currentUser) {
+            alert("Debes iniciar sesi▋ para asignar tareas.");
+            return;
+        }
+        const uid = String(nextUid || '').trim();
+        await update(ref(database, path), { assigneeUid: uid });
     };
 
     const createStatusControl = ({ status, onChange }) => {
@@ -313,6 +354,245 @@ document.addEventListener('DOMContentLoaded', () => {
                 menu.classList.add('hidden');
                 return;
             }
+            refreshMenuChecks();
+            positionMenu();
+            menu.classList.remove('hidden');
+        });
+
+        wrapper.append(button, menu);
+        return wrapper;
+    };
+
+    const createAssigneeControl = ({ assigneeUid, onChange }) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative flex-shrink-0';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'inline-flex items-center justify-between gap-2 text-[11px] font-bold px-2 py-0.5 rounded-full border border-border-dark bg-white/5 text-text-muted hover:text-white hover:bg-white/10 transition-colors';
+
+        const left = document.createElement('div');
+        left.className = 'flex items-center gap-2 min-w-0';
+
+        const avatar = document.createElement('span');
+        avatar.className = 'inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary border border-primary/20 text-[10px] font-bold overflow-hidden bg-center bg-cover bg-no-repeat shrink-0';
+
+        const label = document.createElement('span');
+        label.className = 'truncate max-w-[11rem]';
+
+        const caret = document.createElement('span');
+        caret.className = 'material-symbols-outlined text-[16px] leading-none opacity-70';
+        caret.textContent = 'expand_more';
+
+        left.append(avatar, label);
+        button.append(left, caret);
+
+        const applyAssignee = (uidValue) => {
+            const uid = String(uidValue || '').trim();
+            if (!uid) {
+                avatar.style.backgroundImage = '';
+                avatar.textContent = '—';
+                avatar.classList.remove('text-primary', 'border-primary/20', 'bg-primary/15');
+                avatar.classList.add('text-text-muted', 'border-border-dark', 'bg-white/10');
+                label.textContent = 'Sin asignar';
+                button.title = 'Sin asignar';
+                return;
+            }
+
+            const name = getUserDisplayNameByUid(uid) || uid;
+            const photo = getUserPhotoByUid(uid);
+            if (photo) {
+                avatar.style.backgroundImage = `url('${photo}')`;
+                avatar.textContent = '';
+            } else {
+                avatar.style.backgroundImage = '';
+                avatar.textContent = getInitials(name);
+            }
+            avatar.classList.remove('text-text-muted', 'border-border-dark', 'bg-white/10');
+            avatar.classList.add('text-primary', 'border-primary/20', 'bg-primary/15');
+            label.textContent = `Asignado a ${name}`;
+            button.title = `Asignado a ${name}`;
+        };
+
+        applyAssignee(assigneeUid);
+
+        const menu = document.createElement('div');
+        menu.className = 'action-menu hidden absolute right-0 w-72 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
+
+        let saving = false;
+        const setSaving = (isSaving) => {
+            saving = isSaving;
+            button.disabled = isSaving;
+            button.classList.toggle('opacity-60', isSaving);
+            button.classList.toggle('cursor-not-allowed', isSaving);
+        };
+
+        const makeOption = ({ uid, name, dept, photo }) => {
+            const optBtn = document.createElement('button');
+            optBtn.type = 'button';
+            optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+            optBtn.dataset.uid = uid;
+
+            const optLeft = document.createElement('div');
+            optLeft.className = 'flex items-center gap-3 min-w-0';
+
+            const a = document.createElement('span');
+            a.className = 'w-8 h-8 rounded-full bg-primary/15 text-primary border border-primary/20 flex items-center justify-center text-xs font-bold overflow-hidden bg-center bg-cover bg-no-repeat shrink-0';
+            if (photo) {
+                a.style.backgroundImage = `url('${photo}')`;
+                a.textContent = '';
+            } else {
+                a.style.backgroundImage = '';
+                a.textContent = getInitials(name);
+            }
+
+            const txtWrap = document.createElement('div');
+            txtWrap.className = 'flex flex-col min-w-0';
+
+            const txt = document.createElement('span');
+            txt.className = 'text-sm font-semibold truncate';
+            txt.textContent = name;
+
+            const sub = document.createElement('span');
+            sub.className = 'text-xs text-text-muted truncate';
+            sub.textContent = dept || '';
+
+            txtWrap.append(txt, sub);
+            optLeft.append(a, txtWrap);
+
+            const check = document.createElement('span');
+            check.className = 'material-symbols-outlined text-[18px] text-text-muted opacity-0';
+            check.textContent = 'check';
+
+            optBtn.append(optLeft, check);
+            return optBtn;
+        };
+
+        const buildMenu = () => {
+            menu.innerHTML = '';
+
+            const noneOpt = makeOption({ uid: '', name: 'Sin asignar', dept: '', photo: '' });
+            const noneAvatar = noneOpt.querySelector('.w-8');
+            if (noneAvatar) {
+                noneAvatar.classList.remove('text-primary', 'border-primary/20', 'bg-primary/15');
+                noneAvatar.classList.add('bg-white/10', 'text-text-muted', 'border-border-dark');
+                noneAvatar.textContent = '—';
+            }
+            menu.appendChild(noneOpt);
+
+            const users = Object.entries(usersByUid || {})
+                .map(([uid, user]) => ({ uid, ...user }))
+                .filter(entry => entry.uid && (entry.username || entry.email));
+
+            users.sort((a, b) => (a.username || a.email || '').localeCompare(b.username || b.email || ''));
+
+            users.forEach(user => {
+                menu.appendChild(makeOption({
+                    uid: user.uid,
+                    name: user.username || user.email || user.uid,
+                    dept: user.department || '',
+                    photo: user.profile_picture || ''
+                }));
+            });
+        };
+
+        const refreshMenuChecks = () => {
+            const currentUid = String(assigneeUid || '').trim();
+            Array.from(menu.querySelectorAll('button[data-uid]')).forEach((btn) => {
+                const isActive = String(btn.dataset.uid || '') === currentUid;
+                const check = btn.querySelector('.material-symbols-outlined');
+                if (check) check.classList.toggle('opacity-0', !isActive);
+            });
+        };
+
+        const findClippingContainer = () => {
+            let node = wrapper.parentElement;
+            while (node && node !== document.body && node !== document.documentElement) {
+                const style = window.getComputedStyle(node);
+                const overflowY = style.overflowY;
+                const overflowX = style.overflowX;
+                if (
+                    ['auto', 'scroll', 'hidden', 'clip'].includes(overflowY) ||
+                    ['auto', 'scroll', 'hidden', 'clip'].includes(overflowX)
+                ) {
+                    return node;
+                }
+                node = node.parentElement;
+            }
+            return document.documentElement;
+        };
+
+        const positionMenu = () => {
+            const clipping = findClippingContainer();
+            const clipRect = clipping.getBoundingClientRect();
+            const btnRect = button.getBoundingClientRect();
+            const padding = 8;
+
+            menu.style.maxHeight = '';
+
+            const wasHidden = menu.classList.contains('hidden');
+            if (wasHidden) {
+                menu.classList.remove('hidden');
+                menu.style.visibility = 'hidden';
+            }
+
+            const menuRect = menu.getBoundingClientRect();
+            const menuHeight = menuRect.height || 220;
+
+            const availableBelow = clipRect.bottom - btnRect.bottom;
+            const availableAbove = btnRect.top - clipRect.top;
+            const shouldOpenUp = availableBelow < (menuHeight + padding) && availableAbove > availableBelow;
+
+            menu.classList.remove('top-full', 'mt-2', 'bottom-full', 'mb-2');
+            if (shouldOpenUp) {
+                menu.classList.add('bottom-full', 'mb-2');
+                const maxHeight = Math.max(160, Math.floor(availableAbove - padding));
+                menu.style.maxHeight = `${maxHeight}px`;
+            } else {
+                menu.classList.add('top-full', 'mt-2');
+                const maxHeight = Math.max(160, Math.floor(availableBelow - padding));
+                menu.style.maxHeight = `${maxHeight}px`;
+            }
+
+            if (wasHidden) {
+                menu.style.visibility = '';
+                menu.classList.add('hidden');
+            }
+        };
+
+        menu.addEventListener('click', (e) => e.stopPropagation());
+        menu.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-uid]');
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (saving) return;
+            menu.classList.add('hidden');
+
+            const nextUid = String(btn.dataset.uid || '').trim();
+            setSaving(true);
+            try {
+                await onChange(nextUid);
+                assigneeUid = nextUid;
+                applyAssignee(nextUid);
+            } catch (error) {
+                console.error('Error updating assignee:', error);
+                alert(`No se pudo asignar: ${error.message}`);
+            } finally {
+                setSaving(false);
+            }
+        });
+
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = !menu.classList.contains('hidden');
+            closeAllActionMenus(menu);
+            if (isOpen) {
+                menu.classList.add('hidden');
+                return;
+            }
+            buildMenu();
             refreshMenuChecks();
             positionMenu();
             menu.classList.remove('hidden');
@@ -1024,18 +1304,31 @@ document.addEventListener('DOMContentLoaded', () => {
         noSubtasksMessage.classList.add('hidden');
         subtaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+        const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_90px_32px]';
+
+        const headerRow = document.createElement('div');
+        headerRow.className = `${activityGrid} items-center gap-2 px-3 pt-1 pb-2 text-[11px] text-text-muted uppercase tracking-wider`;
+        headerRow.append(
+            Object.assign(document.createElement('span'), { textContent: 'Nombre' }),
+            Object.assign(document.createElement('span'), { textContent: 'Estado' }),
+            Object.assign(document.createElement('span'), { textContent: 'Asignado a' }),
+            Object.assign(document.createElement('span'), { textContent: 'ID' }),
+            document.createElement('span')
+        );
+        subtaskList.appendChild(headerRow);
+
         const basePath = productId
             ? `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}/subtasks`
             : `clients/${clientId}/projects/${projectId}/tasks/${taskId}/subtasks`;
 
         subtaskArray.forEach(subtask => {
             const row = document.createElement('div');
-            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors';
+            row.className = `group ${activityGrid} items-center gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors`;
             row.dataset.subtaskId = subtask.id;
 
             const selectButton = document.createElement('button');
             selectButton.type = 'button';
-            selectButton.className = 'flex items-center gap-3 flex-1 min-w-0 text-left';
+            selectButton.className = 'flex items-center gap-3 min-w-0 text-left';
 
             const icon = document.createElement('span');
             icon.className = 'material-symbols-outlined text-text-muted';
@@ -1045,22 +1338,29 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = subtask.name;
 
-            const nameWrapper = document.createElement('div');
-            nameWrapper.className = 'flex items-center gap-2 min-w-0';
-
+            const subtaskPath = `${basePath}/${subtask.id}`;
             const statusControl = createStatusControl({
                 status: subtask.status,
                 onChange: async (nextStatus) => {
-                    await updateStatusAtPath(`${basePath}/${subtask.id}`, nextStatus);
+                    await updateStatusAtPath(subtaskPath, nextStatus);
                     subtask.status = nextStatus;
                     if (subtasks?.[subtask.id]) subtasks[subtask.id].status = nextStatus;
                     renderTree();
                 }
             });
+
+            const assigneeControl = createAssigneeControl({
+                assigneeUid: subtask.assigneeUid,
+                onChange: async (nextUid) => {
+                    await updateAssigneeAtPath(subtaskPath, nextUid);
+                    subtask.assigneeUid = nextUid;
+                    if (subtasks?.[subtask.id]) subtasks[subtask.id].assigneeUid = nextUid;
+                    renderTree();
+                }
+            });
             const idTag = createIdChip(subtask.manageId);
 
-            nameWrapper.append(nameSpan, statusControl, idTag);
-            selectButton.append(icon, nameWrapper);
+            selectButton.append(icon, nameSpan);
             selectButton.addEventListener('click', () => {
                 selectedSubtaskId = subtask.id;
             });
@@ -1106,7 +1406,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            row.append(selectButton, actions);
+            row.append(selectButton, statusControl, assigneeControl, idTag, actions);
             subtaskList.appendChild(row);
         });
     };
@@ -1473,21 +1773,31 @@ document.addEventListener('DOMContentLoaded', () => {
         noTasksMessage.classList.add('hidden');
         taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+        const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_90px_32px]';
+
+        const headerRow = document.createElement('div');
+        headerRow.className = `${activityGrid} items-center gap-2 px-3 pt-1 pb-2 text-[11px] text-text-muted uppercase tracking-wider`;
+        headerRow.append(
+            Object.assign(document.createElement('span'), { textContent: 'Nombre' }),
+            Object.assign(document.createElement('span'), { textContent: 'Estado' }),
+            Object.assign(document.createElement('span'), { textContent: 'Asignado a' }),
+            Object.assign(document.createElement('span'), { textContent: 'ID' }),
+            document.createElement('span')
+        );
+        taskList.appendChild(headerRow);
+
         taskArray.forEach(task => {
             const row = document.createElement('div');
-            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors';
+            row.className = `group ${activityGrid} items-center gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors`;
             row.dataset.taskId = task.id;
 
             const selectButton = document.createElement('button');
             selectButton.type = 'button';
-            selectButton.className = 'flex items-center gap-3 flex-1 min-w-0 text-left';
+            selectButton.className = 'flex items-center gap-3 min-w-0 text-left';
 
             const icon = document.createElement('span');
             icon.className = 'material-symbols-outlined text-text-muted';
             icon.textContent = 'check_circle';
-
-            const nameWrapper = document.createElement('div');
-            nameWrapper.className = 'flex items-center gap-2 min-w-0';
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
@@ -1506,10 +1816,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderTree();
                 }
             });
+
+            const assigneeControl = createAssigneeControl({
+                assigneeUid: task.assigneeUid,
+                onChange: async (nextUid) => {
+                    await updateAssigneeAtPath(taskPath, nextUid);
+                    task.assigneeUid = nextUid;
+                    if (tasks?.[task.id]) tasks[task.id].assigneeUid = nextUid;
+                    renderTree();
+                }
+            });
             const idTag = createIdChip(task.manageId);
 
-            nameWrapper.append(nameSpan, statusControl, idTag);
-            selectButton.append(icon, nameWrapper);
+            selectButton.append(icon, nameSpan);
             selectButton.addEventListener('click', () => {
                 selectedTaskId = task.id;
                 selectedSubtaskId = null;
@@ -1571,7 +1890,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            row.append(selectButton, actions);
+            row.append(selectButton, statusControl, assigneeControl, idTag, actions);
             taskList.appendChild(row);
         });
 
@@ -1640,6 +1959,19 @@ document.addEventListener('DOMContentLoaded', () => {
         showEl(productListSection);
         hideEl(projectListSection);
         hideEl(clientListSection);
+    };
+
+    const subscribeUsers = () => {
+        if (usersUnsubscribe) usersUnsubscribe();
+        usersUnsubscribe = onValue(ref(database, 'users'), (snapshot) => {
+            usersByUid = snapshot.val() || {};
+            if (selectedClientId && selectedProjectId) {
+                renderTasks(selectedClientId, selectedProjectId, selectedProductId);
+            }
+            renderTree();
+        }, (error) => {
+            console.error('Error fetching users:', error);
+        });
     };
 
     // Fetch clients from RTDB
@@ -1819,6 +2151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const taskData = {
                 name: taskName,
                 status: 'Pendiente',
+                assigneeUid: '',
                 createdAt: new Date().toISOString(),
                 taskId: newTaskRef.key,
                 manageId
@@ -1863,6 +2196,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const subtaskData = {
                 name: subtaskName,
                 status: 'Pendiente',
+                assigneeUid: '',
                 createdAt: new Date().toISOString(),
                 subtaskId: newSubtaskRef.key,
                 manageId
@@ -1965,6 +2299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const initializeApp = (user) => {
         currentUser = user;
         clientsRef = query(ref(database, 'clients'));
+        subscribeUsers();
         attachListeners();
         showClientView();
         fetchClients();
@@ -1974,6 +2309,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const cleanup = () => {
         currentUser = null;
         clientsRef = null;
+        if (usersUnsubscribe) usersUnsubscribe();
+        usersUnsubscribe = null;
+        usersByUid = {};
         allClients = [];
         renderClients();
         noClientsMessage.textContent = "Por favor, inicie sesión.";

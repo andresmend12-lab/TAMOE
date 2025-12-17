@@ -1,9 +1,10 @@
 {
   "rules": {
     "users": {
+      ".read": "auth != null",
       "$uid": {
         ".write": "$uid === auth.uid",
-        ".read": "auth != null && auth.uid === $uid"
+        ".read": "auth != null"
       }
     },
     "clients": {
