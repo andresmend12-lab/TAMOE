@@ -154,6 +154,20 @@
         <!-- Dashboard Content -->
         <div class="flex-1 overflow-y-auto">
             <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
+                <!-- Árbol de Clientes / Proyectos / Productos / Tareas -->
+                <section id="tree-view" class="rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">account_tree</span>
+                            <h2 class="text-white text-xl font-bold">Árbol de clientes</h2>
+                        </div>
+                        <p class="text-xs text-text-muted">Expandir/contraer por tipo</p>
+                    </div>
+                    <div id="tree-body" class="flex flex-col gap-2">
+                        <p class="text-text-muted text-sm">Cargando datos...</p>
+                    </div>
+                </section>
+
                 <div id="project-detail" class="hidden flex flex-col gap-4">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
@@ -370,7 +384,6 @@
 
 </body>
 </html>
-
 
 
 

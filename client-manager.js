@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const subtaskList = document.getElementById('subtask-list');
     const noSubtasksMessage = document.getElementById('no-subtasks-message');
     const addSubtaskBtn = document.getElementById('add-subtask-btn');
+    const treeBody = document.getElementById('tree-body');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -320,11 +321,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon.className = 'material-symbols-outlined';
                 icon.textContent = 'folder_open';
 
+                const nameWrapper = document.createElement('div');
+                nameWrapper.className = 'flex items-center gap-2 min-w-0';
+
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'text-sm font-medium truncate';
                 nameSpan.textContent = client.name;
 
-                selectButton.append(icon, nameSpan);
+                const idTag = document.createElement('span');
+                idTag.className = 'text-[11px] text-text-muted shrink-0';
+                idTag.textContent = client.manageId || '';
+
+                nameWrapper.append(nameSpan, idTag);
+                selectButton.append(icon, nameWrapper);
                 selectButton.addEventListener('click', () => {
                     showProjectView(client.id);
                 });
@@ -362,18 +371,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         const confirmed = confirm(`¿Eliminar el cliente "${client.name}"?\n\nSe borrarán también sus proyectos, productos y tareas.`);
                         if (!confirmed) return;
 
-                        try {
-                            await remove(ref(database, `clients/${client.id}`));
-                            allClients = allClients.filter(c => c.id !== client.id);
-                            if (selectedClientId === client.id) {
-                                showClientView();
-                            }
-                            renderClients();
-                        } catch (error) {
-                            console.error('Error deleting client:', error);
-                            alert(`No se pudo eliminar el cliente: ${error.message}`);
-                        }
-                    },
+            try {
+                await remove(ref(database, `clients/${client.id}`));
+                allClients = allClients.filter(c => c.id !== client.id);
+                if (selectedClientId === client.id) {
+                    showClientView();
+                }
+                renderClients();
+                renderTree();
+            } catch (error) {
+                console.error('Error deleting client:', error);
+                alert(`No se pudo eliminar el cliente: ${error.message}`);
+            }
+        },
                 });
 
                 row.append(selectButton, actions);
@@ -557,11 +567,19 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = 'material-symbols-outlined';
             icon.textContent = 'layers';
 
+            const nameWrapper = document.createElement('div');
+            nameWrapper.className = 'flex items-center gap-2 min-w-0';
+
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = proj.name;
 
-            selectButton.append(icon, nameSpan);
+            const idTag = document.createElement('span');
+            idTag.className = 'text-[11px] text-text-muted shrink-0';
+            idTag.textContent = proj.manageId || '';
+
+            nameWrapper.append(nameSpan, idTag);
+            selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 showProductView(clientId, proj.id);
             });
@@ -591,6 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.error('Error renaming project:', error);
                         alert(`No se pudo renombrar el proyecto: ${error.message}`);
                     }
+                    renderTree();
                 },
                 onDelete: async () => {
                     if (!currentUser) {
@@ -608,6 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             renderProjects(clientId);
                         }
+                        renderTree();
                     } catch (error) {
                         console.error('Error deleting project:', error);
                         alert(`No se pudo eliminar el proyecto: ${error.message}`);
@@ -651,11 +671,19 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = 'material-symbols-outlined';
             icon.textContent = 'category';
 
+            const nameWrapper = document.createElement('div');
+            nameWrapper.className = 'flex items-center gap-2 min-w-0';
+
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = prod.name;
 
-            selectButton.append(icon, nameSpan);
+            const idTag = document.createElement('span');
+            idTag.className = 'text-[11px] text-text-muted shrink-0';
+            idTag.textContent = prod.manageId || '';
+
+            nameWrapper.append(nameSpan, idTag);
+            selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedProductId = prod.id;
                 selectedTaskId = null;
@@ -685,6 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (projectDetailName) projectDetailName.textContent = nextName;
                         }
                         renderProducts(clientId, projectId);
+                        renderTree();
                     } catch (error) {
                         console.error('Error renaming product:', error);
                         alert(`No se pudo renombrar el producto: ${error.message}`);
@@ -711,6 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             renderTasks(clientId, projectId, null);
                         }
                         renderProducts(clientId, projectId);
+                        renderTree();
                     } catch (error) {
                         console.error('Error deleting product:', error);
                         alert(`No se pudo eliminar el producto: ${error.message}`);
@@ -774,7 +804,15 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = subtask.name;
 
-            selectButton.append(icon, nameSpan);
+            const nameWrapper = document.createElement('div');
+            nameWrapper.className = 'flex items-center gap-2 min-w-0';
+
+            const idTag = document.createElement('span');
+            idTag.className = 'text-[11px] text-text-muted shrink-0';
+            idTag.textContent = subtask.manageId || '';
+
+            nameWrapper.append(nameSpan, idTag);
+            selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedSubtaskId = subtask.id;
             });
@@ -825,6 +863,132 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // Render full tree on right panel
+    const renderTree = () => {
+        if (!treeBody) return;
+        treeBody.innerHTML = '';
+
+        if (!allClients.length) {
+            const emptyMsg = document.createElement('p');
+            emptyMsg.className = 'text-text-muted text-sm';
+            emptyMsg.textContent = 'No hay clientes.';
+            treeBody.appendChild(emptyMsg);
+            return;
+        }
+
+        const sortedClients = [...allClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        const makeSummary = (icon, name, manageId) => {
+            const summary = document.createElement('summary');
+            summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
+            summary.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-text-muted">${icon}</span>
+                    <span class="text-sm font-semibold">${name}</span>
+                </div>
+                <span class="text-xs text-text-muted">${manageId || ''}</span>
+            `;
+            return summary;
+        };
+
+        const makeTaskItem = (task) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-dark border border-border-dark text-white';
+            row.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-text-muted text-[18px]">check_circle</span>
+                    <span class="text-sm">${task.name || 'Tarea'}</span>
+                </div>
+                <span class="text-[11px] text-text-muted">${task.manageId || ''}</span>
+            `;
+            return row;
+        };
+
+        sortedClients.forEach(client => {
+            const clientDetails = document.createElement('details');
+            clientDetails.className = 'bg-surface-dark border border-border-dark rounded-lg overflow-hidden';
+            const clientManage = client.manageId || '';
+            clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
+
+            const clientContent = document.createElement('div');
+            clientContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+
+            const projects = client.projects || {};
+            const projectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
+            projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            if (projectArray.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'text-text-muted text-xs px-1';
+                empty.textContent = 'Sin proyectos.';
+                clientContent.appendChild(empty);
+            } else {
+                projectArray.forEach(proj => {
+                    const projDetails = document.createElement('details');
+                    projDetails.className = 'border border-border-dark/70 rounded-lg overflow-hidden';
+                    projDetails.appendChild(makeSummary('layers', proj.name || 'Proyecto', proj.manageId || ''));
+
+                    const projContent = document.createElement('div');
+                    projContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-2';
+
+                    // Tareas sin producto
+                    const projTasks = proj.tasks || {};
+                    const projTaskArray = Object.keys(projTasks).map(id => ({ id, ...projTasks[id] }));
+                    projTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    if (projTaskArray.length) {
+                        const taskLabel = document.createElement('p');
+                        taskLabel.className = 'text-text-muted text-xs px-1';
+                        taskLabel.textContent = 'Tareas (sin producto)';
+                        projContent.appendChild(taskLabel);
+                        projTaskArray.forEach(t => projContent.appendChild(makeTaskItem(t)));
+                    }
+
+                    // Productos
+                    const products = proj.products || {};
+                    const productArray = Object.keys(products).map(id => ({ id, ...products[id] }));
+                    productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                    if (productArray.length === 0 && projTaskArray.length === 0) {
+                        const emptyP = document.createElement('p');
+                        emptyP.className = 'text-text-muted text-xs px-1';
+                        emptyP.textContent = 'Sin productos ni tareas.';
+                        projContent.appendChild(emptyP);
+                    } else {
+                        productArray.forEach(prod => {
+                            const prodDetails = document.createElement('details');
+                            prodDetails.className = 'border border-border-dark/60 rounded-lg overflow-hidden';
+                            prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId || ''));
+
+                            const prodContent = document.createElement('div');
+                            prodContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-1';
+
+                            const prodTasks = prod.tasks || {};
+                            const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
+                            prodTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                            if (prodTaskArray.length === 0) {
+                                const emptyT = document.createElement('p');
+                                emptyT.className = 'text-text-muted text-xs px-1';
+                                emptyT.textContent = 'Sin tareas en este producto.';
+                                prodContent.appendChild(emptyT);
+                            } else {
+                                prodTaskArray.forEach(t => prodContent.appendChild(makeTaskItem(t)));
+                            }
+
+                            prodDetails.appendChild(prodContent);
+                            projContent.appendChild(prodDetails);
+                        });
+                    }
+
+                    projDetails.appendChild(projContent);
+                    clientContent.appendChild(projDetails);
+                });
+            }
+
+            clientDetails.appendChild(clientContent);
+            treeBody.appendChild(clientDetails);
+        });
+    };
     const renderTasks = (clientId, projectId, productId = null) => {
         if (!taskList || !noTasksMessage) return;
 
@@ -877,11 +1041,19 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = 'material-symbols-outlined text-text-muted';
             icon.textContent = 'check_circle';
 
+            const nameWrapper = document.createElement('div');
+            nameWrapper.className = 'flex items-center gap-2 min-w-0';
+
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = task.name;
 
-            selectButton.append(icon, nameSpan);
+            const idTag = document.createElement('span');
+            idTag.className = 'text-[11px] text-text-muted shrink-0';
+            idTag.textContent = task.manageId || '';
+
+            nameWrapper.append(nameSpan, idTag);
+            selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedTaskId = task.id;
                 selectedSubtaskId = null;
@@ -909,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         task.name = nextName;
                         if (tasks?.[task.id]) tasks[task.id].name = nextName;
                         renderTasks(clientId, projectId, productId);
+                        renderTree();
                     } catch (error) {
                         console.error('Error renaming task:', error);
                         alert(`No se pudo renombrar la tarea: ${error.message}`);
@@ -934,6 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             selectedSubtaskId = null;
                         }
                         renderTasks(clientId, projectId, productId);
+                        renderTree();
                     } catch (error) {
                         console.error('Error deleting task:', error);
                         alert(`No se pudo eliminar la tarea: ${error.message}`);
@@ -1036,6 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderProjects(selectedClientId);
                 }
             }
+            renderTree();
         }, (error) => {
             console.error("Error fetching clients: ", error);
             noClientsMessage.textContent = `Error: ${error.message}`;
