@@ -32,6 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const noSubtasksMessage = document.getElementById('no-subtasks-message');
     const addSubtaskBtn = document.getElementById('add-subtask-btn');
     const treeBody = document.getElementById('tree-body');
+    const treeExpandToggle = document.getElementById('tree-expand-toggle');
+    const treeExpandIcon = document.getElementById('tree-expand-icon');
+    const treeExpandLabel = document.getElementById('tree-expand-label');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -92,6 +95,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // helpers to show/hide elements
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
+
+    const getTreeDetailsElements = () => treeBody ? Array.from(treeBody.querySelectorAll('details')) : [];
+
+    const updateTreeExpandToggle = () => {
+        if (!treeExpandToggle) return;
+        const details = getTreeDetailsElements();
+        const hasItems = details.length > 0;
+        treeExpandToggle.disabled = !hasItems;
+        treeExpandToggle.classList.toggle('opacity-50', !hasItems);
+        treeExpandToggle.classList.toggle('cursor-not-allowed', !hasItems);
+
+        const allOpen = hasItems && details.every(d => d.open);
+        if (treeExpandIcon) treeExpandIcon.textContent = allOpen ? 'unfold_less' : 'unfold_more';
+        if (treeExpandLabel) treeExpandLabel.textContent = allOpen ? 'Contraer todo' : 'Expandir todo';
+    };
 
     const openDetailPage = (manageId) => {
         if (!manageId) return;
@@ -1109,6 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
             emptyMsg.className = 'text-text-muted text-sm';
             emptyMsg.textContent = 'No hay clientes.';
             treeBody.appendChild(emptyMsg);
+            updateTreeExpandToggle();
             return;
         }
 
@@ -1412,6 +1431,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (openManageIds.has(el.dataset.manageId)) el.open = true;
             });
         }
+
+        updateTreeExpandToggle();
     };
     const renderTasks = (clientId, projectId, productId = null) => {
         if (!taskList || !noTasksMessage) return;
@@ -1923,6 +1944,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         userMenuToggle?.addEventListener('click', toggleUserMenu);
+        treeExpandToggle?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const details = getTreeDetailsElements();
+            if (!details.length) return;
+            const allOpen = details.every(d => d.open);
+            details.forEach((d) => { d.open = !allOpen; });
+            updateTreeExpandToggle();
+        });
         document.addEventListener('click', (e) => {
             closeAllActionMenus();
             if (!userMenu || !userMenuToggle) return;

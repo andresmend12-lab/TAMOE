@@ -166,8 +166,11 @@
                              <span class="material-symbols-outlined text-primary">account_tree</span>
                             <h2 class="text-white text-xl font-bold">Árbol de clientes</h2>
                         </div>
-                        <p class="text-xs text-text-muted">Expandir/contraer por tipo</p>
-                    </div>
+                         <button id="tree-expand-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-surface-dark text-text-muted hover:text-white hover:bg-white/5 transition-colors text-sm font-semibold">
+                             <span id="tree-expand-icon" class="material-symbols-outlined text-[18px]">unfold_more</span>
+                             <span id="tree-expand-label">Expandir todo</span>
+                         </button>
+                     </div>
                     <div id="tree-body" class="flex flex-col gap-2">
                         <p class="text-text-muted text-sm">Cargando datos...</p>
                     </div>
@@ -390,7 +393,6 @@
 
 </body>
 </html>
-
 
 
 
