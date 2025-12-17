@@ -4,23 +4,27 @@ import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/fi
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
-    const clientView = document.getElementById('client-view');
-    const projectView = document.getElementById('project-view');
     const addClientBtn = document.getElementById('add-client-btn');
     const addProjectBtn = document.getElementById('add-project-btn');
     const addProductBtn = document.getElementById('add-product-btn');
     const addTaskBtn = document.getElementById('add-task-btn');
     const clientListNav = document.getElementById('client-list-nav');
     const projectListNav = document.getElementById('project-list-nav');
+    const productListNav = document.getElementById('product-list-nav');
     const clientListSection = document.getElementById('client-list-section');
     const projectListSection = document.getElementById('project-list-section');
+    const productListSection = document.getElementById('product-list-section');
     const noClientsMessage = document.getElementById('no-clients-message');
     const noProjectsMessage = document.getElementById('no-projects-message');
+    const noProductsMessage = document.getElementById('no-products-message');
     const backToClientsBtn = document.getElementById('back-to-clients-btn');
+    const backToProjectsBtn = document.getElementById('back-to-projects-btn');
     const clientNameHeader = document.getElementById('client-name-header');
+    const productClientNameHeader = document.getElementById('product-client-name-header');
+    const projectNameHeader = document.getElementById('project-name-header');
     const projectDetail = document.getElementById('project-detail');
     const projectDetailName = document.getElementById('project-detail-name');
-    const projectDetailEmpty = document.getElementById('project-detail-empty');
+    const projectDetailSub = document.getElementById('project-detail-sub');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -59,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let listenersAttached = false;
     let selectedClientId = null;
     let selectedProjectId = null;
+    let selectedProductId = null;
 
     // User dropdown
     const userMenuToggle = document.getElementById('user-menu-toggle');
@@ -103,9 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const showClientView = () => {
         selectedClientId = null;
         selectedProjectId = null;
+        selectedProductId = null;
         hideEl(backToClientsBtn);
-        hideEl(addProductBtn);
         resetProjectDetail();
+        hideEl(productListSection);
         hideEl(projectListSection);
         showEl(clientListSection);
     };
@@ -114,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProjectId = null;
         if (projectDetail) projectDetail.classList.add('hidden');
         if (projectDetailName) projectDetailName.textContent = 'Selecciona un proyecto';
-        if (projectDetailEmpty) projectDetailEmpty.textContent = 'Selecciona un proyecto en la barra lateral.';
+        if (projectDetailSub) projectDetailSub.textContent = 'Selecciona un proyecto en la barra lateral.';
     };
 
     const showProjectView = (clientId) => {
@@ -122,12 +128,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!client) return;
         selectedClientId = clientId;
         selectedProjectId = null;
+        selectedProductId = null;
         if (clientNameHeader) clientNameHeader.textContent = client.name;
         renderProjects(clientId);
         resetProjectDetail();
         showEl(backToClientsBtn);
-        hideEl(addProductBtn);
+        hideEl(productListSection);
         showEl(projectListSection);
+        hideEl(clientListSection);
+    };
+
+    const showProductView = (clientId, projectId) => {
+        const client = allClients.find(c => c.id === clientId);
+        if (!client) return;
+        const project = client.projects?.[projectId];
+        if (!project) return;
+
+        selectedClientId = clientId;
+        selectedProjectId = projectId;
+        selectedProductId = null;
+
+        if (productClientNameHeader) productClientNameHeader.textContent = client.name;
+        if (projectNameHeader) projectNameHeader.textContent = project.name;
+
+        renderProducts(clientId, projectId);
+
+        if (projectDetail) projectDetail.classList.remove('hidden');
+        if (projectDetailName) projectDetailName.textContent = project.name;
+        if (projectDetailSub) projectDetailSub.textContent = 'Selecciona un producto en la barra lateral.';
+
+        showEl(productListSection);
+        hideEl(projectListSection);
         hideEl(clientListSection);
     };
 
@@ -188,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderProjects = (clientId) => {
         if (!projectListNav || !noProjectsMessage) return;
         projectListNav.innerHTML = '';
+        projectListNav.appendChild(noProjectsMessage);
         const client = allClients.find(c => c.id === clientId);
         const projects = client?.projects || {};
         const projectArray = Object.keys(projects || {}).map(key => ({ id: key, ...projects[key] }));
@@ -206,13 +238,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="text-sm font-medium">${proj.name}</span>
             `;
             item.addEventListener('click', () => {
-                selectedProjectId = proj.id;
-                showEl(addProductBtn);
-                if (projectDetail) projectDetail.classList.remove('hidden');
-                if (projectDetailName) projectDetailName.textContent = proj.name;
-                if (projectDetailEmpty) projectDetailEmpty.textContent = 'Puedes crear productos o tareas para este proyecto.';
+                showProductView(clientId, proj.id);
             });
             projectListNav.appendChild(item);
+        });
+    };
+
+    const renderProducts = (clientId, projectId) => {
+        if (!productListNav || !noProductsMessage) return;
+        productListNav.innerHTML = '';
+        productListNav.appendChild(noProductsMessage);
+
+        const client = allClients.find(c => c.id === clientId);
+        const project = client?.projects?.[projectId];
+        const products = project?.products || {};
+        const productArray = Object.keys(products || {}).map(key => ({ id: key, ...products[key] }));
+
+        if (productArray.length === 0) {
+            noProductsMessage.textContent = 'No hay productos.';
+            noProductsMessage.classList.remove('hidden');
+            return;
+        }
+
+        noProductsMessage.classList.add('hidden');
+        productArray.sort((a, b) => a.name.localeCompare(b.name));
+        productArray.forEach(prod => {
+            const item = document.createElement('div');
+            item.className = 'flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors cursor-pointer';
+            item.innerHTML = `
+                <span class="material-symbols-outlined">category</span>
+                <span class="text-sm font-medium">${prod.name}</span>
+            `;
+            item.addEventListener('click', () => {
+                selectedProductId = prod.id;
+                if (projectDetail) projectDetail.classList.remove('hidden');
+                if (projectDetailName) projectDetailName.textContent = prod.name;
+                if (projectDetailSub) projectDetailSub.textContent = 'Producto seleccionado.';
+            });
+            productListNav.appendChild(item);
         });
     };
 
@@ -232,7 +295,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderClients();
             if (selectedClientId) {
-                renderProjects(selectedClientId);
+                if (selectedProjectId) {
+                    renderProducts(selectedClientId, selectedProjectId);
+                } else {
+                    renderProjects(selectedClientId);
+                }
             }
         }, (error) => {
             console.error("Error fetching clients: ", error);
@@ -247,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const companyName = companyNameInput.value.trim();
         if (!companyName) return;
         if (!currentUser) {
-            alert("Debes iniciar sesion para anadir clientes.");
+            alert("Debes iniciar sesión para añadir clientes.");
             return;
         }
 
@@ -283,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const projectName = projectNameInput.value.trim();
         if (!projectName) return;
         if (!currentUser || !selectedClientId) {
-            alert("Selecciona un cliente e inicia sesion para anadir proyectos.");
+            alert("Selecciona un cliente e inicia sesión para añadir proyectos.");
             return;
         }
 
@@ -320,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const productName = productNameInput.value.trim();
         if (!productName) return;
         if (!currentUser || !selectedClientId || !selectedProjectId) {
-            alert("Selecciona un proyecto e inicia sesion para anadir productos.");
+            alert("Selecciona un proyecto e inicia sesión para añadir productos.");
             return;
         }
 
@@ -339,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             await set(newProductRef, productData);
             closeProductModal();
+            renderProducts(selectedClientId, selectedProjectId);
         } catch (error) {
             console.error("Error adding product: ", error);
             alert(`Hubo un error al guardar el producto: ${error.message}`);
@@ -356,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskName = taskNameInput.value.trim();
         if (!taskName) return;
         if (!currentUser || !selectedClientId || !selectedProjectId) {
-            alert("Selecciona un proyecto e inicia sesion para anadir tareas.");
+            alert("Selecciona un proyecto e inicia sesión para añadir tareas.");
             return;
         }
 
@@ -401,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addProjectBtn?.addEventListener('click', () => {
             if (!currentUser) {
-                alert("Debes iniciar sesion para anadir proyectos.");
+                alert("Debes iniciar sesión para añadir proyectos.");
                 return;
             }
             openProjectModal();
@@ -435,6 +503,13 @@ document.addEventListener('DOMContentLoaded', () => {
             showClientView();
         });
 
+        backToProjectsBtn?.addEventListener('click', () => {
+            resetProjectDetail();
+            selectedProjectId = null;
+            selectedProductId = null;
+            if (selectedClientId) showProjectView(selectedClientId);
+        });
+
         userMenuToggle?.addEventListener('click', toggleUserMenu);
         document.addEventListener('click', (e) => {
             if (!userMenu || !userMenuToggle) return;
@@ -458,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clientsRef = null;
         allClients = [];
         renderClients();
-        noClientsMessage.textContent = "Por favor, inicie sesion.";
+        noClientsMessage.textContent = "Por favor, inicie sesión.";
         noClientsMessage.classList.remove('hidden');
         resetProjectDetail();
         showClientView();

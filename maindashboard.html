@@ -93,15 +93,33 @@
                             <span class="material-symbols-outlined text-[20px]">add</span>
                             <span>Añadir Proyecto</span>
                         </button>
-                        <button id="add-product-btn" class="hidden flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-surface-dark hover:bg-border-dark text-white text-sm font-bold transition-all border border-border-dark">
-                            <span class="material-symbols-outlined text-[20px]">category</span>
-                            <span>Crear Producto</span>
-                        </button>
                     </div>
                 </div>
                 <!-- Navigation / Project List -->
                 <nav id="project-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
                     <p id="no-projects-message" class="px-3 py-2 text-sm text-text-muted">No hay proyectos.</p>
+                </nav>
+            </div>
+
+            <div id="product-list-section" class="hidden flex flex-col flex-1">
+                <div class="px-4 py-2 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-text-muted">folder_open</span>
+                    <h2 id="product-client-name-header" class="text-white text-lg font-bold">Nombre del Cliente</h2>
+                </div>
+                <div class="px-4 py-2 flex items-center gap-2">
+                    <button id="back-to-projects-btn" class="flex items-center justify-center text-text-muted hover:text-white transition-colors" type="button" aria-label="Volver a proyectos">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                    </button>
+                    <h3 id="project-name-header" class="text-white text-base font-semibold">Nombre del Proyecto</h3>
+                </div>
+                <div class="px-4 py-2">
+                    <button id="add-product-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-surface-dark hover:bg-border-dark text-white text-sm font-bold transition-all border border-border-dark">
+                        <span class="material-symbols-outlined text-[20px]">category</span>
+                        <span>Crear Producto</span>
+                    </button>
+                </div>
+                <nav id="product-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+                    <p id="no-products-message" class="px-3 py-2 text-sm text-text-muted">No hay productos.</p>
                 </nav>
             </div>
         </div></aside>
@@ -352,7 +370,6 @@
 
 </body>
 </html>
-
 
 
 
