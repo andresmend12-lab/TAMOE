@@ -1,5 +1,5 @@
 ﻿import { auth, database } from './firebase.js';
-import { ref, push, onValue, query, set, update, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { ref, push, onValue, query, set, update, remove, runTransaction } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,37 +27,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectDetailSub = document.getElementById('project-detail-sub');
     const taskList = document.getElementById('task-list');
     const noTasksMessage = document.getElementById('no-tasks-message');
+    const subtaskSection = document.getElementById('subtask-section');
+    const subtaskList = document.getElementById('subtask-list');
+    const noSubtasksMessage = document.getElementById('no-subtasks-message');
+    const addSubtaskBtn = document.getElementById('add-subtask-btn');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
     const addProjectModal = document.getElementById('add-project-modal');
     const addProductModal = document.getElementById('add-product-modal');
     const addTaskModal = document.getElementById('add-task-modal');
+    const addSubtaskModal = document.getElementById('add-subtask-modal');
 
     const addClientForm = document.getElementById('add-client-form');
     const addProjectForm = document.getElementById('add-project-form');
     const addProductForm = document.getElementById('add-product-form');
     const addTaskForm = document.getElementById('add-task-form');
+    const addSubtaskForm = document.getElementById('add-subtask-form');
 
     const closeModalBtn = document.getElementById('close-modal-btn');
     const closeProjectModalBtn = document.getElementById('close-project-modal-btn');
     const closeProductModalBtn = document.getElementById('close-product-modal-btn');
     const closeTaskModalBtn = document.getElementById('close-task-modal-btn');
+    const closeSubtaskModalBtn = document.getElementById('close-subtask-modal-btn');
 
     const cancelAddClientBtn = document.getElementById('cancel-add-client');
     const cancelAddProjectBtn = document.getElementById('cancel-add-project');
     const cancelAddProductBtn = document.getElementById('cancel-add-product');
     const cancelAddTaskBtn = document.getElementById('cancel-add-task');
+    const cancelAddSubtaskBtn = document.getElementById('cancel-add-subtask');
 
     const companyNameInput = document.getElementById('company-name');
     const projectNameInput = document.getElementById('project-name');
     const productNameInput = document.getElementById('product-name');
     const taskNameInput = document.getElementById('task-name');
+    const subtaskNameInput = document.getElementById('subtask-name');
 
     const saveClientBtn = addClientForm ? addClientForm.querySelector('button[type="submit"]') : null;
     const saveProjectBtn = addProjectForm ? addProjectForm.querySelector('button[type="submit"]') : null;
     const saveProductBtn = addProductForm ? addProductForm.querySelector('button[type="submit"]') : null;
     const saveTaskBtn = addTaskForm ? addTaskForm.querySelector('button[type="submit"]') : null;
+    const saveSubtaskBtn = addSubtaskForm ? addSubtaskForm.querySelector('button[type="submit"]') : null;
 
     let allClients = [];
     let currentUser = null;
@@ -67,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedProjectId = null;
     let selectedProductId = null;
     let selectedTaskId = null;
+    let selectedSubtaskId = null;
 
     // User dropdown
     const userMenuToggle = document.getElementById('user-menu-toggle');
@@ -135,6 +146,159 @@ document.addEventListener('DOMContentLoaded', () => {
 
         wrapper.append(button, menu);
         return wrapper;
+    };
+
+    // ManageId helpers (per client prefix + counter)
+    const stripDiacritics = (value) => {
+        if (typeof value !== 'string') return '';
+        return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    };
+
+    const buildManagePrefixFromName = (name) => {
+        const cleaned = stripDiacritics(String(name || '')).trim();
+        if (!cleaned) return 'XX';
+
+        const words = cleaned.split(/\s+/).filter(Boolean);
+        const pickFirstAlnum = (word) => {
+            const match = String(word).match(/[A-Za-z0-9]/);
+            return match ? match[0].toUpperCase() : '';
+        };
+
+        if (words.length >= 2) {
+            const initials = words.map(pickFirstAlnum).filter(Boolean).join('');
+            return initials || 'XX';
+        }
+
+        const chars = (words[0].match(/[A-Za-z0-9]/g) || []).join('');
+        const prefix = chars.slice(0, 2).toUpperCase();
+        return (prefix || 'XX').padEnd(2, 'X');
+    };
+
+    const formatManageId = (prefix, number) => {
+        const safePrefix = String(prefix || 'XX').toUpperCase();
+        const safeNumber = Number.isFinite(Number(number)) ? Number(number) : 0;
+        return `${safePrefix}-${String(safeNumber).padStart(3, '0')}`;
+    };
+
+    const parseManageNumber = (manageId) => {
+        if (typeof manageId !== 'string') return null;
+        const match = manageId.match(/-(\d{3,})$/);
+        if (!match) return null;
+        const num = Number.parseInt(match[1], 10);
+        return Number.isFinite(num) ? num : null;
+    };
+
+    const countEntitiesForClient = (client) => {
+        let count = 0;
+        const projects = client?.projects || {};
+        for (const project of Object.values(projects)) {
+            if (!project) continue;
+            count += 1; // project
+
+            const projectTasks = project.tasks || {};
+            for (const task of Object.values(projectTasks)) {
+                if (!task) continue;
+                count += 1; // task
+                const subtasks = task.subtasks || {};
+                count += Object.keys(subtasks).length;
+            }
+
+            const products = project.products || {};
+            for (const product of Object.values(products)) {
+                if (!product) continue;
+                count += 1; // product
+                const productTasks = product.tasks || {};
+                for (const task of Object.values(productTasks)) {
+                    if (!task) continue;
+                    count += 1; // task
+                    const subtasks = task.subtasks || {};
+                    count += Object.keys(subtasks).length;
+                }
+            }
+        }
+        return count;
+    };
+
+    const getMaxManageNumberForClient = (client) => {
+        let max = parseManageNumber(client?.manageId) || 0;
+        const projects = client?.projects || {};
+        for (const project of Object.values(projects)) {
+            if (!project) continue;
+            max = Math.max(max, parseManageNumber(project.manageId) || 0);
+
+            const projectTasks = project.tasks || {};
+            for (const task of Object.values(projectTasks)) {
+                if (!task) continue;
+                max = Math.max(max, parseManageNumber(task.manageId) || 0);
+                const subtasks = task.subtasks || {};
+                for (const subtask of Object.values(subtasks)) {
+                    if (!subtask) continue;
+                    max = Math.max(max, parseManageNumber(subtask.manageId) || 0);
+                }
+            }
+
+            const products = project.products || {};
+            for (const product of Object.values(products)) {
+                if (!product) continue;
+                max = Math.max(max, parseManageNumber(product.manageId) || 0);
+                const productTasks = product.tasks || {};
+                for (const task of Object.values(productTasks)) {
+                    if (!task) continue;
+                    max = Math.max(max, parseManageNumber(task.manageId) || 0);
+                    const subtasks = task.subtasks || {};
+                    for (const subtask of Object.values(subtasks)) {
+                        if (!subtask) continue;
+                        max = Math.max(max, parseManageNumber(subtask.manageId) || 0);
+                    }
+                }
+            }
+        }
+        return max;
+    };
+
+    const ensureClientManageConfig = async (clientId) => {
+        const client = allClients.find(c => c.id === clientId);
+        if (!client) throw new Error('Cliente no encontrado.');
+
+        const prefix = client.managePrefix || buildManagePrefixFromName(client.name);
+
+        const entityCount = countEntitiesForClient(client);
+        const maxUsedNumber = getMaxManageNumberForClient(client);
+        const desiredNext = Math.max(2, entityCount + 2, maxUsedNumber + 1);
+
+        const updatesPayload = {};
+        if (!client.managePrefix) updatesPayload.managePrefix = prefix;
+        if (!client.manageId) updatesPayload.manageId = formatManageId(prefix, 1);
+        if (typeof client.manageNextNumber !== 'number' || !Number.isFinite(client.manageNextNumber) || client.manageNextNumber < desiredNext) {
+            updatesPayload.manageNextNumber = desiredNext;
+        }
+
+        if (Object.keys(updatesPayload).length > 0) {
+            await update(ref(database, `clients/${clientId}`), updatesPayload);
+            Object.assign(client, updatesPayload);
+        }
+
+        return { client, prefix };
+    };
+
+    const allocateNextManageId = async (clientId) => {
+        const { client, prefix } = await ensureClientManageConfig(clientId);
+        const nextRef = ref(database, `clients/${clientId}/manageNextNumber`);
+        const result = await runTransaction(nextRef, (current) => {
+            const safeCurrent = (typeof current === 'number' && Number.isFinite(current) && current >= 2)
+                ? current
+                : (typeof client.manageNextNumber === 'number' && Number.isFinite(client.manageNextNumber) && client.manageNextNumber >= 2 ? client.manageNextNumber : 2);
+            return safeCurrent + 1;
+        });
+
+        if (!result.committed) {
+            throw new Error('No se pudo reservar un manageId.');
+        }
+
+        const storedNext = result.snapshot.val();
+        const allocatedNumber = storedNext - 1;
+        client.manageNextNumber = storedNext;
+        return formatManageId(prefix, allocatedNumber);
     };
 
     // Render list of clients
@@ -237,6 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProjectId = null;
         selectedProductId = null;
         selectedTaskId = null;
+        selectedSubtaskId = null;
         if (projectDetail) projectDetail.classList.add('hidden');
         if (projectDetailName) projectDetailName.textContent = 'Selecciona un proyecto';
         if (projectDetailSub) projectDetailSub.textContent = 'Selecciona un proyecto en la barra lateral.';
@@ -245,6 +410,12 @@ document.addEventListener('DOMContentLoaded', () => {
             noTasksMessage.textContent = 'Selecciona un proyecto o producto para ver tareas.';
             noTasksMessage.classList.remove('hidden');
         }
+        if (subtaskList) subtaskList.innerHTML = '';
+        if (noSubtasksMessage) {
+            noSubtasksMessage.textContent = 'Selecciona una tarea para ver sus subtareas.';
+            noSubtasksMessage.classList.remove('hidden');
+        }
+        hideEl(subtaskSection);
     };
 
     const showProjectView = (clientId) => {
@@ -253,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedClientId = clientId;
         selectedProjectId = null;
         selectedProductId = null;
+        ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
         if (clientNameHeader) clientNameHeader.textContent = client.name;
         renderProjects(clientId);
         resetProjectDetail();
@@ -272,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProjectId = projectId;
         selectedProductId = null;
         selectedTaskId = null;
+        ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
 
         if (productClientNameHeader) productClientNameHeader.textContent = client.name;
         if (projectNameHeader) projectNameHeader.textContent = project.name;
@@ -339,6 +512,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeTaskModal = () => {
         addTaskModal.classList.add('hidden');
         addTaskForm?.reset();
+    };
+
+    const openSubtaskModal = () => {
+        if (!selectedClientId || !selectedProjectId || !selectedTaskId) {
+            alert('Selecciona una tarea primero.');
+            return;
+        }
+        addSubtaskModal.classList.remove('hidden');
+        setTimeout(() => subtaskNameInput?.focus(), 50);
+    };
+
+    const closeSubtaskModal = () => {
+        addSubtaskModal.classList.add('hidden');
+        addSubtaskForm?.reset();
     };
 
     // Render projects of selected client
@@ -740,11 +927,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveClientBtn.textContent = "Guardando...";
             }
 
+            const managePrefix = buildManagePrefixFromName(companyName);
+            const manageId = formatManageId(managePrefix, 1);
             const newClientRef = push(ref(database, 'clients'));
             const clientData = {
                 name: companyName,
                 createdAt: new Date().toISOString(),
-                clientId: newClientRef.key
+                clientId: newClientRef.key,
+                manageId,
+                managePrefix,
+                manageNextNumber: 2
             };
 
             await set(newClientRef, clientData);
@@ -776,11 +968,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveProjectBtn.textContent = "Guardando...";
             }
 
+            const manageId = await allocateNextManageId(selectedClientId);
             const newProjectRef = push(ref(database, `clients/${selectedClientId}/projects`));
             const projectData = {
                 name: projectName,
                 createdAt: new Date().toISOString(),
-                projectId: newProjectRef.key
+                projectId: newProjectRef.key,
+                manageId
             };
 
             await set(newProjectRef, projectData);
@@ -813,11 +1007,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveProductBtn.textContent = "Guardando...";
             }
 
+            const manageId = await allocateNextManageId(selectedClientId);
             const newProductRef = push(ref(database, `clients/${selectedClientId}/projects/${selectedProjectId}/products`));
             const productData = {
                 name: productName,
                 createdAt: new Date().toISOString(),
-                productId: newProductRef.key
+                productId: newProductRef.key,
+                manageId
             };
 
             await set(newProductRef, productData);
@@ -850,6 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveTaskBtn.textContent = "Guardando...";
             }
 
+            const manageId = await allocateNextManageId(selectedClientId);
             const taskPath = selectedProductId
                 ? `clients/${selectedClientId}/projects/${selectedProjectId}/products/${selectedProductId}/tasks`
                 : `clients/${selectedClientId}/projects/${selectedProjectId}/tasks`;
@@ -857,7 +1054,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const taskData = {
                 name: taskName,
                 createdAt: new Date().toISOString(),
-                taskId: newTaskRef.key
+                taskId: newTaskRef.key,
+                manageId
             };
 
             await set(newTaskRef, taskData);

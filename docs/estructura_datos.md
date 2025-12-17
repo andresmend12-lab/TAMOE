@@ -11,22 +11,39 @@
   - `clientId`: string (llave generada por RTDB)  
   - `name`: string  
   - `createdAt`: ISO string  
+  - `manageId`: string (ej: `NN-001`)  
+  - `managePrefix`: string (ej: `NN`)  
+  - `manageNextNumber`: number (siguiente número a asignar)  
   - `projects/{projectId}`  
     - `projectId`: string  
     - `name`: string  
     - `createdAt`: ISO string  
+    - `manageId`: string  
     - `products/{productId}`  
       - `productId`: string  
       - `name`: string  
       - `createdAt`: ISO string  
+      - `manageId`: string  
       - `tasks/{taskId}`  
         - `taskId`: string  
         - `name`: string  
         - `createdAt`: ISO string  
+        - `manageId`: string  
+        - `subtasks/{subtaskId}`  
+          - `subtaskId`: string  
+          - `name`: string  
+          - `createdAt`: ISO string  
+          - `manageId`: string  
     - `tasks/{taskId}`  
       - `taskId`: string  
       - `name`: string  
       - `createdAt`: ISO string
+      - `manageId`: string  
+      - `subtasks/{subtaskId}`  
+        - `subtaskId`: string  
+        - `name`: string  
+        - `createdAt`: ISO string  
+        - `manageId`: string
 
 ## Reglas actuales (`database.rules.json`)
 - Lectura y escritura de `clients` permitida para cualquier usuario autenticado.
