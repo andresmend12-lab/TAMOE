@@ -178,6 +178,7 @@
         const headerUserAvatar = qs('header-user-avatar');
         const headerUserName = qs('header-user-name');
         const headerUserDept = qs('header-user-dept');
+        const commentButtonDefaultHtml = commentButton ? commentButton.innerHTML : 'Publicar';
 
         const getManageIdFromUrl = () => {
             const params = new URLSearchParams(window.location.search);
@@ -230,8 +231,9 @@
 
         const renderAvatar = (el, name, photoUrl) => {
             if (!el) return;
-            const hasPhoto = Boolean(photoUrl);
-            el.style.backgroundImage = hasPhoto ? `url(\"${photoUrl}\")` : '';
+            const photo = String(photoUrl || '').trim();
+            const hasPhoto = Boolean(photo);
+            el.style.backgroundImage = hasPhoto ? `url(${JSON.stringify(photo)})` : '';
             el.textContent = hasPhoto ? '' : getInitials(name);
             el.setAttribute('aria-label', name || 'Usuario');
         };
