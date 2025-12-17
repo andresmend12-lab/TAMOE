@@ -444,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProjectId = projectId;
         selectedProductId = null;
         selectedTaskId = null;
+        selectedSubtaskId = null;
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
 
         if (productClientNameHeader) productClientNameHeader.textContent = client.name;
@@ -658,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectButton.addEventListener('click', () => {
                 selectedProductId = prod.id;
                 selectedTaskId = null;
+                selectedSubtaskId = null;
                 if (projectDetail) projectDetail.classList.remove('hidden');
                 if (projectDetailName) projectDetailName.textContent = prod.name;
                 if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
@@ -702,6 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
                             selectedProductId = null;
                             selectedTaskId = null;
+                            selectedSubtaskId = null;
                             if (projectDetail) projectDetail.classList.remove('hidden');
                             if (projectDetailName) projectDetailName.textContent = project?.name || 'Selecciona un proyecto';
                             if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
@@ -720,15 +723,125 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const renderSubtasks = (clientId, projectId, productId, taskId) => {
+        if (!subtaskList || !noSubtasksMessage) return;
+
+        subtaskList.innerHTML = '';
+        selectedSubtaskId = null;
+
+        const client = allClients.find(c => c.id === clientId);
+        const project = client?.projects?.[projectId];
+        const tasks = productId
+            ? (project?.products?.[productId]?.tasks || {})
+            : (project?.tasks || {});
+        const task = tasks?.[taskId];
+        const subtasks = task?.subtasks || {};
+        const subtaskArray = Object.keys(subtasks || {}).map(key => ({ id: key, ...subtasks[key] }));
+
+        if (!task) {
+            noSubtasksMessage.textContent = 'Selecciona una tarea para ver sus subtareas.';
+            noSubtasksMessage.classList.remove('hidden');
+            return;
+        }
+
+        if (subtaskArray.length === 0) {
+            noSubtasksMessage.textContent = 'No hay subtareas para esta tarea.';
+            noSubtasksMessage.classList.remove('hidden');
+            return;
+        }
+
+        noSubtasksMessage.classList.add('hidden');
+        subtaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        const basePath = productId
+            ? `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}/subtasks`
+            : `clients/${clientId}/projects/${projectId}/tasks/${taskId}/subtasks`;
+
+        subtaskArray.forEach(subtask => {
+            const row = document.createElement('div');
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors';
+            row.dataset.subtaskId = subtask.id;
+
+            const selectButton = document.createElement('button');
+            selectButton.type = 'button';
+            selectButton.className = 'flex items-center gap-3 flex-1 min-w-0 text-left';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined text-text-muted';
+            icon.textContent = 'subdirectory_arrow_right';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'text-sm font-medium truncate';
+            nameSpan.textContent = subtask.name;
+
+            selectButton.append(icon, nameSpan);
+            selectButton.addEventListener('click', () => {
+                selectedSubtaskId = subtask.id;
+            });
+
+            const actions = createActionMenu({
+                onRename: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para editar subtareas.");
+                        return;
+                    }
+                    const nextNameRaw = prompt('Nuevo nombre de la subtarea', subtask.name);
+                    if (nextNameRaw === null) return;
+                    const nextName = nextNameRaw.trim();
+                    if (!nextName || nextName === subtask.name) return;
+
+                    try {
+                        await update(ref(database, `${basePath}/${subtask.id}`), { name: nextName });
+                        subtask.name = nextName;
+                        if (subtasks?.[subtask.id]) subtasks[subtask.id].name = nextName;
+                        renderSubtasks(clientId, projectId, productId, taskId);
+                    } catch (error) {
+                        console.error('Error renaming subtask:', error);
+                        alert(`No se pudo renombrar la subtarea: ${error.message}`);
+                    }
+                },
+                onDelete: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para eliminar subtareas.");
+                        return;
+                    }
+                    const confirmed = confirm(`¿Eliminar la subtarea \"${subtask.name}\"?`);
+                    if (!confirmed) return;
+
+                    try {
+                        await remove(ref(database, `${basePath}/${subtask.id}`));
+                        if (subtasks?.[subtask.id]) delete subtasks[subtask.id];
+                        if (selectedSubtaskId === subtask.id) selectedSubtaskId = null;
+                        renderSubtasks(clientId, projectId, productId, taskId);
+                    } catch (error) {
+                        console.error('Error deleting subtask:', error);
+                        alert(`No se pudo eliminar la subtarea: ${error.message}`);
+                    }
+                },
+            });
+
+            row.append(selectButton, actions);
+            subtaskList.appendChild(row);
+        });
+    };
+
     const renderTasks = (clientId, projectId, productId = null) => {
         if (!taskList || !noTasksMessage) return;
 
         taskList.innerHTML = '';
-        selectedTaskId = null;
+
+        if (subtaskList) subtaskList.innerHTML = '';
+        if (noSubtasksMessage) {
+            noSubtasksMessage.textContent = 'Selecciona una tarea para ver sus subtareas.';
+            noSubtasksMessage.classList.remove('hidden');
+        }
+        hideEl(subtaskSection);
 
         const client = allClients.find(c => c.id === clientId);
         const project = client?.projects?.[projectId];
         if (!project) {
+            selectedTaskId = null;
+            selectedSubtaskId = null;
             noTasksMessage.textContent = 'Selecciona un proyecto para ver tareas.';
             noTasksMessage.classList.remove('hidden');
             return;
@@ -741,6 +854,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskArray = Object.keys(tasks || {}).map(key => ({ id: key, ...tasks[key] }));
 
         if (taskArray.length === 0) {
+            selectedTaskId = null;
+            selectedSubtaskId = null;
             noTasksMessage.textContent = productId ? 'No hay tareas para este producto.' : 'No hay tareas para este proyecto.';
             noTasksMessage.classList.remove('hidden');
             return;
@@ -769,6 +884,9 @@ document.addEventListener('DOMContentLoaded', () => {
             selectButton.append(icon, nameSpan);
             selectButton.addEventListener('click', () => {
                 selectedTaskId = task.id;
+                selectedSubtaskId = null;
+                showEl(subtaskSection);
+                renderSubtasks(clientId, projectId, productId, task.id);
             });
 
             const actions = createActionMenu({
@@ -811,7 +929,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         await remove(ref(database, taskPath));
                         if (tasks?.[task.id]) delete tasks[task.id];
-                        if (selectedTaskId === task.id) selectedTaskId = null;
+                        if (selectedTaskId === task.id) {
+                            selectedTaskId = null;
+                            selectedSubtaskId = null;
+                        }
                         renderTasks(clientId, projectId, productId);
                     } catch (error) {
                         console.error('Error deleting task:', error);
@@ -823,6 +944,15 @@ document.addEventListener('DOMContentLoaded', () => {
             row.append(selectButton, actions);
             taskList.appendChild(row);
         });
+
+        if (selectedTaskId && tasks?.[selectedTaskId]) {
+            showEl(subtaskSection);
+            renderSubtasks(clientId, projectId, productId, selectedTaskId);
+        } else {
+            selectedTaskId = null;
+            selectedSubtaskId = null;
+            hideEl(subtaskSection);
+        }
     };
 
     const syncSelectionAfterDataChange = () => {
@@ -848,6 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedProjectId = null;
             selectedProductId = null;
             selectedTaskId = null;
+            selectedSubtaskId = null;
             resetProjectDetail();
             if (clientNameHeader) clientNameHeader.textContent = client.name;
             showEl(backToClientsBtn);
@@ -863,6 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedProductId && !project.products?.[selectedProductId]) {
             selectedProductId = null;
             selectedTaskId = null;
+            selectedSubtaskId = null;
         }
 
         if (projectDetail) projectDetail.classList.remove('hidden');
@@ -1072,6 +1204,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Handle add subtask form submit
+    const handleAddSubtaskSubmit = async (e) => {
+        e.preventDefault();
+        const subtaskName = subtaskNameInput.value.trim();
+        if (!subtaskName) return;
+        if (!currentUser || !selectedClientId || !selectedProjectId || !selectedTaskId) {
+            alert("Selecciona una tarea e inicia sesión para añadir subtareas.");
+            return;
+        }
+
+        try {
+            if (saveSubtaskBtn) {
+                saveSubtaskBtn.disabled = true;
+                saveSubtaskBtn.textContent = "Guardando...";
+            }
+
+            const manageId = await allocateNextManageId(selectedClientId);
+            const subtaskPath = selectedProductId
+                ? `clients/${selectedClientId}/projects/${selectedProjectId}/products/${selectedProductId}/tasks/${selectedTaskId}/subtasks`
+                : `clients/${selectedClientId}/projects/${selectedProjectId}/tasks/${selectedTaskId}/subtasks`;
+
+            const newSubtaskRef = push(ref(database, subtaskPath));
+            const subtaskData = {
+                name: subtaskName,
+                createdAt: new Date().toISOString(),
+                subtaskId: newSubtaskRef.key,
+                manageId
+            };
+
+            await set(newSubtaskRef, subtaskData);
+            closeSubtaskModal();
+            renderSubtasks(selectedClientId, selectedProjectId, selectedProductId, selectedTaskId);
+        } catch (error) {
+            console.error("Error adding subtask: ", error);
+            alert(`Hubo un error al guardar la subtarea: ${error.message}`);
+        } finally {
+            if (saveSubtaskBtn) {
+                saveSubtaskBtn.disabled = false;
+                saveSubtaskBtn.textContent = "Guardar Subtarea";
+            }
+        }
+    };
+
     // Attach UI listeners once
     const attachListeners = () => {
         if (listenersAttached) return;
@@ -1095,26 +1270,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addProductBtn?.addEventListener('click', openProductModal);
         addTaskBtn?.addEventListener('click', openTaskModal);
+        addSubtaskBtn?.addEventListener('click', openSubtaskModal);
 
         addClientForm?.addEventListener('submit', handleAddClientSubmit);
         addProjectForm?.addEventListener('submit', handleAddProjectSubmit);
         addProductForm?.addEventListener('submit', handleAddProductSubmit);
         addTaskForm?.addEventListener('submit', handleAddTaskSubmit);
+        addSubtaskForm?.addEventListener('submit', handleAddSubtaskSubmit);
 
         closeModalBtn?.addEventListener('click', closeModal);
         closeProjectModalBtn?.addEventListener('click', closeProjectModal);
         closeProductModalBtn?.addEventListener('click', closeProductModal);
         closeTaskModalBtn?.addEventListener('click', closeTaskModal);
+        closeSubtaskModalBtn?.addEventListener('click', closeSubtaskModal);
 
         cancelAddClientBtn?.addEventListener('click', closeModal);
         cancelAddProjectBtn?.addEventListener('click', closeProjectModal);
         cancelAddProductBtn?.addEventListener('click', closeProductModal);
         cancelAddTaskBtn?.addEventListener('click', closeTaskModal);
+        cancelAddSubtaskBtn?.addEventListener('click', closeSubtaskModal);
 
         addClientModal?.addEventListener('click', e => { if (e.target === addClientModal) closeModal(); });
         addProjectModal?.addEventListener('click', e => { if (e.target === addProjectModal) closeProjectModal(); });
         addProductModal?.addEventListener('click', e => { if (e.target === addProductModal) closeProductModal(); });
         addTaskModal?.addEventListener('click', e => { if (e.target === addTaskModal) closeTaskModal(); });
+        addSubtaskModal?.addEventListener('click', e => { if (e.target === addSubtaskModal) closeSubtaskModal(); });
 
         backToClientsBtn?.addEventListener('click', () => {
             resetProjectDetail();
