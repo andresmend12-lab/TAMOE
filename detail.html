@@ -153,11 +153,11 @@
 
                     <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <h3 class="text-white text-lg font-bold flex items-center gap-2 mb-3">
-                            <span class="material-symbols-outlined text-primary">layers</span>
-                            Proyectos
+                            <span class="material-symbols-outlined text-primary">account_tree</span>
+                            Actividades
                         </h3>
-                        <div id="projects-list" class="flex flex-col gap-2 text-sm text-text-muted">
-                            <p class="text-text-muted text-sm">No hay proyectos.</p>
+                        <div id="activities-list" class="flex flex-col gap-2 text-sm text-text-muted">
+                            <p class="text-text-muted text-sm">No hay elementos.</p>
                         </div>
                     </section>
 
@@ -212,7 +212,7 @@
         const descriptionInput = qs('description-input');
         const descriptionStatus = qs('description-status');
         const saveDescriptionButton = qs('save-description');
-        const projectsList = qs('projects-list');
+        const activitiesList = qs('activities-list');
         const commentsList = qs('comments-list');
         const commentInput = qs('comment-input');
         const commentButton = qs('comment-submit');
@@ -273,12 +273,12 @@
             if (mid) return mid.toUpperCase();
             const parts = window.location.pathname.split('/').filter(Boolean);
             const last = parts[parts.length - 1];
-            if (last && /[A-Za-z0-9]{2}-\d{3,}/.test(last)) return last.toUpperCase();
+            if (last && /[A-Za-z0-9]{2,}-\d{3,}/.test(last)) return last.toUpperCase();
             return null;
         };
 
         manageId = getManageIdFromUrl();
-        if (manageId && window.location.pathname.indexOf(manageId) === -1) {
+        if (manageId && window.top === window.self && window.location.pathname.indexOf(manageId) === -1) {
             window.history.replaceState({}, '', `/${manageId}`);
         }
 
@@ -523,53 +523,272 @@
             return path;
         };
 
-        const renderProjects = (result) => {
-            if (!projectsList) return;
-            projectsList.innerHTML = '';
+        const createStatusDot = (status) => {
+            const normalized = normalizeStatus(status);
+            const dot = document.createElement('span');
+            dot.className = 'inline-block w-2.5 h-2.5 rounded-full ring-1 ring-white/10 shrink-0';
+            dot.title = normalized;
+            dot.setAttribute('aria-label', normalized);
+            if (normalized === 'En proceso') dot.classList.add('bg-blue-400');
+            else if (normalized === 'Finalizado') dot.classList.add('bg-emerald-400');
+            else dot.classList.add('bg-slate-400');
+            return dot;
+        };
 
-            const clientId = result?.ids?.clientId;
-            const client = loadedClients.find(c => c.id === clientId);
-            const projects = client?.projects || {};
-            const projectArray = Object.entries(projects).map(([id, project]) => ({ id, ...project }));
-            projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const createManageLink = (manageIdValue) => {
+            const manageIdText = String(manageIdValue || '').trim();
+            const link = document.createElement(manageIdText ? 'a' : 'span');
+            link.className = 'text-xs font-mono text-text-muted hover:text-white hover:underline shrink-0';
+            if (manageIdText) {
+                link.href = `/${encodeURIComponent(manageIdText)}`;
+                link.target = '_top';
+                link.rel = 'noopener';
+                link.textContent = manageIdText;
+            } else {
+                link.textContent = '';
+            }
+            return link;
+        };
 
-            if (!projectArray.length) {
+        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null) => {
+            const summary = document.createElement('summary');
+            summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2 min-w-0';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined text-text-muted';
+            icon.textContent = iconName;
+
+            const title = document.createElement('span');
+            title.className = 'text-sm font-semibold truncate';
+            title.textContent = titleText || '-';
+
+            left.append(icon, title);
+            if (statusValue !== null) left.appendChild(createStatusDot(statusValue));
+
+            const right = createManageLink(manageIdValue);
+            summary.append(left, right);
+            return summary;
+        };
+
+        const makeRow = (iconName, titleText, manageIdValue, statusValue = null) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-surface-dark border border-border-dark text-white';
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2 min-w-0';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined text-text-muted text-[18px]';
+            icon.textContent = iconName;
+
+            const title = document.createElement('span');
+            title.className = 'text-sm font-medium truncate';
+            title.textContent = titleText || '-';
+
+            left.append(icon, title);
+            if (statusValue !== null) left.appendChild(createStatusDot(statusValue));
+
+            row.append(left, createManageLink(manageIdValue));
+            return row;
+        };
+
+        const makeTaskBlock = (task) => {
+            const taskName = task?.name || 'Tarea';
+            const subtasks = task?.subtasks || {};
+            const subArray = Object.values(subtasks || {}).filter(Boolean);
+            subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            if (!subArray.length) {
+                return makeRow('check_circle', taskName, task?.manageId, task?.status);
+            }
+
+            const details = document.createElement('details');
+            details.className = 'border border-border-dark rounded-lg overflow-hidden bg-surface-dark';
+            details.appendChild(makeSummary('check_circle', taskName, task?.manageId, task?.status));
+
+            const content = document.createElement('div');
+            content.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+            subArray.forEach(sub => {
+                content.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status));
+            });
+            details.appendChild(content);
+            return details;
+        };
+
+        const renderActivities = (result) => {
+            if (!activitiesList) return;
+            activitiesList.innerHTML = '';
+
+            const { type, item } = result || {};
+            const empty = (text) => {
                 const msg = document.createElement('p');
                 msg.className = 'text-text-muted text-sm';
-                msg.textContent = 'No hay proyectos.';
-                projectsList.appendChild(msg);
+                msg.textContent = text;
+                activitiesList.appendChild(msg);
+            };
+
+            if (!item) {
+                empty('No hay elementos.');
                 return;
             }
 
-            projectArray.forEach(project => {
-                const row = document.createElement('div');
-                row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-surface-dark border border-border-dark text-white';
+            if (type === 'client') {
+                const projects = item.projects || {};
+                const projectArray = Object.values(projects || {}).filter(Boolean);
+                projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-                const left = document.createElement('div');
-                left.className = 'flex items-center gap-2 min-w-0';
-                const icon = document.createElement('span');
-                icon.className = 'material-symbols-outlined text-text-muted text-[18px]';
-                icon.textContent = 'layers';
-                const name = document.createElement('span');
-                name.className = 'text-sm font-medium truncate';
-                name.textContent = project.name || 'Proyecto';
-                left.append(icon, name);
-
-                let manageEl;
-                if (project.manageId) {
-                    manageEl = document.createElement('a');
-                    manageEl.href = `/${encodeURIComponent(project.manageId)}`;
-                    manageEl.className = 'text-xs font-mono text-text-muted hover:text-white hover:underline';
-                    manageEl.textContent = project.manageId;
-                } else {
-                    manageEl = document.createElement('span');
-                    manageEl.className = 'text-xs font-mono text-text-muted';
-                    manageEl.textContent = '';
+                if (!projectArray.length) {
+                    empty('No hay proyectos.');
+                    return;
                 }
 
-                row.append(left, manageEl);
-                projectsList.appendChild(row);
-            });
+                projectArray.forEach(proj => {
+                    const projDetails = document.createElement('details');
+                    projDetails.className = 'border border-border-dark rounded-lg overflow-hidden bg-surface-dark';
+                    projDetails.appendChild(makeSummary('layers', proj.name || 'Proyecto', proj.manageId, proj.status));
+
+                    const projContent = document.createElement('div');
+                    projContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-3';
+
+                    const projTasks = proj.tasks || {};
+                    const projTaskArray = Object.values(projTasks || {}).filter(Boolean);
+                    projTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    if (projTaskArray.length) {
+                        const taskLabel = document.createElement('p');
+                        taskLabel.className = 'text-text-muted text-xs px-1';
+                        taskLabel.textContent = 'Tareas (sin producto)';
+                        projContent.appendChild(taskLabel);
+                        projTaskArray.forEach(t => projContent.appendChild(makeTaskBlock(t)));
+                    }
+
+                    const products = proj.products || {};
+                    const productArray = Object.values(products || {}).filter(Boolean);
+                    productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    if (productArray.length) {
+                        const prodLabel = document.createElement('p');
+                        prodLabel.className = 'text-text-muted text-xs px-1';
+                        prodLabel.textContent = 'Productos';
+                        projContent.appendChild(prodLabel);
+
+                        productArray.forEach(prod => {
+                            const prodDetails = document.createElement('details');
+                            prodDetails.className = 'border border-border-dark/70 rounded-lg overflow-hidden bg-background-dark/10';
+                            prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId, prod.status));
+
+                            const prodContent = document.createElement('div');
+                            prodContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+                            const tasks = prod.tasks || {};
+                            const taskArray = Object.values(tasks || {}).filter(Boolean);
+                            taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                            if (!taskArray.length) {
+                                const msg = document.createElement('p');
+                                msg.className = 'text-text-muted text-sm';
+                                msg.textContent = 'No hay tareas en este producto.';
+                                prodContent.appendChild(msg);
+                            } else {
+                                taskArray.forEach(t => prodContent.appendChild(makeTaskBlock(t)));
+                            }
+
+                            prodDetails.appendChild(prodContent);
+                            projContent.appendChild(prodDetails);
+                        });
+                    }
+
+                    if (!projTaskArray.length && !productArray.length) {
+                        const msg = document.createElement('p');
+                        msg.className = 'text-text-muted text-sm';
+                        msg.textContent = 'No hay actividades en este proyecto.';
+                        projContent.appendChild(msg);
+                    }
+
+                    projDetails.appendChild(projContent);
+                    activitiesList.appendChild(projDetails);
+                });
+
+                return;
+            }
+
+            if (type === 'project') {
+                const projTasks = item.tasks || {};
+                const projTaskArray = Object.values(projTasks || {}).filter(Boolean);
+                projTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                if (projTaskArray.length) {
+                    const taskLabel = document.createElement('p');
+                    taskLabel.className = 'text-text-muted text-xs px-1';
+                    taskLabel.textContent = 'Tareas (sin producto)';
+                    activitiesList.appendChild(taskLabel);
+                    projTaskArray.forEach(t => activitiesList.appendChild(makeTaskBlock(t)));
+                }
+
+                const products = item.products || {};
+                const productArray = Object.values(products || {}).filter(Boolean);
+                productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                if (productArray.length) {
+                    const prodLabel = document.createElement('p');
+                    prodLabel.className = 'text-text-muted text-xs px-1 pt-2';
+                    prodLabel.textContent = 'Productos';
+                    activitiesList.appendChild(prodLabel);
+
+                    productArray.forEach(prod => {
+                        const prodDetails = document.createElement('details');
+                        prodDetails.className = 'border border-border-dark rounded-lg overflow-hidden bg-surface-dark';
+                        prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId, prod.status));
+
+                        const prodContent = document.createElement('div');
+                        prodContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+                        const tasks = prod.tasks || {};
+                        const taskArray = Object.values(tasks || {}).filter(Boolean);
+                        taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                        if (!taskArray.length) {
+                            const msg = document.createElement('p');
+                            msg.className = 'text-text-muted text-sm';
+                            msg.textContent = 'No hay tareas en este producto.';
+                            prodContent.appendChild(msg);
+                        } else {
+                            taskArray.forEach(t => prodContent.appendChild(makeTaskBlock(t)));
+                        }
+                        prodDetails.appendChild(prodContent);
+                        activitiesList.appendChild(prodDetails);
+                    });
+                }
+
+                if (!projTaskArray.length && !productArray.length) {
+                    empty('No hay actividades en este proyecto.');
+                }
+                return;
+            }
+
+            if (type === 'product') {
+                const tasks = item.tasks || {};
+                const taskArray = Object.values(tasks || {}).filter(Boolean);
+                taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                if (!taskArray.length) {
+                    empty('No hay tareas en este producto.');
+                    return;
+                }
+                taskArray.forEach(t => activitiesList.appendChild(makeTaskBlock(t)));
+                return;
+            }
+
+            if (type === 'task') {
+                const subtasks = item.subtasks || {};
+                const subArray = Object.values(subtasks || {}).filter(Boolean);
+                subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                if (!subArray.length) {
+                    empty('No hay subtareas en esta tarea.');
+                    return;
+                }
+                subArray.forEach(sub => {
+                    activitiesList.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status));
+                });
+                return;
+            }
+
+            empty('No hay actividades inferiores.');
         };
 
         const renderComments = (snapshotVal) => {
@@ -703,7 +922,7 @@
             renderStatusFlow();
 
             renderBreadcrumb(trail);
-            renderProjects(result);
+            renderActivities(result);
             updateAuthUI();
         };
 
@@ -797,7 +1016,7 @@
 
         saveDescriptionButton?.addEventListener('click', saveDescription);
         commentButton?.addEventListener('click', submitComment);
-        qs('open-dashboard')?.addEventListener('click', () => { window.location.href = 'maindashboard.html'; });
+        qs('open-dashboard')?.addEventListener('click', () => { window.top.location.href = 'maindashboard.html'; });
         statusStepButtons.forEach(btn => {
             btn.addEventListener('click', () => saveStatus(btn.dataset.statusStep));
         });

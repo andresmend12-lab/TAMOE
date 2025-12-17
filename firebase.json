@@ -9,7 +9,7 @@
     "rewrites": [
       {
         "source": "/:manageId",
-        "destination": "/detail.html"
+        "destination": "/maindashboard.html"
       }
     ]
   },

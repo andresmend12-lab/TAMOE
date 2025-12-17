@@ -111,6 +111,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return chip;
     };
 
+    const normalizeStatus = (value) => {
+        const raw = String(value || '').trim().toLowerCase();
+        if (!raw) return 'Pendiente';
+        if (raw === 'pendiente') return 'Pendiente';
+        if (raw === 'en proceso' || raw === 'enproceso' || raw === 'en_proceso') return 'En proceso';
+        if (raw === 'finalizado' || raw === 'finalizada') return 'Finalizado';
+        return 'Pendiente';
+    };
+
+    const createStatusDot = (status) => {
+        const normalized = normalizeStatus(status);
+        const dot = document.createElement('span');
+        dot.className = 'inline-block w-2.5 h-2.5 rounded-full ring-1 ring-white/10 shrink-0';
+        dot.title = normalized;
+        dot.setAttribute('aria-label', normalized);
+        if (normalized === 'En proceso') dot.classList.add('bg-blue-400');
+        else if (normalized === 'Finalizado') dot.classList.add('bg-emerald-400');
+        else dot.classList.add('bg-slate-400');
+        return dot;
+    };
+
     const closeAllActionMenus = (exceptMenu = null) => {
         document.querySelectorAll('.action-menu').forEach(menu => {
             if (menu !== exceptMenu) menu.classList.add('hidden');
@@ -590,9 +611,10 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = proj.name;
 
+            const statusDot = createStatusDot(proj.status);
             const idTag = createIdChip(proj.manageId);
 
-            nameWrapper.append(nameSpan, idTag);
+            nameWrapper.append(nameSpan, statusDot, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 showProductView(clientId, proj.id);
@@ -692,9 +714,10 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = prod.name;
 
+            const statusDot = createStatusDot(prod.status);
             const idTag = createIdChip(prod.manageId);
 
-            nameWrapper.append(nameSpan, idTag);
+            nameWrapper.append(nameSpan, statusDot, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedProductId = prod.id;
@@ -819,9 +842,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const nameWrapper = document.createElement('div');
             nameWrapper.className = 'flex items-center gap-2 min-w-0';
 
+            const statusDot = createStatusDot(subtask.status);
             const idTag = createIdChip(subtask.manageId);
 
-            nameWrapper.append(nameSpan, idTag);
+            nameWrapper.append(nameSpan, statusDot, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedSubtaskId = subtask.id;
@@ -888,7 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sortedClients = [...allClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-        const makeSummary = (icon, name, manageId) => {
+        const makeSummary = (icon, name, manageId, status = null) => {
             const summary = document.createElement('summary');
             summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
 
@@ -901,6 +925,9 @@ document.addEventListener('DOMContentLoaded', () => {
             title.className = 'text-sm font-semibold';
             title.textContent = name;
             left.append(ic, title);
+            if (status !== null) {
+                left.appendChild(createStatusDot(status));
+            }
 
             const chip = createIdChip(manageId);
             chip.classList.add('text-xs');
@@ -920,7 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = document.createElement('span');
             name.className = 'text-sm';
             name.textContent = task.name || 'Tarea';
-            left.append(ic, name);
+            left.append(ic, name, createStatusDot(task.status));
 
             const chip = createIdChip(task.manageId);
             chip.classList.add('text-[11px]');
@@ -950,7 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 projectArray.forEach(proj => {
                     const projDetails = document.createElement('details');
                     projDetails.className = 'border border-border-dark/70 rounded-lg overflow-hidden';
-                    projDetails.appendChild(makeSummary('layers', proj.name || 'Proyecto', proj.manageId || ''));
+                    projDetails.appendChild(makeSummary('layers', proj.name || 'Proyecto', proj.manageId || '', proj.status));
 
                     const projContent = document.createElement('div');
                     projContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-2';
@@ -982,10 +1009,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const ic = document.createElement('span');
                                     ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
                                     ic.textContent = 'subdirectory_arrow_right';
-                                    const name = document.createElement('span');
-                                    name.className = 'text-sm';
-                                    name.textContent = sub.name || 'Subtarea';
-                                    l.append(ic, name);
+                                     const name = document.createElement('span');
+                                     name.className = 'text-sm';
+                                     name.textContent = sub.name || 'Subtarea';
+                                    l.append(ic, name, createStatusDot(sub.status));
                                     const chip = createIdChip(sub.manageId);
                                     chip.classList.add('text-[11px]');
                                     row.append(l, chip);
@@ -1011,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         productArray.forEach(prod => {
                             const prodDetails = document.createElement('details');
                             prodDetails.className = 'border border-border-dark/60 rounded-lg overflow-hidden';
-                            prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId || ''));
+                            prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId || '', prod.status));
 
                             const prodContent = document.createElement('div');
                             prodContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-1';
@@ -1047,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             const name = document.createElement('span');
                                             name.className = 'text-sm';
                                             name.textContent = sub.name || 'Subtarea';
-                                            l.append(ic, name);
+                                            l.append(ic, name, createStatusDot(sub.status));
                                             const chip = createIdChip(sub.manageId);
                                             chip.classList.add('text-[11px]');
                                             row.append(l, chip);
@@ -1132,9 +1159,10 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = task.name;
 
+            const statusDot = createStatusDot(task.status);
             const idTag = createIdChip(task.manageId);
 
-            nameWrapper.append(nameSpan, idTag);
+            nameWrapper.append(nameSpan, statusDot, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedTaskId = task.id;

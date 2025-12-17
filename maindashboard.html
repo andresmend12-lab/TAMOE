@@ -151,14 +151,19 @@
             </div>
         </header>
 
-        <!-- Dashboard Content -->
-        <div class="flex-1 overflow-y-auto">
-            <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
-                <!-- Árbol de Clientes / Proyectos / Productos / Tareas -->
-                <section id="tree-view" class="rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">account_tree</span>
+         <!-- Dashboard Content -->
+         <div class="flex-1 overflow-y-auto">
+             <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
+                 <!-- Detail View (manageId route) -->
+                 <section id="detail-view" class="hidden rounded-xl border border-border-dark bg-surface-darker shadow-lg shadow-black/20 overflow-hidden">
+                     <iframe id="detail-frame" title="Detalle" class="w-full bg-background-dark" style="height: calc(100vh - 8rem);" loading="lazy"></iframe>
+                 </section>
+
+                 <!-- Árbol de Clientes / Proyectos / Productos / Tareas -->
+                 <section id="tree-view" class="rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
+                     <div class="flex items-center justify-between mb-4">
+                         <div class="flex items-center gap-2">
+                             <span class="material-symbols-outlined text-primary">account_tree</span>
                             <h2 class="text-white text-xl font-bold">Árbol de clientes</h2>
                         </div>
                         <p class="text-xs text-text-muted">Expandir/contraer por tipo</p>
@@ -381,11 +386,10 @@
 <script src="logout.js" type="module"></script>
 <script src="theme-toggle.js" type="module"></script>
 <script src="client-manager.js" type="module"></script>
+<script src="detail-router.js" type="module"></script>
 
 </body>
 </html>
-
-
 
 
 
