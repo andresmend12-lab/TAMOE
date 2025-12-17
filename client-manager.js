@@ -101,10 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // View toggles
     const showClientView = () => {
-        projectView.classList.add('hidden');
-        projectView.classList.remove('flex');
-        clientView.classList.remove('hidden');
-        clientView.classList.add('flex');
+        selectedClientId = null;
+        selectedProjectId = null;
         hideEl(backToClientsBtn);
         hideEl(addProductBtn);
         resetProjectDetail();
@@ -122,14 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const showProjectView = (clientId) => {
         const client = allClients.find(c => c.id === clientId);
         if (!client) return;
-        clientNameHeader.textContent = client.name;
         selectedClientId = clientId;
+        selectedProjectId = null;
+        if (clientNameHeader) clientNameHeader.textContent = client.name;
         renderProjects(clientId);
         resetProjectDetail();
-        clientView.classList.add('hidden');
-        clientView.classList.remove('flex');
-        projectView.classList.remove('hidden');
-        projectView.classList.add('flex');
         showEl(backToClientsBtn);
         hideEl(addProductBtn);
         showEl(projectListSection);
@@ -453,6 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser = user;
         clientsRef = query(ref(database, 'clients'));
         attachListeners();
+        showClientView();
         fetchClients();
     };
 
@@ -465,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
         noClientsMessage.textContent = "Por favor, inicie sesion.";
         noClientsMessage.classList.remove('hidden');
         resetProjectDetail();
+        showClientView();
         attachListeners();
     };
 
