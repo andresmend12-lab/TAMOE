@@ -891,26 +891,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const makeSummary = (icon, name, manageId) => {
             const summary = document.createElement('summary');
             summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
-            summary.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-text-muted">${icon}</span>
-                    <span class="text-sm font-semibold">${name}</span>
-                </div>
-                <span class="text-xs text-text-muted">${manageId || ''}</span>
-            `;
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2';
+            const ic = document.createElement('span');
+            ic.className = 'material-symbols-outlined text-text-muted';
+            ic.textContent = icon;
+            const title = document.createElement('span');
+            title.className = 'text-sm font-semibold';
+            title.textContent = name;
+            title.addEventListener('click', (e) => { e.stopPropagation(); openDetailPage(manageId); });
+            left.append(ic, title);
+
+            const chip = createIdChip(manageId);
+            chip.classList.add('text-xs');
+            summary.append(left, chip);
             return summary;
         };
 
         const makeTaskItem = (task) => {
             const row = document.createElement('div');
-            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-dark border border-border-dark text-white';
-            row.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-text-muted text-[18px]">check_circle</span>
-                    <span class="text-sm">${task.name || 'Tarea'}</span>
-                </div>
-                <span class="text-[11px] text-text-muted">${task.manageId || ''}</span>
-            `;
+            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-dark border border-border-dark text-white hover:bg-white/5 cursor-pointer';
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2';
+            const ic = document.createElement('span');
+            ic.className = 'material-symbols-outlined text-text-muted text-[18px]';
+            ic.textContent = 'check_circle';
+            const name = document.createElement('span');
+            name.className = 'text-sm';
+            name.textContent = task.name || 'Tarea';
+            left.append(ic, name);
+
+            const chip = createIdChip(task.manageId);
+            chip.classList.add('text-[11px]');
+            row.append(left, chip);
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.manage-chip')) return;
+                openDetailPage(task.manageId);
+            });
             return row;
         };
 
@@ -950,7 +969,41 @@ document.addEventListener('DOMContentLoaded', () => {
                         taskLabel.className = 'text-text-muted text-xs px-1';
                         taskLabel.textContent = 'Tareas (sin producto)';
                         projContent.appendChild(taskLabel);
-                        projTaskArray.forEach(t => projContent.appendChild(makeTaskItem(t)));
+                        projTaskArray.forEach(t => {
+                            const taskBlock = document.createElement('div');
+                            taskBlock.className = 'flex flex-col gap-1';
+                            taskBlock.appendChild(makeTaskItem(t));
+                            const subtasks = t.subtasks || {};
+                            const subArray = Object.keys(subtasks).map(id => ({ id, ...subtasks[id] }));
+                            subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                            if (subArray.length) {
+                                const subList = document.createElement('div');
+                                subList.className = 'pl-5 flex flex-col gap-1';
+                                subArray.forEach(sub => {
+                                    const row = document.createElement('div');
+                                    row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white hover:bg-white/5 cursor-pointer';
+                                    const l = document.createElement('div');
+                                    l.className = 'flex items-center gap-2';
+                                    const ic = document.createElement('span');
+                                    ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
+                                    ic.textContent = 'subdirectory_arrow_right';
+                                    const name = document.createElement('span');
+                                    name.className = 'text-sm';
+                                    name.textContent = sub.name || 'Subtarea';
+                                    l.append(ic, name);
+                                    const chip = createIdChip(sub.manageId);
+                                    chip.classList.add('text-[11px]');
+                                    row.append(l, chip);
+                                    row.addEventListener('click', (e) => {
+                                        if (e.target.closest('.manage-chip')) return;
+                                        openDetailPage(sub.manageId);
+                                    });
+                                    subList.appendChild(row);
+                                });
+                                taskBlock.appendChild(subList);
+                            }
+                            projContent.appendChild(taskBlock);
+                        });
                     }
 
                     // Productos
