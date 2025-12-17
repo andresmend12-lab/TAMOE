@@ -52,9 +52,18 @@
                 <h1 id="header-title" class="text-lg font-bold leading-tight tracking-tight">Cargando...</h1>
             </div>
         </div>
-        <div class="flex items-center gap-2 text-text-muted text-sm">
-            <span class="material-symbols-outlined">badge</span>
-            <span id="header-manage" class="font-mono">...</span>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 text-text-muted text-sm">
+                <span class="material-symbols-outlined">badge</span>
+                <span id="header-manage" class="font-mono">...</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="header-user-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
+                <div class="flex flex-col leading-tight">
+                    <span id="header-user-name" class="text-white text-sm font-semibold">Invitado</span>
+                    <span id="header-user-dept" class="text-text-muted text-xs"></span>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -82,8 +91,7 @@
                     </div>
                 </div>
 
-                <!-- Info grid -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-6 max-w-4xl mx-auto w-full">
                     <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between gap-2 mb-3">
                             <h3 class="text-white text-lg font-bold flex items-center gap-2">
@@ -97,8 +105,7 @@
                                 </button>
                             </div>
                         </div>
-                        <p class="text-text-muted text-sm mb-3">Añade o edita la descripción de este elemento.</p>
-                        <textarea id="description-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[160px]" placeholder="Escribe una descripción..."></textarea>
+                        <textarea id="description-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[120px] max-h-[240px] overflow-y-auto" placeholder="Escribe una descripción..."></textarea>
                     </section>
 
                     <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
@@ -110,41 +117,31 @@
                             <p class="text-text-muted text-sm">No hay proyectos.</p>
                         </div>
                     </section>
-                </div>
 
-                <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-white text-lg font-bold flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">forum</span>
-                            Comentarios
-                        </h3>
-                        <span id="comment-count" class="text-xs text-text-muted">0</span>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                        <div class="lg:col-span-3">
-                            <div id="comments-list" class="flex flex-col gap-3 text-sm"></div>
-                            <div class="mt-4 flex flex-col gap-2">
-                                <label class="text-xs font-bold uppercase tracking-wide text-text-muted">Añadir comentario</label>
-                                <textarea id="comment-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[100px]" placeholder="Escribe tu comentario..."></textarea>
-                                <div class="flex items-center justify-between gap-3">
-                                    <span id="comment-helper" class="text-xs text-text-muted">Inicia sesión para comentar.</span>
-                                    <button id="comment-submit" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
-                                        <span class="material-symbols-outlined text-[18px]">send</span>
-                                        Publicar
-                                    </button>
-                                </div>
-                            </div>
+                    <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">forum</span>
+                                Comentarios
+                            </h3>
+                            <span id="comment-count" class="text-xs text-text-muted">0</span>
                         </div>
 
-                        <aside class="hidden lg:block lg:col-span-1">
-                            <div class="sticky top-6 rounded-lg border border-border-dark bg-surface-dark p-3">
-                                <p class="text-xs font-bold uppercase tracking-wide text-text-muted mb-2">Navegación</p>
-                                <nav id="comments-nav" class="flex flex-col gap-2 max-h-[520px] overflow-y-auto pr-1"></nav>
+                        <div id="comments-list" class="flex flex-col gap-3 text-sm max-h-[520px] overflow-y-auto pr-1"></div>
+
+                        <div class="mt-4 flex flex-col gap-2">
+                            <label class="text-xs font-bold uppercase tracking-wide text-text-muted">Añadir comentario</label>
+                            <textarea id="comment-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[100px]" placeholder="Escribe tu comentario..."></textarea>
+                            <div class="flex items-center justify-between gap-3">
+                                <span id="comment-helper" class="text-xs text-text-muted">Inicia sesión para comentar.</span>
+                                <button id="comment-submit" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
+                                    <span class="material-symbols-outlined text-[18px]">send</span>
+                                    Publicar
+                                </button>
                             </div>
-                        </aside>
-                    </div>
-                </section>
+                        </div>
+                    </section>
+                </div>
 
                 <div id="error-box" class="hidden rounded-lg border border-red-400 bg-red-500/10 text-red-100 px-4 py-3 text-sm"></div>
             </div>
@@ -174,11 +171,13 @@
         const saveDescriptionButton = qs('save-description');
         const projectsList = qs('projects-list');
         const commentsList = qs('comments-list');
-        const commentsNav = qs('comments-nav');
         const commentInput = qs('comment-input');
         const commentButton = qs('comment-submit');
         const commentHelper = qs('comment-helper');
         const commentCount = qs('comment-count');
+        const headerUserAvatar = qs('header-user-avatar');
+        const headerUserName = qs('header-user-name');
+        const headerUserDept = qs('header-user-dept');
 
         const getManageIdFromUrl = () => {
             const params = new URLSearchParams(window.location.search);
@@ -200,6 +199,50 @@
             const d = new Date(iso);
             if (Number.isNaN(d.getTime())) return '-';
             return d.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+        };
+
+        const getInitials = (value) => {
+            const text = String(value || '').trim();
+            if (!text) return '?';
+            const parts = text.split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+            if (parts[0].length >= 2) return parts[0].slice(0, 2).toUpperCase();
+            return parts[0][0].toUpperCase();
+        };
+
+        const getCurrentDisplayName = () => (
+            currentUserProfile?.username
+            || currentUser?.displayName
+            || currentUser?.email
+            || 'Invitado'
+        );
+
+        const getCurrentDepartment = () => (
+            currentUserProfile?.department
+            || ''
+        );
+
+        const getCurrentPhotoUrl = () => (
+            currentUserProfile?.profile_picture
+            || currentUser?.photoURL
+            || ''
+        );
+
+        const renderAvatar = (el, name, photoUrl) => {
+            if (!el) return;
+            const hasPhoto = Boolean(photoUrl);
+            el.style.backgroundImage = hasPhoto ? `url(\"${photoUrl}\")` : '';
+            el.textContent = hasPhoto ? '' : getInitials(name);
+            el.setAttribute('aria-label', name || 'Usuario');
+        };
+
+        const updateHeaderUser = () => {
+            const name = getCurrentDisplayName();
+            const dept = getCurrentDepartment();
+            const photo = getCurrentPhotoUrl();
+            if (headerUserName) headerUserName.textContent = name;
+            if (headerUserDept) headerUserDept.textContent = dept;
+            renderAvatar(headerUserAvatar, name, photo);
         };
 
         const findByManageId = (clients, mid) => {
@@ -416,7 +459,7 @@
         const updateAuthUI = () => {
             const canEdit = Boolean(currentUser);
             const helperText = canEdit
-                ? `Comentando como ${currentUserProfile?.username || currentUser?.email || 'usuario'}`
+                ? `Comentando como ${getCurrentDisplayName()}`
                 : 'Inicia sesión para comentar.';
             if (commentHelper) commentHelper.textContent = helperText;
 
@@ -425,6 +468,8 @@
                 el.disabled = !canEdit;
                 el.classList.toggle('opacity-60', !canEdit);
             });
+
+            updateHeaderUser();
         };
 
         const populateView = (result) => {
