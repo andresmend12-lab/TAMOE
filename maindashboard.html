@@ -1,9 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>Tamoe - Project Management</title>
+    <link rel="icon" href="imagotipo_tamoe.png" type="image/png"/>
     <link rel="icon" href="imagotipo_tamoe.png" type="image/png"/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -41,12 +42,15 @@
         <div id="client-view" class="flex flex-col h-full">
             <!-- App Header -->
             <div class="p-4 flex items-center gap-3">
-                <img src="imagotipo_tamoe.png" alt="Tamoe Logo" class="h-10 w-auto"/>
-                <div class="flex flex-col">
-                    <h1 id="sidebar-user-name" class="text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
-                    <p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
-                </div>
+                <a href="account.html" class="flex items-center gap-3 hover:opacity-90 transition-opacity">
+                    <img src="imagotipo_tamoe.png" alt="Tamoe Logo" class="h-10 w-auto"/>
+                    <div class="flex flex-col">
+                        <h1 id="sidebar-user-name" class="text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
+                        <p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
+                    </div>
+                </a>
             </div>
+            <div class="px-4"><button id="back-to-clients-btn" class="hidden w-full flex items-center gap-2 text-sm font-bold text-text-muted hover:text-white transition-colors mb-2"><span class="material-symbols-outlined">arrow_back</span><span>Volver a Clientes</span></button></div>
             <!-- Create Client Button -->
             <div class="px-4 py-2">
                 <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
@@ -67,18 +71,20 @@
         <div id="project-view" class="hidden flex-col h-full">
             <!-- Project Header -->
             <div class="p-4">
-                <button id="back-to-clients-btn" class="flex items-center gap-2 text-sm font-bold text-text-muted hover:text-white transition-colors mb-4">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                    <span>Clientes</span>
-                </button>
                 <h2 id="client-name-header" class="text-white text-lg font-bold">Nombre del Cliente</h2>
             </div>
-            <!-- Create Project Button -->
+            <!-- Create Project / Product Buttons -->
             <div class="px-4 py-2">
-                 <button id="add-project-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
-                    <span class="material-symbols-outlined text-[20px]">add</span>
-                    <span>Añadir Proyecto</span>
-                </button>
+                <div class="flex flex-col gap-2">
+                    <button id="add-project-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
+                        <span class="material-symbols-outlined text-[20px]">add</span>
+                        <span>Añadir Proyecto</span>
+                    </button>
+                    <button id="add-product-btn" class="hidden flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-surface-dark hover:bg-border-dark text-white text-sm font-bold transition-all border border-border-dark">
+                        <span class="material-symbols-outlined text-[20px]">category</span>
+                        <span>Crear Producto</span>
+                    </button>
+                </div>
             </div>
             <!-- Navigation / Project List -->
             <nav id="project-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
@@ -86,22 +92,7 @@
             </nav>
         </div>
 
-        <!-- Bottom Actions (shared) -->
-        <div class="p-2 border-t border-border-dark flex flex-col gap-1 mt-auto">
-            <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="#">
-                <span class="material-symbols-outlined">settings</span>
-                <span class="text-sm font-medium">Ajustes</span>
-            </a>
-            <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors" href="profile.html">
-                <span class="material-symbols-outlined">person</span>
-                <span class="text-sm font-medium">Editar perfil</span>
-            </a>
-            <button id="logout-button" class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors">
-                <span class="material-symbols-outlined">logout</span>
-                <span class="text-sm font-medium">Cerrar Sesión</span>
-            </button>
-        </div>
-    </aside>
+        </aside>
 
     <!-- Main Content -->
     <main class="flex flex-col flex-1 h-full min-w-0 bg-background-light dark:bg-background-dark relative">
@@ -115,6 +106,9 @@
                 </div>
             </div>
             <div class="flex items-center gap-3">
+                <a class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors" href="#">
+                    <span class="material-symbols-outlined">settings</span>
+                </a>
                 <button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
                     <span class="material-symbols-outlined text-[20px]">brightness_4</span>
                 </button>
@@ -133,9 +127,39 @@
                 <div id="welcome-message" class="flex flex-col gap-2">
                     <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Good afternoon, Jane</h1>
                 </div>
-            </div>
-        </div>
-    </main>
+                <div id="project-detail" class="flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p class="text-sm text-text-muted">Proyecto / Producto seleccionado</p>
+                            <h2 id="project-detail-name" class="text-2xl font-bold text-gray-900 dark:text-white">Selecciona un proyecto</h2>
+                            <p id="project-detail-sub" class="text-sm text-text-muted mt-1">Selecciona un producto para ver tareas.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button id="add-task-btn" class="inline-flex items-center gap-2 px-4 h-10 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold shadow-lg shadow-primary/20 transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                Crear Tarea
+                            </button>
+                        </div>
+                    </div>
+                    <div id="task-section" class="rounded-lg border border-border-dark bg-surface-dark p-5 flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-white text-lg font-bold">Tareas</h3>
+                        </div>
+                        <p id="no-tasks-message" class="text-text-muted text-sm">Selecciona un producto para ver tareas.</p>
+                        <div id="task-list" class="flex flex-col gap-2"></div>
+                    </div>
+                    <div id="subtask-section" class="hidden rounded-lg border border-border-dark bg-surface-dark p-5 flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-white text-lg font-bold">Subtareas</h3>
+                            <button id="add-subtask-btn" class="inline-flex items-center gap-2 px-3 h-9 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">add</span>
+                                Crear Subtarea
+                            </button>
+                        </div>
+                        <p id="no-subtasks-message" class="text-text-muted text-sm">Selecciona una tarea para ver sus subtareas.</p>
+                        <div id="subtask-list" class="flex flex-col gap-2"></div>
+                    </div>
+                </div>
 </div>
 
 <!-- Add Client Modal -->
@@ -166,6 +190,146 @@
     </div>
 </div>
 
+<!-- Add Project Modal -->
+<div id="add-project-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-md bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
+        <div class="flex justify-between items-center mb-6">
+             <h2 class="text-white text-2xl font-bold">Añadir Proyecto</h2>
+             <button id="close-project-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-text-muted">close</span>
+             </button>
+        </div>
+        <form id="add-project-form">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="project-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre del Proyecto</label>
+                    <input type="text" id="project-name" name="project-name" required
+                           class="block w-full bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-4">
+                     <button type="button" id="cancel-add-project" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
+                    <button type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
+                        Guardar Proyecto
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div id="add-product-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-md bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
+        <div class="flex justify-between items-center mb-6">
+             <h2 class="text-white text-2xl font-bold">Añadir Producto</h2>
+             <button id="close-product-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-text-muted">close</span>
+             </button>
+        </div>
+        <form id="add-product-form">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="product-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre del Producto</label>
+                    <input type="text" id="product-name" name="product-name" required
+                           class="block w-full bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-4">
+                     <button type="button" id="cancel-add-product" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
+                    <button type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
+                        Guardar Producto
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Task Modal -->
+<div id="add-task-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-md bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
+        <div class="flex justify-between items-center mb-6">
+             <h2 class="text-white text-2xl font-bold">Añadir Tarea</h2>
+             <button id="close-task-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-text-muted">close</span>
+             </button>
+        </div>
+        <form id="add-task-form">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="task-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Tarea</label>
+                    <input type="text" id="task-name" name="task-name" required
+                           class="block w-full bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-4">
+                     <button type="button" id="cancel-add-task" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
+                    <button type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
+                        Guardar Tarea
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Project Modal -->
+<div id="add-project-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-md bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
+        <div class="flex justify-between items-center mb-6">
+             <h2 class="text-white text-2xl font-bold">Añadir Proyecto</h2>
+             <button id="close-project-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-text-muted">close</span>
+             </button>
+        </div>
+        <form id="add-project-form">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="project-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre del Proyecto</label>
+                    <input type="text" id="project-name" name="project-name" required
+                           class="block w-full bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-4">
+                     <button type="button" id="cancel-add-project" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
+                    <button type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
+                        Guardar Proyecto
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Subtask Modal -->
+<div id="add-subtask-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-md bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
+        <div class="flex justify-between items-center mb-6">
+             <h2 class="text-white text-2xl font-bold">Añadir Subtarea</h2>
+             <button id="close-subtask-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-text-muted">close</span>
+             </button>
+        </div>
+        <form id="add-subtask-form">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="subtask-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Subtarea</label>
+                    <input type="text" id="subtask-name" name="subtask-name" required
+                           class="block w-full bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-4">
+                     <button type="button" id="cancel-add-subtask" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
+                    <button type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
+                        Guardar Subtarea
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js" type="module"></script>
@@ -179,3 +343,13 @@
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
