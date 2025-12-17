@@ -860,6 +860,261 @@
             return status;
         };
 
+        const updateAssigneeAtPath = async (path, nextUid) => {
+            if (!currentUser) {
+                alert('Debes iniciar sesion para asignar.');
+                throw new Error('AUTH_REQUIRED');
+            }
+            const uid = String(nextUid || '').trim();
+            await update(ref(database, path), { assigneeUid: uid });
+            return uid;
+        };
+
+        const createAssigneeControl = ({ assigneeUid, onChange }) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'relative flex-shrink-0';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'inline-flex items-center justify-between gap-2 text-[11px] font-bold px-2 py-0.5 rounded-full border border-border-dark bg-white/5 text-text-muted hover:text-white hover:bg-white/10 transition-colors';
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2 min-w-0';
+
+            const avatar = document.createElement('span');
+            avatar.className = 'inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary border border-primary/20 text-[10px] font-bold overflow-hidden bg-center bg-cover bg-no-repeat shrink-0';
+
+            const label = document.createElement('span');
+            label.className = 'truncate max-w-[11rem]';
+
+            const caret = document.createElement('span');
+            caret.className = 'material-symbols-outlined text-[16px] leading-none opacity-70';
+            caret.textContent = 'expand_more';
+
+            left.append(avatar, label);
+            button.append(left, caret);
+
+            const applyAssignee = (uidValue) => {
+                const uid = String(uidValue || '').trim();
+                if (!uid) {
+                    avatar.style.backgroundImage = '';
+                    avatar.textContent = '-';
+                    avatar.classList.remove('text-primary', 'border-primary/20', 'bg-primary/15');
+                    avatar.classList.add('text-text-muted', 'border-border-dark', 'bg-white/10');
+                    label.textContent = 'Sin asignar';
+                    button.title = 'Sin asignar';
+                    return;
+                }
+
+                const name = getUserDisplayNameByUid(uid) || uid;
+                const photo = getUserPhotoByUid(uid);
+                if (photo) {
+                    avatar.style.backgroundImage = `url('${photo}')`;
+                    avatar.textContent = '';
+                } else {
+                    avatar.style.backgroundImage = '';
+                    avatar.textContent = getInitials(name);
+                }
+                avatar.classList.remove('text-text-muted', 'border-border-dark', 'bg-white/10');
+                avatar.classList.add('text-primary', 'border-primary/20', 'bg-primary/15');
+                label.textContent = `Asignado a ${name}`;
+                button.title = `Asignado a ${name}`;
+            };
+
+            applyAssignee(assigneeUid);
+
+            const menu = document.createElement('div');
+            menu.className = 'action-menu hidden absolute right-0 w-72 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
+
+            const canEdit = Boolean(currentUser) && typeof onChange === 'function';
+            button.disabled = !canEdit;
+            button.classList.toggle('opacity-60', !canEdit);
+            button.classList.toggle('cursor-not-allowed', !canEdit);
+
+            let saving = false;
+            const setSaving = (isSaving) => {
+                saving = isSaving;
+                button.disabled = isSaving || !canEdit;
+                button.classList.toggle('opacity-60', button.disabled);
+                button.classList.toggle('cursor-not-allowed', button.disabled);
+            };
+
+            const makeOption = ({ uid, name, dept, photo }) => {
+                const optBtn = document.createElement('button');
+                optBtn.type = 'button';
+                optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+                optBtn.dataset.uid = uid;
+
+                const optLeft = document.createElement('div');
+                optLeft.className = 'flex items-center gap-3 min-w-0';
+
+                const a = document.createElement('span');
+                a.className = 'w-8 h-8 rounded-full bg-primary/15 text-primary border border-primary/20 flex items-center justify-center text-xs font-bold overflow-hidden bg-center bg-cover bg-no-repeat shrink-0';
+                if (photo) {
+                    a.style.backgroundImage = `url('${photo}')`;
+                    a.textContent = '';
+                } else {
+                    a.style.backgroundImage = '';
+                    a.textContent = getInitials(name);
+                }
+
+                const txtWrap = document.createElement('div');
+                txtWrap.className = 'flex flex-col min-w-0';
+
+                const txt = document.createElement('span');
+                txt.className = 'text-sm font-semibold truncate';
+                txt.textContent = name;
+
+                const sub = document.createElement('span');
+                sub.className = 'text-xs text-text-muted truncate';
+                sub.textContent = dept || '';
+
+                txtWrap.append(txt, sub);
+                optLeft.append(a, txtWrap);
+
+                const check = document.createElement('span');
+                check.className = 'material-symbols-outlined text-[18px] text-text-muted opacity-0';
+                check.textContent = 'check';
+
+                optBtn.append(optLeft, check);
+                return optBtn;
+            };
+
+            const buildMenu = () => {
+                menu.innerHTML = '';
+
+                const noneOpt = makeOption({ uid: '', name: 'Sin asignar', dept: '', photo: '' });
+                const noneAvatar = noneOpt.querySelector('.w-8');
+                if (noneAvatar) {
+                    noneAvatar.classList.remove('text-primary', 'border-primary/20', 'bg-primary/15');
+                    noneAvatar.classList.add('bg-white/10', 'text-text-muted', 'border-border-dark');
+                    noneAvatar.textContent = '-';
+                }
+                menu.appendChild(noneOpt);
+
+                const users = Object.entries(usersByUid || {})
+                    .map(([uid, user]) => ({ uid, ...user }))
+                    .filter(entry => entry.uid && (entry.username || entry.email));
+
+                users.sort((a, b) => (a.username || a.email || '').localeCompare(b.username || b.email || ''));
+
+                users.forEach(user => {
+                    menu.appendChild(makeOption({
+                        uid: user.uid,
+                        name: user.username || user.email || user.uid,
+                        dept: user.department || '',
+                        photo: user.profile_picture || ''
+                    }));
+                });
+            };
+
+            const refreshMenuChecks = () => {
+                const currentUid = String(assigneeUid || '').trim();
+                Array.from(menu.querySelectorAll('button[data-uid]')).forEach((btn) => {
+                    const isActive = String(btn.dataset.uid || '') === currentUid;
+                    const check = btn.querySelector('.material-symbols-outlined');
+                    if (check) check.classList.toggle('opacity-0', !isActive);
+                });
+            };
+
+            const findClippingContainer = () => {
+                let node = wrapper.parentElement;
+                while (node && node !== document.body && node !== document.documentElement) {
+                    const style = window.getComputedStyle(node);
+                    const overflowY = style.overflowY;
+                    const overflowX = style.overflowX;
+                    if (
+                        ['auto', 'scroll', 'hidden', 'clip'].includes(overflowY) ||
+                        ['auto', 'scroll', 'hidden', 'clip'].includes(overflowX)
+                    ) {
+                        return node;
+                    }
+                    node = node.parentElement;
+                }
+                return document.documentElement;
+            };
+
+            const positionMenu = () => {
+                const clipping = findClippingContainer();
+                const clipRect = clipping.getBoundingClientRect();
+                const btnRect = button.getBoundingClientRect();
+                const padding = 8;
+
+                menu.style.maxHeight = '';
+
+                const wasHidden = menu.classList.contains('hidden');
+                if (wasHidden) {
+                    menu.classList.remove('hidden');
+                    menu.style.visibility = 'hidden';
+                }
+
+                const menuRect = menu.getBoundingClientRect();
+                const menuHeight = menuRect.height || 220;
+
+                const availableBelow = clipRect.bottom - btnRect.bottom;
+                const availableAbove = btnRect.top - clipRect.top;
+                const shouldOpenUp = availableBelow < (menuHeight + padding) && availableAbove > availableBelow;
+
+                menu.classList.remove('top-full', 'mt-2', 'bottom-full', 'mb-2');
+                if (shouldOpenUp) {
+                    menu.classList.add('bottom-full', 'mb-2');
+                    const maxHeight = Math.max(160, Math.floor(availableAbove - padding));
+                    menu.style.maxHeight = `${maxHeight}px`;
+                } else {
+                    menu.classList.add('top-full', 'mt-2');
+                    const maxHeight = Math.max(160, Math.floor(availableBelow - padding));
+                    menu.style.maxHeight = `${maxHeight}px`;
+                }
+
+                if (wasHidden) {
+                    menu.style.visibility = '';
+                    menu.classList.add('hidden');
+                }
+            };
+
+            menu.addEventListener('click', (e) => e.stopPropagation());
+            menu.addEventListener('click', async (e) => {
+                const btn = e.target.closest('button[data-uid]');
+                if (!btn) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (!canEdit || saving) return;
+                menu.classList.add('hidden');
+
+                const nextUid = String(btn.dataset.uid || '').trim();
+                setSaving(true);
+                try {
+                    const saved = await onChange(nextUid);
+                    assigneeUid = saved ?? nextUid;
+                    applyAssignee(assigneeUid);
+                } catch (error) {
+                    console.error('Error updating assignee:', error);
+                    alert(`No se pudo asignar: ${error.message}`);
+                } finally {
+                    setSaving(false);
+                }
+            });
+
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!canEdit) return;
+                const isOpen = !menu.classList.contains('hidden');
+                closeAllActionMenus(menu);
+                if (isOpen) {
+                    menu.classList.add('hidden');
+                    return;
+                }
+                buildMenu();
+                refreshMenuChecks();
+                positionMenu();
+                menu.classList.remove('hidden');
+            });
+
+            wrapper.append(button, menu);
+            return wrapper;
+        };
+
         const createStatusControl = ({ status, onChange }) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'relative flex-shrink-0';
@@ -1019,7 +1274,7 @@
             return wrapper;
         };
 
-        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null) => {
+        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null) => {
             const summary = document.createElement('summary');
             summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
 
@@ -1039,14 +1294,20 @@
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3 min-w-0';
             if (statusValue !== null) right.appendChild(createStatusControl({ status: statusValue, onChange: onStatusChange }));
-            if (assigneeUid !== null) right.appendChild(createAssigneeBadge(assigneeUid));
+            if (assigneeUid !== null) {
+                if (typeof onAssigneeChange === 'function') {
+                    right.appendChild(createAssigneeControl({ assigneeUid, onChange: onAssigneeChange }));
+                } else {
+                    right.appendChild(createAssigneeBadge(assigneeUid));
+                }
+            }
             right.appendChild(createManageLink(manageIdValue));
 
             summary.append(left, right);
             return summary;
         };
 
-        const makeRow = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null) => {
+        const makeRow = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null) => {
             const row = document.createElement('div');
             row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-surface-dark border border-border-dark text-white';
 
@@ -1066,7 +1327,13 @@
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3 min-w-0';
             if (statusValue !== null) right.appendChild(createStatusControl({ status: statusValue, onChange: onStatusChange }));
-            if (assigneeUid !== null) right.appendChild(createAssigneeBadge(assigneeUid));
+            if (assigneeUid !== null) {
+                if (typeof onAssigneeChange === 'function') {
+                    right.appendChild(createAssigneeControl({ assigneeUid, onChange: onAssigneeChange }));
+                } else {
+                    right.appendChild(createAssigneeBadge(assigneeUid));
+                }
+            }
             right.appendChild(createManageLink(manageIdValue));
 
             row.append(left, right);
@@ -1090,6 +1357,14 @@
                 }
                 : null;
 
+            const onTaskAssigneeChange = safeTaskPath
+                ? async (nextUid) => {
+                    const uid = await updateAssigneeAtPath(safeTaskPath, nextUid);
+                    task.assigneeUid = uid;
+                    return uid;
+                }
+                : null;
+
             if (!subArray.length) {
                 return makeRow(
                     'check_circle',
@@ -1097,7 +1372,8 @@
                     task?.manageId,
                     normalizeStatus(task?.status),
                     onTaskStatusChange,
-                    task?.assigneeUid ?? ''
+                    task?.assigneeUid ?? '',
+                    onTaskAssigneeChange
                 );
             }
 
@@ -1109,7 +1385,8 @@
                 task?.manageId,
                 normalizeStatus(task?.status),
                 onTaskStatusChange,
-                task?.assigneeUid ?? ''
+                task?.assigneeUid ?? '',
+                onTaskAssigneeChange
             ));
 
             const content = document.createElement('div');
@@ -1124,13 +1401,22 @@
                     }
                     : null;
 
+                const onSubAssigneeChange = subPath
+                    ? async (nextUid) => {
+                        const uid = await updateAssigneeAtPath(subPath, nextUid);
+                        sub.assigneeUid = uid;
+                        return uid;
+                    }
+                    : null;
+
                 content.appendChild(makeRow(
                     'subdirectory_arrow_right',
                     sub.name || 'Subtarea',
                     sub.manageId,
                     normalizeStatus(sub.status),
                     onSubStatusChange,
-                    sub.assigneeUid ?? ''
+                    sub.assigneeUid ?? '',
+                    onSubAssigneeChange
                 ));
             });
             details.appendChild(content);
@@ -1384,13 +1670,22 @@
                         }
                         : null;
 
+                    const onSubAssigneeChange = subPath
+                        ? async (nextUid) => {
+                            const uid = await updateAssigneeAtPath(subPath, nextUid);
+                            sub.assigneeUid = uid;
+                            return uid;
+                        }
+                        : null;
+
                     activitiesList.appendChild(makeRow(
                         'subdirectory_arrow_right',
                         sub.name || 'Subtarea',
                         sub.manageId,
                         normalizeStatus(sub.status),
                         onSubStatusChange,
-                        sub.assigneeUid ?? ''
+                        sub.assigneeUid ?? '',
+                        onSubAssigneeChange
                     ));
                 });
                 return;
