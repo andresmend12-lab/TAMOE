@@ -120,16 +120,126 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'Pendiente';
     };
 
-    const createStatusDot = (status) => {
+    const STATUS_OPTIONS = ['Pendiente', 'En proceso', 'Finalizado'];
+    const STATUS_STYLES = {
+        'Pendiente': 'bg-slate-500/15 text-slate-200 border-slate-500/30',
+        'En proceso': 'bg-blue-500/15 text-blue-200 border-blue-500/30',
+        'Finalizado': 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
+    };
+
+    const applyStatusChipStyle = (button, labelEl, status) => {
         const normalized = normalizeStatus(status);
-        const dot = document.createElement('span');
-        dot.className = 'inline-block w-2.5 h-2.5 rounded-full ring-1 ring-white/10 shrink-0';
-        dot.title = normalized;
-        dot.setAttribute('aria-label', normalized);
-        if (normalized === 'En proceso') dot.classList.add('bg-blue-400');
-        else if (normalized === 'Finalizado') dot.classList.add('bg-emerald-400');
-        else dot.classList.add('bg-slate-400');
-        return dot;
+        if (labelEl) labelEl.textContent = normalized;
+        if (!button) return;
+        const style = STATUS_STYLES[normalized] || STATUS_STYLES.Pendiente;
+        button.className = `inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${style} hover:brightness-110 transition-colors`;
+        button.setAttribute('aria-label', `Estado: ${normalized}`);
+        button.title = normalized;
+    };
+
+    const updateStatusAtPath = async (path, nextStatus) => {
+        if (!currentUser) {
+            alert("Debes iniciar sesión para cambiar el estado.");
+            return;
+        }
+        const normalized = normalizeStatus(nextStatus);
+        await update(ref(database, path), { status: normalized });
+    };
+
+    const createStatusControl = ({ status, onChange }) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative flex-shrink-0';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+
+        const label = document.createElement('span');
+        label.className = 'leading-none';
+
+        const caret = document.createElement('span');
+        caret.className = 'material-symbols-outlined text-[16px] leading-none opacity-70';
+        caret.textContent = 'expand_more';
+
+        button.append(label, caret);
+        applyStatusChipStyle(button, label, status);
+
+        const menu = document.createElement('div');
+        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-50';
+
+        let saving = false;
+        const setSaving = (isSaving) => {
+            saving = isSaving;
+            button.disabled = isSaving;
+            button.classList.toggle('opacity-60', isSaving);
+            button.classList.toggle('cursor-not-allowed', isSaving);
+        };
+
+        STATUS_OPTIONS.forEach(option => {
+            const optBtn = document.createElement('button');
+            optBtn.type = 'button';
+            optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+            optBtn.dataset.status = option;
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2';
+
+            const dot = document.createElement('span');
+            dot.className = 'inline-block w-2.5 h-2.5 rounded-full ring-1 ring-white/10';
+            if (option === 'En proceso') dot.classList.add('bg-blue-400');
+            else if (option === 'Finalizado') dot.classList.add('bg-emerald-400');
+            else dot.classList.add('bg-slate-400');
+
+            const txt = document.createElement('span');
+            txt.textContent = option;
+
+            left.append(dot, txt);
+
+            const check = document.createElement('span');
+            check.className = 'material-symbols-outlined text-[18px] text-text-muted opacity-0';
+            check.textContent = 'check';
+
+            optBtn.append(left, check);
+
+            optBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (saving) return;
+                menu.classList.add('hidden');
+                const next = normalizeStatus(option);
+                setSaving(true);
+                try {
+                    await onChange(next);
+                    applyStatusChipStyle(button, label, next);
+                } catch (error) {
+                    console.error('Error updating status:', error);
+                    alert(`No se pudo actualizar el estado: ${error.message}`);
+                } finally {
+                    setSaving(false);
+                }
+            });
+
+            menu.appendChild(optBtn);
+        });
+
+        const refreshMenuChecks = () => {
+            const current = normalizeStatus(label.textContent);
+            Array.from(menu.querySelectorAll('button')).forEach((btn) => {
+                const isActive = normalizeStatus(btn.dataset.status) === current;
+                const check = btn.querySelector('.material-symbols-outlined');
+                if (check) check.classList.toggle('opacity-0', !isActive);
+            });
+        };
+
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            refreshMenuChecks();
+            closeAllActionMenus(menu);
+            menu.classList.toggle('hidden');
+        });
+
+        wrapper.append(button, menu);
+        return wrapper;
     };
 
     const closeAllActionMenus = (exceptMenu = null) => {
@@ -611,10 +721,18 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = proj.name;
 
-            const statusDot = createStatusDot(proj.status);
+            const statusControl = createStatusControl({
+                status: proj.status,
+                onChange: async (nextStatus) => {
+                    await updateStatusAtPath(`clients/${clientId}/projects/${proj.id}`, nextStatus);
+                    proj.status = nextStatus;
+                    if (client?.projects?.[proj.id]) client.projects[proj.id].status = nextStatus;
+                    renderTree();
+                }
+            });
             const idTag = createIdChip(proj.manageId);
 
-            nameWrapper.append(nameSpan, statusDot, idTag);
+            nameWrapper.append(nameSpan, statusControl, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 showProductView(clientId, proj.id);
@@ -714,10 +832,18 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = prod.name;
 
-            const statusDot = createStatusDot(prod.status);
+            const statusControl = createStatusControl({
+                status: prod.status,
+                onChange: async (nextStatus) => {
+                    await updateStatusAtPath(`clients/${clientId}/projects/${projectId}/products/${prod.id}`, nextStatus);
+                    prod.status = nextStatus;
+                    if (project?.products?.[prod.id]) project.products[prod.id].status = nextStatus;
+                    renderTree();
+                }
+            });
             const idTag = createIdChip(prod.manageId);
 
-            nameWrapper.append(nameSpan, statusDot, idTag);
+            nameWrapper.append(nameSpan, statusControl, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedProductId = prod.id;
@@ -842,10 +968,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const nameWrapper = document.createElement('div');
             nameWrapper.className = 'flex items-center gap-2 min-w-0';
 
-            const statusDot = createStatusDot(subtask.status);
+            const statusControl = createStatusControl({
+                status: subtask.status,
+                onChange: async (nextStatus) => {
+                    await updateStatusAtPath(`${basePath}/${subtask.id}`, nextStatus);
+                    subtask.status = nextStatus;
+                    if (subtasks?.[subtask.id]) subtasks[subtask.id].status = nextStatus;
+                    renderTree();
+                }
+            });
             const idTag = createIdChip(subtask.manageId);
 
-            nameWrapper.append(nameSpan, statusDot, idTag);
+            nameWrapper.append(nameSpan, statusControl, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedSubtaskId = subtask.id;
@@ -900,6 +1034,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render full tree on right panel
     const renderTree = () => {
         if (!treeBody) return;
+
+        const openManageIds = new Set(
+            Array.from(treeBody.querySelectorAll('details[open][data-manage-id]'))
+                .map(el => el.dataset.manageId)
+                .filter(Boolean)
+        );
         treeBody.innerHTML = '';
 
         if (!allClients.length) {
@@ -912,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sortedClients = [...allClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-        const makeSummary = (icon, name, manageId, status = null) => {
+        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null) => {
             const summary = document.createElement('summary');
             summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
 
@@ -926,7 +1066,15 @@ document.addEventListener('DOMContentLoaded', () => {
             title.textContent = name;
             left.append(ic, title);
             if (status !== null) {
-                left.appendChild(createStatusDot(status));
+                const statusControl = createStatusControl({
+                    status,
+                    onChange: async (nextStatus) => {
+                        if (typeof onStatusChange === 'function') {
+                            await onStatusChange(nextStatus);
+                        }
+                    }
+                });
+                left.appendChild(statusControl);
             }
 
             const chip = createIdChip(manageId);
@@ -935,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return summary;
         };
 
-        const makeTaskItem = (task) => {
+        const makeTaskItem = (task, onStatusChange = null) => {
             const row = document.createElement('div');
             row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-dark border border-border-dark text-white';
 
@@ -947,7 +1095,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = document.createElement('span');
             name.className = 'text-sm';
             name.textContent = task.name || 'Tarea';
-            left.append(ic, name, createStatusDot(task.status));
+
+            const statusControl = createStatusControl({
+                status: task.status,
+                onChange: async (nextStatus) => {
+                    if (typeof onStatusChange === 'function') {
+                        await onStatusChange(nextStatus);
+                    }
+                }
+            });
+            left.append(ic, name, statusControl);
 
             const chip = createIdChip(task.manageId);
             chip.classList.add('text-[11px]');
@@ -959,6 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientDetails = document.createElement('details');
             clientDetails.className = 'bg-surface-dark border border-border-dark rounded-lg overflow-hidden';
             const clientManage = client.manageId || '';
+            clientDetails.dataset.manageId = client.manageId || `client:${client.id}`;
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
 
             const clientContent = document.createElement('div');
@@ -977,7 +1135,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 projectArray.forEach(proj => {
                     const projDetails = document.createElement('details');
                     projDetails.className = 'border border-border-dark/70 rounded-lg overflow-hidden';
-                    projDetails.appendChild(makeSummary('layers', proj.name || 'Proyecto', proj.manageId || '', proj.status));
+                    projDetails.dataset.manageId = proj.manageId || `project:${client.id}:${proj.id}`;
+                    projDetails.appendChild(makeSummary(
+                        'layers',
+                        proj.name || 'Proyecto',
+                        proj.manageId || '',
+                        proj.status,
+                        async (nextStatus) => {
+                            await updateStatusAtPath(`clients/${client.id}/projects/${proj.id}`, nextStatus);
+                            proj.status = nextStatus;
+                            if (client?.projects?.[proj.id]) client.projects[proj.id].status = nextStatus;
+                            if (selectedClientId === client.id && !selectedProjectId) {
+                                renderProjects(client.id);
+                            }
+                        }
+                    ));
 
                     const projContent = document.createElement('div');
                     projContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-2';
@@ -992,9 +1164,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         taskLabel.textContent = 'Tareas (sin producto)';
                         projContent.appendChild(taskLabel);
                         projTaskArray.forEach(t => {
+                            const taskPath = `clients/${client.id}/projects/${proj.id}/tasks/${t.id}`;
                             const taskBlock = document.createElement('div');
                             taskBlock.className = 'flex flex-col gap-1';
-                            taskBlock.appendChild(makeTaskItem(t));
+                            taskBlock.appendChild(makeTaskItem(t, async (nextStatus) => {
+                                await updateStatusAtPath(taskPath, nextStatus);
+                                t.status = nextStatus;
+                                if (projTasks?.[t.id]) projTasks[t.id].status = nextStatus;
+                                if (selectedClientId === client.id && selectedProjectId === proj.id && !selectedProductId) {
+                                    renderTasks(client.id, proj.id, null);
+                                }
+                            }));
                             const subtasks = t.subtasks || {};
                             const subArray = Object.keys(subtasks).map(id => ({ id, ...subtasks[id] }));
                             subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -1009,10 +1189,27 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const ic = document.createElement('span');
                                     ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
                                     ic.textContent = 'subdirectory_arrow_right';
-                                     const name = document.createElement('span');
-                                     name.className = 'text-sm';
-                                     name.textContent = sub.name || 'Subtarea';
-                                    l.append(ic, name, createStatusDot(sub.status));
+                                         const name = document.createElement('span');
+                                         name.className = 'text-sm';
+                                         name.textContent = sub.name || 'Subtarea';
+                                     const subPath = `${taskPath}/subtasks/${sub.id}`;
+                                     const statusControl = createStatusControl({
+                                         status: sub.status,
+                                         onChange: async (nextStatus) => {
+                                             await updateStatusAtPath(subPath, nextStatus);
+                                             sub.status = nextStatus;
+                                             if (subtasks?.[sub.id]) subtasks[sub.id].status = nextStatus;
+                                             if (
+                                                 selectedClientId === client.id &&
+                                                 selectedProjectId === proj.id &&
+                                                 !selectedProductId &&
+                                                 selectedTaskId === t.id
+                                             ) {
+                                                 renderSubtasks(client.id, proj.id, null, t.id);
+                                             }
+                                         }
+                                     });
+                                     l.append(ic, name, statusControl);
                                     const chip = createIdChip(sub.manageId);
                                     chip.classList.add('text-[11px]');
                                     row.append(l, chip);
@@ -1036,9 +1233,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         projContent.appendChild(emptyP);
                     } else {
                         productArray.forEach(prod => {
+                            const productBasePath = `clients/${client.id}/projects/${proj.id}/products/${prod.id}`;
                             const prodDetails = document.createElement('details');
                             prodDetails.className = 'border border-border-dark/60 rounded-lg overflow-hidden';
-                            prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId || '', prod.status));
+                            prodDetails.dataset.manageId = prod.manageId || `product:${client.id}:${proj.id}:${prod.id}`;
+                            prodDetails.appendChild(makeSummary(
+                                'category',
+                                prod.name || 'Producto',
+                                prod.manageId || '',
+                                prod.status,
+                                async (nextStatus) => {
+                                    await updateStatusAtPath(productBasePath, nextStatus);
+                                    prod.status = nextStatus;
+                                    if (products?.[prod.id]) products[prod.id].status = nextStatus;
+                                    if (
+                                        selectedClientId === client.id &&
+                                        selectedProjectId === proj.id &&
+                                        !selectedProductId
+                                    ) {
+                                        renderProducts(client.id, proj.id);
+                                    }
+                                }
+                            ));
 
                             const prodContent = document.createElement('div');
                             prodContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-1';
@@ -1054,9 +1270,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                 prodContent.appendChild(emptyT);
                             } else {
                                 prodTaskArray.forEach(t => {
+                                    const taskPath = `${productBasePath}/tasks/${t.id}`;
                                     const taskBlock = document.createElement('div');
                                     taskBlock.className = 'flex flex-col gap-1';
-                                    taskBlock.appendChild(makeTaskItem(t));
+                                    taskBlock.appendChild(makeTaskItem(t, async (nextStatus) => {
+                                        await updateStatusAtPath(taskPath, nextStatus);
+                                        t.status = nextStatus;
+                                        if (prodTasks?.[t.id]) prodTasks[t.id].status = nextStatus;
+                                        if (
+                                            selectedClientId === client.id &&
+                                            selectedProjectId === proj.id &&
+                                            selectedProductId === prod.id
+                                        ) {
+                                            renderTasks(client.id, proj.id, prod.id);
+                                        }
+                                    }));
                                     const subtasks = t.subtasks || {};
                                     const subArray = Object.keys(subtasks).map(id => ({ id, ...subtasks[id] }));
                                     subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -1074,7 +1302,24 @@ document.addEventListener('DOMContentLoaded', () => {
                                             const name = document.createElement('span');
                                             name.className = 'text-sm';
                                             name.textContent = sub.name || 'Subtarea';
-                                            l.append(ic, name, createStatusDot(sub.status));
+                                            const subPath = `${taskPath}/subtasks/${sub.id}`;
+                                            const statusControl = createStatusControl({
+                                                status: sub.status,
+                                                onChange: async (nextStatus) => {
+                                                    await updateStatusAtPath(subPath, nextStatus);
+                                                    sub.status = nextStatus;
+                                                    if (subtasks?.[sub.id]) subtasks[sub.id].status = nextStatus;
+                                                    if (
+                                                        selectedClientId === client.id &&
+                                                        selectedProjectId === proj.id &&
+                                                        selectedProductId === prod.id &&
+                                                        selectedTaskId === t.id
+                                                    ) {
+                                                        renderSubtasks(client.id, proj.id, prod.id, t.id);
+                                                    }
+                                                }
+                                            });
+                                            l.append(ic, name, statusControl);
                                             const chip = createIdChip(sub.manageId);
                                             chip.classList.add('text-[11px]');
                                             row.append(l, chip);
@@ -1099,6 +1344,12 @@ document.addEventListener('DOMContentLoaded', () => {
             clientDetails.appendChild(clientContent);
             treeBody.appendChild(clientDetails);
         });
+
+        if (openManageIds.size) {
+            treeBody.querySelectorAll('details[data-manage-id]').forEach((el) => {
+                if (openManageIds.has(el.dataset.manageId)) el.open = true;
+            });
+        }
     };
     const renderTasks = (clientId, projectId, productId = null) => {
         if (!taskList || !noTasksMessage) return;
@@ -1159,10 +1410,22 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = task.name;
 
-            const statusDot = createStatusDot(task.status);
+            const taskPath = productId
+                ? `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${task.id}`
+                : `clients/${clientId}/projects/${projectId}/tasks/${task.id}`;
+
+            const statusControl = createStatusControl({
+                status: task.status,
+                onChange: async (nextStatus) => {
+                    await updateStatusAtPath(taskPath, nextStatus);
+                    task.status = nextStatus;
+                    if (tasks?.[task.id]) tasks[task.id].status = nextStatus;
+                    renderTree();
+                }
+            });
             const idTag = createIdChip(task.manageId);
 
-            nameWrapper.append(nameSpan, statusDot, idTag);
+            nameWrapper.append(nameSpan, statusControl, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedTaskId = task.id;
