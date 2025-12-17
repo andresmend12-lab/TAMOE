@@ -1,5 +1,5 @@
 ﻿import { auth, database } from './firebase.js';
-import { ref, push, onValue, query, set } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { ref, push, onValue, query, set, update, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -73,12 +73,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const userMenu = document.getElementById('user-menu');
     const toggleUserMenu = () => {
         if (!userMenu) return;
+        closeAllActionMenus();
         userMenu.classList.toggle('hidden');
     };
 
     // helpers to show/hide elements
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
+
+    const closeAllActionMenus = (exceptMenu = null) => {
+        document.querySelectorAll('.action-menu').forEach(menu => {
+            if (menu !== exceptMenu) menu.classList.add('hidden');
+        });
+    };
+
+    const createActionMenu = ({ onRename, onDelete }) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative flex-shrink-0';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'p-1 rounded-md text-text-muted hover:text-white hover:bg-white/5 transition-colors';
+        button.setAttribute('aria-label', 'Opciones');
+        button.innerHTML = '<span class="material-symbols-outlined text-[18px]">settings</span>';
+
+        const menu = document.createElement('div');
+        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-40';
+
+        const renameButton = document.createElement('button');
+        renameButton.type = 'button';
+        renameButton.className = 'w-full flex items-center gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+        renameButton.innerHTML = '<span class="material-symbols-outlined text-[18px]">edit</span>Editar nombre';
+        renameButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            menu.classList.add('hidden');
+            onRename?.();
+        });
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'w-full flex items-center gap-2 px-4 py-2 text-sm text-red-300 hover:bg-red-500/10 text-left';
+        deleteButton.innerHTML = '<span class="material-symbols-outlined text-[18px]">delete</span>Eliminar';
+        deleteButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            menu.classList.add('hidden');
+            onDelete?.();
+        });
+
+        menu.addEventListener('click', event => event.stopPropagation());
+        menu.append(renameButton, deleteButton);
+
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            userMenu?.classList.add('hidden');
+            closeAllActionMenus(menu);
+            menu.classList.toggle('hidden');
+        });
+
+        wrapper.append(button, menu);
+        return wrapper;
+    };
 
     // Render list of clients
     const renderClients = () => {
@@ -87,19 +144,76 @@ document.addEventListener('DOMContentLoaded', () => {
             noClientsMessage.classList.add('hidden');
             allClients.sort((a, b) => a.name.localeCompare(b.name));
             allClients.forEach(client => {
-                const clientLink = document.createElement('a');
-                clientLink.href = '#';
-                clientLink.className = 'flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
-                clientLink.setAttribute('data-client-id', client.id);
-                clientLink.innerHTML = `
-                    <span class="material-symbols-outlined">folder_open</span>
-                    <span class="text-sm font-medium">${client.name}</span>
-                `;
-                clientLink.addEventListener('click', (e) => {
-                    e.preventDefault();
+                const row = document.createElement('div');
+                row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
+                row.dataset.clientId = client.id;
+
+                const selectButton = document.createElement('button');
+                selectButton.type = 'button';
+                selectButton.className = 'flex items-center gap-3 flex-1 min-w-0 text-left';
+
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined';
+                icon.textContent = 'folder_open';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'text-sm font-medium truncate';
+                nameSpan.textContent = client.name;
+
+                selectButton.append(icon, nameSpan);
+                selectButton.addEventListener('click', () => {
                     showProjectView(client.id);
                 });
-                clientListNav.appendChild(clientLink);
+
+                const actions = createActionMenu({
+                    onRename: async () => {
+                        if (!currentUser) {
+                            alert("Debes iniciar sesión para editar clientes.");
+                            return;
+                        }
+                        const nextNameRaw = prompt('Nuevo nombre del cliente', client.name);
+                        if (nextNameRaw === null) return;
+                        const nextName = nextNameRaw.trim();
+                        if (!nextName || nextName === client.name) return;
+
+                        try {
+                            await update(ref(database, `clients/${client.id}`), { name: nextName });
+                            client.name = nextName;
+                            nameSpan.textContent = nextName;
+                            if (selectedClientId === client.id) {
+                                if (clientNameHeader) clientNameHeader.textContent = nextName;
+                                if (productClientNameHeader) productClientNameHeader.textContent = nextName;
+                            }
+                            renderClients();
+                        } catch (error) {
+                            console.error('Error renaming client:', error);
+                            alert(`No se pudo renombrar el cliente: ${error.message}`);
+                        }
+                    },
+                    onDelete: async () => {
+                        if (!currentUser) {
+                            alert("Debes iniciar sesión para eliminar clientes.");
+                            return;
+                        }
+                        const confirmed = confirm(`¿Eliminar el cliente "${client.name}"?\n\nSe borrarán también sus proyectos, productos y tareas.`);
+                        if (!confirmed) return;
+
+                        try {
+                            await remove(ref(database, `clients/${client.id}`));
+                            allClients = allClients.filter(c => c.id !== client.id);
+                            if (selectedClientId === client.id) {
+                                showClientView();
+                            }
+                            renderClients();
+                        } catch (error) {
+                            console.error('Error deleting client:', error);
+                            alert(`No se pudo eliminar el cliente: ${error.message}`);
+                        }
+                    },
+                });
+
+                row.append(selectButton, actions);
+                clientListNav.appendChild(row);
             });
         } else {
             noClientsMessage.textContent = 'No hay clientes.';
@@ -243,16 +357,78 @@ document.addEventListener('DOMContentLoaded', () => {
         noProjectsMessage.classList.add('hidden');
         projectArray.sort((a, b) => a.name.localeCompare(b.name));
         projectArray.forEach(proj => {
-            const item = document.createElement('div');
-            item.className = 'flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors cursor-pointer';
-            item.innerHTML = `
-                <span class="material-symbols-outlined">layers</span>
-                <span class="text-sm font-medium">${proj.name}</span>
-            `;
-            item.addEventListener('click', () => {
+            const row = document.createElement('div');
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
+            row.dataset.projectId = proj.id;
+
+            const selectButton = document.createElement('button');
+            selectButton.type = 'button';
+            selectButton.className = 'flex items-center gap-3 flex-1 min-w-0 text-left';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = 'layers';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'text-sm font-medium truncate';
+            nameSpan.textContent = proj.name;
+
+            selectButton.append(icon, nameSpan);
+            selectButton.addEventListener('click', () => {
                 showProductView(clientId, proj.id);
             });
-            projectListNav.appendChild(item);
+
+            const actions = createActionMenu({
+                onRename: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para editar proyectos.");
+                        return;
+                    }
+                    const nextNameRaw = prompt('Nuevo nombre del proyecto', proj.name);
+                    if (nextNameRaw === null) return;
+                    const nextName = nextNameRaw.trim();
+                    if (!nextName || nextName === proj.name) return;
+
+                    try {
+                        await update(ref(database, `clients/${clientId}/projects/${proj.id}`), { name: nextName });
+                        proj.name = nextName;
+                        if (client?.projects?.[proj.id]) client.projects[proj.id].name = nextName;
+                        nameSpan.textContent = nextName;
+                        if (selectedClientId === clientId && selectedProjectId === proj.id) {
+                            if (projectNameHeader) projectNameHeader.textContent = nextName;
+                            if (!selectedProductId && projectDetailName) projectDetailName.textContent = nextName;
+                        }
+                        renderProjects(clientId);
+                    } catch (error) {
+                        console.error('Error renaming project:', error);
+                        alert(`No se pudo renombrar el proyecto: ${error.message}`);
+                    }
+                },
+                onDelete: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para eliminar proyectos.");
+                        return;
+                    }
+                    const confirmed = confirm(`¿Eliminar el proyecto "${proj.name}"?\n\nSe borrarán también sus productos y tareas.`);
+                    if (!confirmed) return;
+
+                    try {
+                        await remove(ref(database, `clients/${clientId}/projects/${proj.id}`));
+                        if (client?.projects?.[proj.id]) delete client.projects[proj.id];
+                        if (selectedClientId === clientId && selectedProjectId === proj.id) {
+                            showProjectView(clientId);
+                        } else {
+                            renderProjects(clientId);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting project:', error);
+                        alert(`No se pudo eliminar el proyecto: ${error.message}`);
+                    }
+                },
+            });
+
+            row.append(selectButton, actions);
+            projectListNav.appendChild(row);
         });
     };
 
@@ -275,13 +451,24 @@ document.addEventListener('DOMContentLoaded', () => {
         noProductsMessage.classList.add('hidden');
         productArray.sort((a, b) => a.name.localeCompare(b.name));
         productArray.forEach(prod => {
-            const item = document.createElement('div');
-            item.className = 'flex items-center gap-3 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors cursor-pointer';
-            item.innerHTML = `
-                <span class="material-symbols-outlined">category</span>
-                <span class="text-sm font-medium">${prod.name}</span>
-            `;
-            item.addEventListener('click', () => {
+            const row = document.createElement('div');
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
+            row.dataset.productId = prod.id;
+
+            const selectButton = document.createElement('button');
+            selectButton.type = 'button';
+            selectButton.className = 'flex items-center gap-3 flex-1 min-w-0 text-left';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = 'category';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'text-sm font-medium truncate';
+            nameSpan.textContent = prod.name;
+
+            selectButton.append(icon, nameSpan);
+            selectButton.addEventListener('click', () => {
                 selectedProductId = prod.id;
                 selectedTaskId = null;
                 if (projectDetail) projectDetail.classList.remove('hidden');
@@ -289,7 +476,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
                 renderTasks(clientId, projectId, prod.id);
             });
-            productListNav.appendChild(item);
+
+            const actions = createActionMenu({
+                onRename: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para editar productos.");
+                        return;
+                    }
+                    const nextNameRaw = prompt('Nuevo nombre del producto', prod.name);
+                    if (nextNameRaw === null) return;
+                    const nextName = nextNameRaw.trim();
+                    if (!nextName || nextName === prod.name) return;
+
+                    try {
+                        await update(ref(database, `clients/${clientId}/projects/${projectId}/products/${prod.id}`), { name: nextName });
+                        prod.name = nextName;
+                        if (project?.products?.[prod.id]) project.products[prod.id].name = nextName;
+                        if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
+                            if (projectDetailName) projectDetailName.textContent = nextName;
+                        }
+                        renderProducts(clientId, projectId);
+                    } catch (error) {
+                        console.error('Error renaming product:', error);
+                        alert(`No se pudo renombrar el producto: ${error.message}`);
+                    }
+                },
+                onDelete: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para eliminar productos.");
+                        return;
+                    }
+                    const confirmed = confirm(`¿Eliminar el producto "${prod.name}"?\n\nSe borrarán también sus tareas.`);
+                    if (!confirmed) return;
+
+                    try {
+                        await remove(ref(database, `clients/${clientId}/projects/${projectId}/products/${prod.id}`));
+                        if (project?.products?.[prod.id]) delete project.products[prod.id];
+                        if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
+                            selectedProductId = null;
+                            selectedTaskId = null;
+                            if (projectDetail) projectDetail.classList.remove('hidden');
+                            if (projectDetailName) projectDetailName.textContent = project?.name || 'Selecciona un proyecto';
+                            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+                            renderTasks(clientId, projectId, null);
+                        }
+                        renderProducts(clientId, projectId);
+                    } catch (error) {
+                        console.error('Error deleting product:', error);
+                        alert(`No se pudo eliminar el producto: ${error.message}`);
+                    }
+                },
+            });
+
+            row.append(selectButton, actions);
+            productListNav.appendChild(row);
         });
     };
 
@@ -323,17 +563,134 @@ document.addEventListener('DOMContentLoaded', () => {
         taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
         taskArray.forEach(task => {
-            const item = document.createElement('div');
-            item.className = 'flex items-center gap-3 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors cursor-pointer';
-            item.innerHTML = `
-                <span class="material-symbols-outlined text-text-muted">check_circle</span>
-                <span class="text-sm font-medium">${task.name}</span>
-            `;
-            item.addEventListener('click', () => {
+            const row = document.createElement('div');
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors';
+            row.dataset.taskId = task.id;
+
+            const selectButton = document.createElement('button');
+            selectButton.type = 'button';
+            selectButton.className = 'flex items-center gap-3 flex-1 min-w-0 text-left';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined text-text-muted';
+            icon.textContent = 'check_circle';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'text-sm font-medium truncate';
+            nameSpan.textContent = task.name;
+
+            selectButton.append(icon, nameSpan);
+            selectButton.addEventListener('click', () => {
                 selectedTaskId = task.id;
             });
-            taskList.appendChild(item);
+
+            const actions = createActionMenu({
+                onRename: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para editar tareas.");
+                        return;
+                    }
+                    const nextNameRaw = prompt('Nuevo nombre de la tarea', task.name);
+                    if (nextNameRaw === null) return;
+                    const nextName = nextNameRaw.trim();
+                    if (!nextName || nextName === task.name) return;
+
+                    const taskPath = productId
+                        ? `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${task.id}`
+                        : `clients/${clientId}/projects/${projectId}/tasks/${task.id}`;
+
+                    try {
+                        await update(ref(database, taskPath), { name: nextName });
+                        task.name = nextName;
+                        if (tasks?.[task.id]) tasks[task.id].name = nextName;
+                        renderTasks(clientId, projectId, productId);
+                    } catch (error) {
+                        console.error('Error renaming task:', error);
+                        alert(`No se pudo renombrar la tarea: ${error.message}`);
+                    }
+                },
+                onDelete: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesión para eliminar tareas.");
+                        return;
+                    }
+                    const confirmed = confirm(`¿Eliminar la tarea \"${task.name}\"?`);
+                    if (!confirmed) return;
+
+                    const taskPath = productId
+                        ? `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${task.id}`
+                        : `clients/${clientId}/projects/${projectId}/tasks/${task.id}`;
+
+                    try {
+                        await remove(ref(database, taskPath));
+                        if (tasks?.[task.id]) delete tasks[task.id];
+                        if (selectedTaskId === task.id) selectedTaskId = null;
+                        renderTasks(clientId, projectId, productId);
+                    } catch (error) {
+                        console.error('Error deleting task:', error);
+                        alert(`No se pudo eliminar la tarea: ${error.message}`);
+                    }
+                },
+            });
+
+            row.append(selectButton, actions);
+            taskList.appendChild(row);
         });
+    };
+
+    const syncSelectionAfterDataChange = () => {
+        if (!selectedClientId) return;
+
+        const client = allClients.find(c => c.id === selectedClientId);
+        if (!client) {
+            showClientView();
+            return;
+        }
+
+        if (!selectedProjectId) {
+            if (clientNameHeader) clientNameHeader.textContent = client.name;
+            showEl(backToClientsBtn);
+            hideEl(productListSection);
+            showEl(projectListSection);
+            hideEl(clientListSection);
+            return;
+        }
+
+        const project = client.projects?.[selectedProjectId];
+        if (!project) {
+            selectedProjectId = null;
+            selectedProductId = null;
+            selectedTaskId = null;
+            resetProjectDetail();
+            if (clientNameHeader) clientNameHeader.textContent = client.name;
+            showEl(backToClientsBtn);
+            hideEl(productListSection);
+            showEl(projectListSection);
+            hideEl(clientListSection);
+            return;
+        }
+
+        if (productClientNameHeader) productClientNameHeader.textContent = client.name;
+        if (projectNameHeader) projectNameHeader.textContent = project.name;
+
+        if (selectedProductId && !project.products?.[selectedProductId]) {
+            selectedProductId = null;
+            selectedTaskId = null;
+        }
+
+        if (projectDetail) projectDetail.classList.remove('hidden');
+        if (selectedProductId) {
+            const product = project.products?.[selectedProductId];
+            if (projectDetailName) projectDetailName.textContent = product?.name || project.name;
+            if (projectDetailSub) projectDetailSub.textContent = product ? 'Tareas del producto.' : 'Tareas del proyecto (sin producto).';
+        } else {
+            if (projectDetailName) projectDetailName.textContent = project.name;
+            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+        }
+
+        showEl(productListSection);
+        hideEl(projectListSection);
+        hideEl(clientListSection);
     };
 
     // Fetch clients from RTDB
@@ -350,6 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 allClients = [];
             }
+            syncSelectionAfterDataChange();
             renderClients();
             if (selectedClientId) {
                 if (selectedProjectId) {
@@ -523,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addClientBtn?.addEventListener('click', () => {
             if (!currentUser) {
-                alert("Debes iniciar sesion para anadir clientes.");
+                alert("Debes iniciar sesión para añadir clientes.");
                 return;
             }
             openModal();
@@ -574,6 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         userMenuToggle?.addEventListener('click', toggleUserMenu);
         document.addEventListener('click', (e) => {
+            closeAllActionMenus();
             if (!userMenu || !userMenuToggle) return;
             if (userMenu.contains(e.target) || userMenuToggle.contains(e.target)) return;
             userMenu.classList.add('hidden');
