@@ -1081,18 +1081,9 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = proj.name;
 
-            const statusControl = createStatusControl({
-                status: proj.status,
-                onChange: async (nextStatus) => {
-                    await updateStatusAtPath(`clients/${clientId}/projects/${proj.id}`, nextStatus);
-                    proj.status = nextStatus;
-                    if (client?.projects?.[proj.id]) client.projects[proj.id].status = nextStatus;
-                    renderTree();
-                }
-            });
             const idTag = createIdChip(proj.manageId);
 
-            nameWrapper.append(nameSpan, statusControl, idTag);
+            nameWrapper.append(nameSpan, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 showProductView(clientId, proj.id);
@@ -1192,18 +1183,9 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = prod.name;
 
-            const statusControl = createStatusControl({
-                status: prod.status,
-                onChange: async (nextStatus) => {
-                    await updateStatusAtPath(`clients/${clientId}/projects/${projectId}/products/${prod.id}`, nextStatus);
-                    prod.status = nextStatus;
-                    if (project?.products?.[prod.id]) project.products[prod.id].status = nextStatus;
-                    renderTree();
-                }
-            });
             const idTag = createIdChip(prod.manageId);
 
-            nameWrapper.append(nameSpan, statusControl, idTag);
+            nameWrapper.append(nameSpan, idTag);
             selectButton.append(icon, nameWrapper);
             selectButton.addEventListener('click', () => {
                 selectedProductId = prod.id;

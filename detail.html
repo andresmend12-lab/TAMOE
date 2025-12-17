@@ -840,7 +840,186 @@
             return badge;
         };
 
-        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, assigneeUid = null) => {
+        const applyStatusChipStyle = (button, labelEl, status) => {
+            const normalized = normalizeStatus(status);
+            if (labelEl) labelEl.textContent = normalized;
+            if (!button) return;
+            const style = STATUS_STYLES[normalized]?.chip || STATUS_STYLES['Pendiente']?.chip || 'bg-slate-500/15 text-slate-200 border-slate-500/30';
+            button.className = `inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${style} hover:brightness-110 transition-colors`;
+            button.setAttribute('aria-label', `Estado: ${normalized}`);
+            button.title = normalized;
+        };
+
+        const updateStatusAtPath = async (path, nextStatus) => {
+            if (!currentUser) {
+                alert('Debes iniciar sesi\u00F3n para cambiar el estado.');
+                throw new Error('AUTH_REQUIRED');
+            }
+            const status = normalizeStatus(nextStatus);
+            await update(ref(database, path), { status });
+            return status;
+        };
+
+        const createStatusControl = ({ status, onChange }) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'relative flex-shrink-0';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+
+            const label = document.createElement('span');
+            label.className = 'leading-none';
+
+            const caret = document.createElement('span');
+            caret.className = 'material-symbols-outlined text-[16px] leading-none opacity-70';
+            caret.textContent = 'expand_more';
+
+            button.append(label, caret);
+            applyStatusChipStyle(button, label, status);
+
+            const menu = document.createElement('div');
+            menu.className = 'action-menu hidden absolute right-0 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
+
+            const canEdit = Boolean(currentUser) && typeof onChange === 'function';
+            button.disabled = !canEdit;
+            button.classList.toggle('opacity-60', !canEdit);
+            button.classList.toggle('cursor-not-allowed', !canEdit);
+
+            let saving = false;
+            const setSaving = (isSaving) => {
+                saving = isSaving;
+                button.disabled = isSaving || !canEdit;
+                button.classList.toggle('opacity-60', button.disabled);
+                button.classList.toggle('cursor-not-allowed', button.disabled);
+            };
+
+            STATUS_STEPS.forEach(option => {
+                const optBtn = document.createElement('button');
+                optBtn.type = 'button';
+                optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+                optBtn.dataset.status = option;
+
+                const left = document.createElement('div');
+                left.className = 'flex items-center gap-2';
+
+                const dot = createStatusDot(option);
+                const txt = document.createElement('span');
+                txt.textContent = option;
+                left.append(dot, txt);
+
+                const check = document.createElement('span');
+                check.className = 'material-symbols-outlined text-[18px] text-text-muted opacity-0';
+                check.textContent = 'check';
+
+                optBtn.append(left, check);
+
+                optBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!canEdit || saving) return;
+                    menu.classList.add('hidden');
+                    const next = normalizeStatus(option);
+                    setSaving(true);
+                    try {
+                        const saved = await onChange(next);
+                        applyStatusChipStyle(button, label, saved || next);
+                    } catch (error) {
+                        console.error('Error updating status:', error);
+                        alert(`No se pudo actualizar el estado: ${error.message}`);
+                    } finally {
+                        setSaving(false);
+                    }
+                });
+
+                menu.appendChild(optBtn);
+            });
+
+            const refreshMenuChecks = () => {
+                const current = normalizeStatus(label.textContent);
+                Array.from(menu.querySelectorAll('button[data-status]')).forEach((btn) => {
+                    const isActive = normalizeStatus(btn.dataset.status) === current;
+                    const check = btn.querySelector('.material-symbols-outlined');
+                    if (check) check.classList.toggle('opacity-0', !isActive);
+                });
+            };
+
+            const findClippingContainer = () => {
+                let node = wrapper.parentElement;
+                while (node && node !== document.body && node !== document.documentElement) {
+                    const style = window.getComputedStyle(node);
+                    const overflowY = style.overflowY;
+                    const overflowX = style.overflowX;
+                    if (
+                        ['auto', 'scroll', 'hidden', 'clip'].includes(overflowY) ||
+                        ['auto', 'scroll', 'hidden', 'clip'].includes(overflowX)
+                    ) {
+                        return node;
+                    }
+                    node = node.parentElement;
+                }
+                return document.documentElement;
+            };
+
+            const positionMenu = () => {
+                const clipping = findClippingContainer();
+                const clipRect = clipping.getBoundingClientRect();
+                const btnRect = button.getBoundingClientRect();
+                const padding = 8;
+
+                menu.style.maxHeight = '';
+
+                const wasHidden = menu.classList.contains('hidden');
+                if (wasHidden) {
+                    menu.classList.remove('hidden');
+                    menu.style.visibility = 'hidden';
+                }
+
+                const menuRect = menu.getBoundingClientRect();
+                const menuHeight = menuRect.height || 140;
+
+                const availableBelow = clipRect.bottom - btnRect.bottom;
+                const availableAbove = btnRect.top - clipRect.top;
+                const shouldOpenUp = availableBelow < (menuHeight + padding) && availableAbove > availableBelow;
+
+                menu.classList.remove('top-full', 'mt-2', 'bottom-full', 'mb-2');
+                if (shouldOpenUp) {
+                    menu.classList.add('bottom-full', 'mb-2');
+                    const maxHeight = Math.max(120, Math.floor(availableAbove - padding));
+                    menu.style.maxHeight = `${maxHeight}px`;
+                } else {
+                    menu.classList.add('top-full', 'mt-2');
+                    const maxHeight = Math.max(120, Math.floor(availableBelow - padding));
+                    menu.style.maxHeight = `${maxHeight}px`;
+                }
+
+                if (wasHidden) {
+                    menu.style.visibility = '';
+                    menu.classList.add('hidden');
+                }
+            };
+
+            menu.addEventListener('click', (e) => e.stopPropagation());
+
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!canEdit) return;
+                const isOpen = !menu.classList.contains('hidden');
+                closeAllActionMenus(menu);
+                if (isOpen) {
+                    menu.classList.add('hidden');
+                    return;
+                }
+                refreshMenuChecks();
+                positionMenu();
+                menu.classList.remove('hidden');
+            });
+
+            wrapper.append(button, menu);
+            return wrapper;
+        };
+
+        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null) => {
             const summary = document.createElement('summary');
             summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
 
@@ -856,10 +1035,10 @@
             title.textContent = titleText || '-';
 
             left.append(icon, title);
-            if (statusValue !== null) left.appendChild(createStatusDot(statusValue));
 
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3 min-w-0';
+            if (statusValue !== null) right.appendChild(createStatusControl({ status: statusValue, onChange: onStatusChange }));
             if (assigneeUid !== null) right.appendChild(createAssigneeBadge(assigneeUid));
             right.appendChild(createManageLink(manageIdValue));
 
@@ -867,7 +1046,7 @@
             return summary;
         };
 
-        const makeRow = (iconName, titleText, manageIdValue, statusValue = null, assigneeUid = null) => {
+        const makeRow = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null) => {
             const row = document.createElement('div');
             row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-surface-dark border border-border-dark text-white';
 
@@ -883,10 +1062,10 @@
             title.textContent = titleText || '-';
 
             left.append(icon, title);
-            if (statusValue !== null) left.appendChild(createStatusDot(statusValue));
 
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3 min-w-0';
+            if (statusValue !== null) right.appendChild(createStatusControl({ status: statusValue, onChange: onStatusChange }));
             if (assigneeUid !== null) right.appendChild(createAssigneeBadge(assigneeUid));
             right.appendChild(createManageLink(manageIdValue));
 
@@ -894,24 +1073,65 @@
             return row;
         };
 
-        const makeTaskBlock = (task) => {
+        const makeTaskBlock = (task, taskPath) => {
             const taskName = task?.name || 'Tarea';
             const subtasks = task?.subtasks || {};
-            const subArray = Object.values(subtasks || {}).filter(Boolean);
+            const subArray = Object.entries(subtasks || {})
+                .map(([id, sub]) => ({ id: sub?.subtaskId || id, ...sub }))
+                .filter(entry => entry && entry.id);
             subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+            const safeTaskPath = String(taskPath || '').trim();
+            const onTaskStatusChange = safeTaskPath
+                ? async (nextStatus) => {
+                    const status = await updateStatusAtPath(safeTaskPath, nextStatus);
+                    task.status = status;
+                    return status;
+                }
+                : null;
+
             if (!subArray.length) {
-                return makeRow('check_circle', taskName, task?.manageId, task?.status, task?.assigneeUid ?? '');
+                return makeRow(
+                    'check_circle',
+                    taskName,
+                    task?.manageId,
+                    normalizeStatus(task?.status),
+                    onTaskStatusChange,
+                    task?.assigneeUid ?? ''
+                );
             }
 
             const details = document.createElement('details');
-            details.className = 'border border-border-dark rounded-lg overflow-hidden bg-surface-dark';
-            details.appendChild(makeSummary('check_circle', taskName, task?.manageId, task?.status, task?.assigneeUid ?? ''));
+            details.className = 'border border-border-dark rounded-lg bg-surface-dark';
+            details.appendChild(makeSummary(
+                'check_circle',
+                taskName,
+                task?.manageId,
+                normalizeStatus(task?.status),
+                onTaskStatusChange,
+                task?.assigneeUid ?? ''
+            ));
 
             const content = document.createElement('div');
             content.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
             subArray.forEach(sub => {
-                content.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status, sub.assigneeUid ?? ''));
+                const subPath = safeTaskPath ? `${safeTaskPath}/subtasks/${sub.id}` : '';
+                const onSubStatusChange = subPath
+                    ? async (nextStatus) => {
+                        const status = await updateStatusAtPath(subPath, nextStatus);
+                        sub.status = status;
+                        return status;
+                    }
+                    : null;
+
+                content.appendChild(makeRow(
+                    'subdirectory_arrow_right',
+                    sub.name || 'Subtarea',
+                    sub.manageId,
+                    normalizeStatus(sub.status),
+                    onSubStatusChange,
+                    sub.assigneeUid ?? ''
+                ));
             });
             details.appendChild(content);
             return details;
@@ -921,7 +1141,7 @@
             if (!activitiesList) return;
             activitiesList.innerHTML = '';
 
-            const { type, item } = result || {};
+            const { type, item, ids } = result || {};
             const empty = (text) => {
                 const msg = document.createElement('p');
                 msg.className = 'text-text-muted text-sm';
@@ -934,54 +1154,89 @@
                 return;
             }
 
+            const clientId = String(ids?.clientId || '').trim();
+
             if (type === 'client') {
                 const projects = item.projects || {};
-                const projectArray = Object.values(projects || {}).filter(Boolean);
-                projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                const projectArray = Object.entries(projects || {}).filter(([, proj]) => proj);
+                projectArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
 
                 if (!projectArray.length) {
                     empty('No hay proyectos.');
                     return;
                 }
 
-                projectArray.forEach(proj => {
+                projectArray.forEach(([projectId, proj]) => {
+                    const projPath = clientId ? `clients/${clientId}/projects/${projectId}` : '';
+                    const onProjStatusChange = projPath
+                        ? async (nextStatus) => {
+                            const status = await updateStatusAtPath(projPath, nextStatus);
+                            proj.status = status;
+                            return status;
+                        }
+                        : null;
+
                     const projDetails = document.createElement('details');
-                    projDetails.className = 'border border-border-dark rounded-lg overflow-hidden bg-surface-dark';
-                    projDetails.appendChild(makeSummary('layers', proj.name || 'Proyecto', proj.manageId, proj.status));
+                    projDetails.className = 'border border-border-dark rounded-lg bg-surface-dark';
+                    projDetails.appendChild(makeSummary(
+                        'layers',
+                        proj.name || 'Proyecto',
+                        proj.manageId,
+                        normalizeStatus(proj.status),
+                        onProjStatusChange
+                    ));
 
                     const projContent = document.createElement('div');
                     projContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-3';
 
                     const projTasks = proj.tasks || {};
-                    const projTaskArray = Object.values(projTasks || {}).filter(Boolean);
-                    projTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    const projTaskArray = Object.entries(projTasks || {}).filter(([, t]) => t);
+                    projTaskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                     if (projTaskArray.length) {
                         const taskLabel = document.createElement('p');
                         taskLabel.className = 'text-text-muted text-xs px-1';
                         taskLabel.textContent = 'Tareas (sin producto)';
                         projContent.appendChild(taskLabel);
-                        projTaskArray.forEach(t => projContent.appendChild(makeTaskBlock(t)));
+                        projTaskArray.forEach(([taskId, task]) => {
+                            const taskPath = projPath ? `${projPath}/tasks/${taskId}` : '';
+                            projContent.appendChild(makeTaskBlock(task, taskPath));
+                        });
                     }
 
                     const products = proj.products || {};
-                    const productArray = Object.values(products || {}).filter(Boolean);
-                    productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    const productArray = Object.entries(products || {}).filter(([, prod]) => prod);
+                    productArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                     if (productArray.length) {
                         const prodLabel = document.createElement('p');
                         prodLabel.className = 'text-text-muted text-xs px-1';
                         prodLabel.textContent = 'Productos';
                         projContent.appendChild(prodLabel);
 
-                        productArray.forEach(prod => {
+                        productArray.forEach(([productId, prod]) => {
+                            const prodPath = projPath ? `${projPath}/products/${productId}` : '';
+                            const onProdStatusChange = prodPath
+                                ? async (nextStatus) => {
+                                    const status = await updateStatusAtPath(prodPath, nextStatus);
+                                    prod.status = status;
+                                    return status;
+                                }
+                                : null;
+
                             const prodDetails = document.createElement('details');
-                            prodDetails.className = 'border border-border-dark/70 rounded-lg overflow-hidden bg-background-dark/10';
-                            prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId, prod.status));
+                            prodDetails.className = 'border border-border-dark/70 rounded-lg bg-background-dark/10';
+                            prodDetails.appendChild(makeSummary(
+                                'category',
+                                prod.name || 'Producto',
+                                prod.manageId,
+                                normalizeStatus(prod.status),
+                                onProdStatusChange
+                            ));
 
                             const prodContent = document.createElement('div');
                             prodContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
                             const tasks = prod.tasks || {};
-                            const taskArray = Object.values(tasks || {}).filter(Boolean);
-                            taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                            const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
+                            taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
 
                             if (!taskArray.length) {
                                 const msg = document.createElement('p');
@@ -989,7 +1244,10 @@
                                 msg.textContent = 'No hay tareas en este producto.';
                                 prodContent.appendChild(msg);
                             } else {
-                                taskArray.forEach(t => prodContent.appendChild(makeTaskBlock(t)));
+                                taskArray.forEach(([taskId, task]) => {
+                                    const taskPath = prodPath ? `${prodPath}/tasks/${taskId}` : '';
+                                    prodContent.appendChild(makeTaskBlock(task, taskPath));
+                                });
                             }
 
                             prodDetails.appendChild(prodContent);
@@ -1012,44 +1270,69 @@
             }
 
             if (type === 'project') {
+                const projectId = String(ids?.projectId || item.id || '').trim();
+                const projPath = clientId && projectId ? `clients/${clientId}/projects/${projectId}` : '';
+
                 const projTasks = item.tasks || {};
-                const projTaskArray = Object.values(projTasks || {}).filter(Boolean);
-                projTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                const projTaskArray = Object.entries(projTasks || {}).filter(([, t]) => t);
+                projTaskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (projTaskArray.length) {
                     const taskLabel = document.createElement('p');
                     taskLabel.className = 'text-text-muted text-xs px-1';
                     taskLabel.textContent = 'Tareas (sin producto)';
                     activitiesList.appendChild(taskLabel);
-                    projTaskArray.forEach(t => activitiesList.appendChild(makeTaskBlock(t)));
+                    projTaskArray.forEach(([taskId, task]) => {
+                        const taskPath = projPath ? `${projPath}/tasks/${taskId}` : '';
+                        activitiesList.appendChild(makeTaskBlock(task, taskPath));
+                    });
                 }
 
                 const products = item.products || {};
-                const productArray = Object.values(products || {}).filter(Boolean);
-                productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                const productArray = Object.entries(products || {}).filter(([, prod]) => prod);
+                productArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (productArray.length) {
                     const prodLabel = document.createElement('p');
                     prodLabel.className = 'text-text-muted text-xs px-1 pt-2';
                     prodLabel.textContent = 'Productos';
                     activitiesList.appendChild(prodLabel);
 
-                    productArray.forEach(prod => {
+                    productArray.forEach(([productId, prod]) => {
+                        const prodPath = projPath ? `${projPath}/products/${productId}` : '';
+                        const onProdStatusChange = prodPath
+                            ? async (nextStatus) => {
+                                const status = await updateStatusAtPath(prodPath, nextStatus);
+                                prod.status = status;
+                                return status;
+                            }
+                            : null;
+
                         const prodDetails = document.createElement('details');
-                        prodDetails.className = 'border border-border-dark rounded-lg overflow-hidden bg-surface-dark';
-                        prodDetails.appendChild(makeSummary('category', prod.name || 'Producto', prod.manageId, prod.status));
+                        prodDetails.className = 'border border-border-dark rounded-lg bg-surface-dark';
+                        prodDetails.appendChild(makeSummary(
+                            'category',
+                            prod.name || 'Producto',
+                            prod.manageId,
+                            normalizeStatus(prod.status),
+                            onProdStatusChange
+                        ));
 
                         const prodContent = document.createElement('div');
                         prodContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
                         const tasks = prod.tasks || {};
-                        const taskArray = Object.values(tasks || {}).filter(Boolean);
-                        taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                        const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
+                        taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                         if (!taskArray.length) {
                             const msg = document.createElement('p');
                             msg.className = 'text-text-muted text-sm';
                             msg.textContent = 'No hay tareas en este producto.';
                             prodContent.appendChild(msg);
                         } else {
-                            taskArray.forEach(t => prodContent.appendChild(makeTaskBlock(t)));
+                            taskArray.forEach(([taskId, task]) => {
+                                const taskPath = prodPath ? `${prodPath}/tasks/${taskId}` : '';
+                                prodContent.appendChild(makeTaskBlock(task, taskPath));
+                            });
                         }
+
                         prodDetails.appendChild(prodContent);
                         activitiesList.appendChild(prodDetails);
                     });
@@ -1062,27 +1345,53 @@
             }
 
             if (type === 'product') {
+                const projectId = String(ids?.projectId || '').trim();
+                const productId = String(ids?.productId || item.id || '').trim();
+                const prodPath = clientId && projectId && productId
+                    ? `clients/${clientId}/projects/${projectId}/products/${productId}`
+                    : '';
+
                 const tasks = item.tasks || {};
-                const taskArray = Object.values(tasks || {}).filter(Boolean);
-                taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
+                taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (!taskArray.length) {
                     empty('No hay tareas en este producto.');
                     return;
                 }
-                taskArray.forEach(t => activitiesList.appendChild(makeTaskBlock(t)));
+                taskArray.forEach(([taskId, task]) => {
+                    const taskPath = prodPath ? `${prodPath}/tasks/${taskId}` : '';
+                    activitiesList.appendChild(makeTaskBlock(task, taskPath));
+                });
                 return;
             }
 
             if (type === 'task') {
+                const taskPath = currentItemPath || buildItemPath(ids, 'task') || '';
                 const subtasks = item.subtasks || {};
-                const subArray = Object.values(subtasks || {}).filter(Boolean);
-                subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                const subArray = Object.entries(subtasks || {}).filter(([, s]) => s);
+                subArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (!subArray.length) {
                     empty('No hay subtareas en esta tarea.');
                     return;
                 }
-                subArray.forEach(sub => {
-                    activitiesList.appendChild(makeRow('subdirectory_arrow_right', sub.name || 'Subtarea', sub.manageId, sub.status, sub.assigneeUid ?? ''));
+                subArray.forEach(([subtaskId, sub]) => {
+                    const subPath = taskPath ? `${taskPath}/subtasks/${subtaskId}` : '';
+                    const onSubStatusChange = subPath
+                        ? async (nextStatus) => {
+                            const status = await updateStatusAtPath(subPath, nextStatus);
+                            sub.status = status;
+                            return status;
+                        }
+                        : null;
+
+                    activitiesList.appendChild(makeRow(
+                        'subdirectory_arrow_right',
+                        sub.name || 'Subtarea',
+                        sub.manageId,
+                        normalizeStatus(sub.status),
+                        onSubStatusChange,
+                        sub.assigneeUid ?? ''
+                    ));
                 });
                 return;
             }
