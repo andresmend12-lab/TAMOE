@@ -98,11 +98,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
 
+    const stripWrappingQuotes = (value) => {
+        let text = String(value ?? '').trim();
+        if (!text) return '';
+        const pairs = { '"': '"', "'": "'", '“': '”', '‘': '’', '«': '»' };
+        while (text.length >= 2) {
+            const first = text[0];
+            const last = text[text.length - 1];
+            if (pairs[first] === last) text = text.slice(1, -1).trim();
+            else break;
+        }
+        return text;
+    };
+
     const getUserDisplayNameByUid = (uid) => {
         const safeUid = String(uid || '').trim();
         if (!safeUid) return '';
         const user = usersByUid?.[safeUid];
-        return user?.username || user?.email || safeUid;
+        const candidate = user?.username || user?.email || safeUid;
+        return stripWrappingQuotes(candidate) || safeUid;
     };
 
     const getUserDepartmentByUid = (uid) => {
