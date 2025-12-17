@@ -19,6 +19,10 @@
       - `productId`: string  
       - `name`: string  
       - `createdAt`: ISO string  
+      - `tasks/{taskId}`  
+        - `taskId`: string  
+        - `name`: string  
+        - `createdAt`: ISO string  
     - `tasks/{taskId}`  
       - `taskId`: string  
       - `name`: string  

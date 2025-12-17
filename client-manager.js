@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectDetail = document.getElementById('project-detail');
     const projectDetailName = document.getElementById('project-detail-name');
     const projectDetailSub = document.getElementById('project-detail-sub');
+    const taskList = document.getElementById('task-list');
+    const noTasksMessage = document.getElementById('no-tasks-message');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -64,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedClientId = null;
     let selectedProjectId = null;
     let selectedProductId = null;
+    let selectedTaskId = null;
 
     // User dropdown
     const userMenuToggle = document.getElementById('user-menu-toggle');
@@ -118,9 +121,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const resetProjectDetail = () => {
         selectedProjectId = null;
+        selectedProductId = null;
+        selectedTaskId = null;
         if (projectDetail) projectDetail.classList.add('hidden');
         if (projectDetailName) projectDetailName.textContent = 'Selecciona un proyecto';
         if (projectDetailSub) projectDetailSub.textContent = 'Selecciona un proyecto en la barra lateral.';
+        if (taskList) taskList.innerHTML = '';
+        if (noTasksMessage) {
+            noTasksMessage.textContent = 'Selecciona un proyecto o producto para ver tareas.';
+            noTasksMessage.classList.remove('hidden');
+        }
     };
 
     const showProjectView = (clientId) => {
@@ -147,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedClientId = clientId;
         selectedProjectId = projectId;
         selectedProductId = null;
+        selectedTaskId = null;
 
         if (productClientNameHeader) productClientNameHeader.textContent = client.name;
         if (projectNameHeader) projectNameHeader.textContent = project.name;
@@ -155,7 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (projectDetail) projectDetail.classList.remove('hidden');
         if (projectDetailName) projectDetailName.textContent = project.name;
-        if (projectDetailSub) projectDetailSub.textContent = 'Selecciona un producto en la barra lateral.';
+        if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+        renderTasks(clientId, projectId, null);
 
         showEl(productListSection);
         hideEl(projectListSection);
@@ -271,11 +283,56 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             item.addEventListener('click', () => {
                 selectedProductId = prod.id;
+                selectedTaskId = null;
                 if (projectDetail) projectDetail.classList.remove('hidden');
                 if (projectDetailName) projectDetailName.textContent = prod.name;
-                if (projectDetailSub) projectDetailSub.textContent = 'Producto seleccionado.';
+                if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
+                renderTasks(clientId, projectId, prod.id);
             });
             productListNav.appendChild(item);
+        });
+    };
+
+    const renderTasks = (clientId, projectId, productId = null) => {
+        if (!taskList || !noTasksMessage) return;
+
+        taskList.innerHTML = '';
+        selectedTaskId = null;
+
+        const client = allClients.find(c => c.id === clientId);
+        const project = client?.projects?.[projectId];
+        if (!project) {
+            noTasksMessage.textContent = 'Selecciona un proyecto para ver tareas.';
+            noTasksMessage.classList.remove('hidden');
+            return;
+        }
+
+        const tasks = productId
+            ? (project.products?.[productId]?.tasks || {})
+            : (project.tasks || {});
+
+        const taskArray = Object.keys(tasks || {}).map(key => ({ id: key, ...tasks[key] }));
+
+        if (taskArray.length === 0) {
+            noTasksMessage.textContent = productId ? 'No hay tareas para este producto.' : 'No hay tareas para este proyecto.';
+            noTasksMessage.classList.remove('hidden');
+            return;
+        }
+
+        noTasksMessage.classList.add('hidden');
+        taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        taskArray.forEach(task => {
+            const item = document.createElement('div');
+            item.className = 'flex items-center gap-3 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors cursor-pointer';
+            item.innerHTML = `
+                <span class="material-symbols-outlined text-text-muted">check_circle</span>
+                <span class="text-sm font-medium">${task.name}</span>
+            `;
+            item.addEventListener('click', () => {
+                selectedTaskId = task.id;
+            });
+            taskList.appendChild(item);
         });
     };
 
@@ -297,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedClientId) {
                 if (selectedProjectId) {
                     renderProducts(selectedClientId, selectedProjectId);
+                    renderTasks(selectedClientId, selectedProjectId, selectedProductId);
                 } else {
                     renderProjects(selectedClientId);
                 }
@@ -434,7 +492,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveTaskBtn.textContent = "Guardando...";
             }
 
-            const newTaskRef = push(ref(database, `clients/${selectedClientId}/projects/${selectedProjectId}/tasks`));
+            const taskPath = selectedProductId
+                ? `clients/${selectedClientId}/projects/${selectedProjectId}/products/${selectedProductId}/tasks`
+                : `clients/${selectedClientId}/projects/${selectedProjectId}/tasks`;
+            const newTaskRef = push(ref(database, taskPath));
             const taskData = {
                 name: taskName,
                 createdAt: new Date().toISOString(),
@@ -443,6 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             await set(newTaskRef, taskData);
             closeTaskModal();
+            renderTasks(selectedClientId, selectedProjectId, selectedProductId);
         } catch (error) {
             console.error("Error adding task: ", error);
             alert(`Hubo un error al guardar la tarea: ${error.message}`);
