@@ -93,6 +93,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
 
+    const openDetailPage = (manageId) => {
+        if (!manageId) return;
+        const url = `${window.location.origin}/detail.html?mid=${encodeURIComponent(manageId)}`;
+        window.open(url, '_blank', 'noopener');
+    };
+
+    const createIdChip = (manageId) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'manage-chip text-[11px] text-text-muted shrink-0 hover:text-white hover:underline';
+        chip.textContent = manageId || '';
+        chip.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDetailPage(manageId);
+        });
+        return chip;
+    };
+
     const closeAllActionMenus = (exceptMenu = null) => {
         document.querySelectorAll('.action-menu').forEach(menu => {
             if (menu !== exceptMenu) menu.classList.add('hidden');
@@ -328,9 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 nameSpan.className = 'text-sm font-medium truncate';
                 nameSpan.textContent = client.name;
 
-                const idTag = document.createElement('span');
-                idTag.className = 'text-[11px] text-text-muted shrink-0';
-                idTag.textContent = client.manageId || '';
+                const idTag = createIdChip(client.manageId);
 
                 nameWrapper.append(nameSpan, idTag);
                 selectButton.append(icon, nameWrapper);
@@ -574,9 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = proj.name;
 
-            const idTag = document.createElement('span');
-            idTag.className = 'text-[11px] text-text-muted shrink-0';
-            idTag.textContent = proj.manageId || '';
+            const idTag = createIdChip(proj.manageId);
 
             nameWrapper.append(nameSpan, idTag);
             selectButton.append(icon, nameWrapper);
@@ -678,9 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = prod.name;
 
-            const idTag = document.createElement('span');
-            idTag.className = 'text-[11px] text-text-muted shrink-0';
-            idTag.textContent = prod.manageId || '';
+            const idTag = createIdChip(prod.manageId);
 
             nameWrapper.append(nameSpan, idTag);
             selectButton.append(icon, nameWrapper);
@@ -807,9 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const nameWrapper = document.createElement('div');
             nameWrapper.className = 'flex items-center gap-2 min-w-0';
 
-            const idTag = document.createElement('span');
-            idTag.className = 'text-[11px] text-text-muted shrink-0';
-            idTag.textContent = subtask.manageId || '';
+            const idTag = createIdChip(subtask.manageId);
 
             nameWrapper.append(nameSpan, idTag);
             selectButton.append(icon, nameWrapper);
@@ -1048,9 +1058,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = task.name;
 
-            const idTag = document.createElement('span');
-            idTag.className = 'text-[11px] text-text-muted shrink-0';
-            idTag.textContent = task.manageId || '';
+            const idTag = createIdChip(task.manageId);
 
             nameWrapper.append(nameSpan, idTag);
             selectButton.append(icon, nameWrapper);
