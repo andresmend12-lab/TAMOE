@@ -1361,6 +1361,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newProjectRef = push(ref(database, `clients/${selectedClientId}/projects`));
             const projectData = {
                 name: projectName,
+                status: 'Pendiente',
                 createdAt: new Date().toISOString(),
                 projectId: newProjectRef.key,
                 manageId
@@ -1400,6 +1401,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newProductRef = push(ref(database, `clients/${selectedClientId}/projects/${selectedProjectId}/products`));
             const productData = {
                 name: productName,
+                status: 'Pendiente',
                 createdAt: new Date().toISOString(),
                 productId: newProductRef.key,
                 manageId
@@ -1442,6 +1444,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newTaskRef = push(ref(database, taskPath));
             const taskData = {
                 name: taskName,
+                status: 'Pendiente',
                 createdAt: new Date().toISOString(),
                 taskId: newTaskRef.key,
                 manageId
@@ -1485,6 +1488,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newSubtaskRef = push(ref(database, subtaskPath));
             const subtaskData = {
                 name: subtaskName,
+                status: 'Pendiente',
                 createdAt: new Date().toISOString(),
                 subtaskId: newSubtaskRef.key,
                 manageId
