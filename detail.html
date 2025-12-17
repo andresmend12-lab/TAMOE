@@ -1,0 +1,727 @@
+﻿<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Detalle | Tamoe</title>
+    <link rel="icon" href="imagotipo_tamoe.png" type="image/png"/>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#e619a1",
+                        "background-light": "#f8f6f7",
+                        "background-dark": "#21111c",
+                        "surface-dark": "#2f1a28",
+                        "surface-darker": "#1a0d15",
+                        "text-muted": "#c893b6",
+                        "border-dark": "#3a2330"
+                    },
+                    fontFamily: { display: ["Manrope", "sans-serif"] },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        "2xl": "1rem",
+                        full: "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #21111c; }
+        ::-webkit-scrollbar-thumb { background: #47243b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #e619a1; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-display overflow-hidden flex flex-col h-screen">
+    <header class="flex shrink-0 items-center justify-between border-b border-surface-dark px-6 py-3 bg-background-dark z-20">
+        <div class="flex items-center gap-3 text-white">
+            <img src="imagotipo_tamoe.png" class="h-8 w-auto" alt="Tamoe logo"/>
+            <div class="flex flex-col">
+                <span class="text-sm text-text-muted">Detalle</span>
+                <h1 id="header-title" class="text-lg font-bold leading-tight tracking-tight">Cargando...</h1>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 text-text-muted text-sm">
+            <span class="material-symbols-outlined">badge</span>
+            <span id="header-manage" class="font-mono">...</span>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <main class="flex-1 flex flex-col overflow-y-auto relative">
+            <div class="px-8 py-8 flex flex-col gap-8 max-w-6xl mx-auto w-full">
+                <!-- Breadcrumb -->
+                <div id="breadcrumb" class="flex flex-wrap gap-2 items-center text-sm text-text-muted"></div>
+
+                <!-- Title block -->
+                <div class="flex flex-wrap justify-between items-start gap-4">
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center gap-2">
+                            <span id="type-chip" class="bg-primary/15 text-primary text-xs font-bold px-2.5 py-1 rounded-md border border-primary/30 uppercase tracking-wide">...</span>
+                            <span id="created-chip" class="text-text-muted text-xs bg-surface-dark px-2 py-1 rounded-md">...</span>
+                        </div>
+                        <h2 id="item-title" class="text-3xl md:text-4xl font-extrabold leading-tight tracking-tight text-white">Cargando...</h2>
+                        <p id="item-manage" class="text-text-muted text-sm font-mono">...</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="open-dashboard" class="flex items-center gap-2 h-10 px-4 rounded-lg border border-surface-dark text-text-muted hover:text-white hover:bg-surface-dark transition-colors text-sm font-bold">
+                            <span class="material-symbols-outlined text-[18px]">dashboard</span>
+                            Volver al dashboard
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 flex flex-col gap-6">
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <h3 class="text-white text-lg font-bold flex items-center gap-2 mb-3">
+                                <span class="material-symbols-outlined text-primary">info</span>
+                                Resumen
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-text-muted">
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Nombre</span>
+                                    <span id="field-name" class="text-white text-base font-semibold">-</span>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Tipo</span>
+                                    <span id="field-type" class="text-white">-</span>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Manage ID</span>
+                                    <span id="field-manage" class="text-white font-mono">-</span>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Creado</span>
+                                    <span id="field-created" class="text-white">-</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">article</span>
+                                    Descripción
+                                </h3>
+                                <span id="description-status" class="text-xs text-text-muted"></span>
+                            </div>
+                            <p class="text-text-muted text-sm mb-3">Añade o edita la descripción de este elemento.</p>
+                            <textarea id="description-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[120px]" placeholder="Escribe una descripción..."></textarea>
+                            <div class="flex justify-end mt-3">
+                                <button id="save-description" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
+                                    <span class="material-symbols-outlined text-[18px]">save</span>
+                                    Guardar descripción
+                                </button>
+                            </div>
+                            <div class="mt-4">
+                                <p class="text-xs font-bold uppercase tracking-wide text-text-muted mb-1">Vista previa</p>
+                                <p id="description-preview" class="text-gray-300 text-sm leading-relaxed whitespace-pre-line">Aún no hay descripción para este elemento.</p>
+                            </div>
+                        </section>
+
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <h3 class="text-white text-lg font-bold flex items-center gap-2 mb-3">
+                                <span class="material-symbols-outlined text-primary">account_tree</span>
+                                Hijos inmediatos
+                            </h3>
+                            <div id="children-list" class="flex flex-col gap-2 text-sm text-text-muted">
+                                <p class="text-text-muted text-sm">No hay elementos relacionados.</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="flex flex-col gap-6">
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <h3 class="text-white font-bold flex items-center gap-2 mb-3">
+                                <span class="material-symbols-outlined text-primary">badge</span>
+                                Metadatos
+                            </h3>
+                            <div class="flex flex-col gap-3 text-sm text-text-muted">
+                                <div class="flex items-center justify-between">
+                                    <span>Cliente</span>
+                                    <span id="meta-client" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Proyecto</span>
+                                    <span id="meta-project" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Producto</span>
+                                    <span id="meta-product" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Tarea</span>
+                                    <span id="meta-task" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">forum</span>
+                            Comentarios
+                        </h3>
+                        <span id="comment-count" class="text-xs text-text-muted">0</span>
+                    </div>
+                    <div id="comments-list" class="flex flex-col gap-3 text-sm"></div>
+                    <div class="mt-4 flex flex-col gap-2">
+                        <label class="text-xs font-bold uppercase tracking-wide text-text-muted">Añadir comentario</label>
+                        <textarea id="comment-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[100px]" placeholder="Escribe tu comentario..."></textarea>
+                        <div class="flex items-center justify-between gap-3">
+                            <span id="comment-helper" class="text-xs text-text-muted">Inicia sesión para comentar.</span>
+                            <button id="comment-submit" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">send</span>
+                                Publicar
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <div id="error-box" class="hidden rounded-lg border border-red-400 bg-red-500/10 text-red-100 px-4 py-3 text-sm"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { auth, database } from './firebase.js';
+        import { ref, get, update, push, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+
+        const qs = (id) => document.getElementById(id);
+        const setText = (id, value) => { const el = qs(id); if (el) el.textContent = value || '-'; };
+        const showError = (msg) => { const box = qs('error-box'); if (!box) return; box.classList.remove('hidden'); box.textContent = msg; };
+
+        const TYPE_LABELS = { client: 'Cliente', project: 'Proyecto', product: 'Producto', task: 'Tarea', subtask: 'Subtarea' };
+
+        let manageId = null;
+        let loadedClients = [];
+        let currentItemPath = null;
+        let commentsUnsubscribe = null;
+        let currentUser = null;
+        let currentUserProfile = null;
+
+        const descriptionInput = qs('description-input');
+        const descriptionPreview = qs('description-preview');
+        const descriptionStatus = qs('description-status');
+        const saveDescriptionButton = qs('save-description');
+        const childrenList = qs('children-list');
+        const commentsList = qs('comments-list');
+        const commentInput = qs('comment-input');
+        const commentButton = qs('comment-submit');
+        const commentHelper = qs('comment-helper');
+        const commentCount = qs('comment-count');
+
+        const getManageIdFromUrl = () => {
+            const params = new URLSearchParams(window.location.search);
+            const mid = params.get('mid');
+            if (mid) return mid.toUpperCase();
+            const parts = window.location.pathname.split('/').filter(Boolean);
+            const last = parts[parts.length - 1];
+            if (last && /[A-Za-z0-9]{2}-\d{3,}/.test(last)) return last.toUpperCase();
+            return null;
+        };
+
+        manageId = getManageIdFromUrl();
+        if (manageId && window.location.pathname.indexOf(manageId) === -1) {
+            window.history.replaceState({}, '', `/${manageId}`);
+        }
+
+        const formatDate = (iso) => {
+            if (!iso) return '-';
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return '-';
+            return d.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+        };
+
+        const findByManageId = (clients, mid) => {
+            for (const client of clients) {
+                const clientNode = { type: 'client', ...client };
+                if (client.manageId === mid) {
+                    return { type: 'client', item: clientNode, trail: [clientNode], ids: { clientId: client.id } };
+                }
+
+                const projects = client.projects || {};
+                for (const [projectId, project] of Object.entries(projects)) {
+                    const projectNode = { type: 'project', id: projectId, ...project };
+                    if (project.manageId === mid) {
+                        return { type: 'project', item: projectNode, trail: [clientNode, projectNode], ids: { clientId: client.id, projectId } };
+                    }
+
+                    const tasks = project.tasks || {};
+                    for (const [taskId, task] of Object.entries(tasks)) {
+                        const taskNode = { type: 'task', id: taskId, ...task };
+                        if (task.manageId === mid) {
+                            return { type: 'task', item: taskNode, trail: [clientNode, projectNode, taskNode], ids: { clientId: client.id, projectId, taskId } };
+                        }
+                        const subtasks = task.subtasks || {};
+                        for (const [subId, sub] of Object.entries(subtasks)) {
+                            const subNode = { type: 'subtask', id: subId, ...sub };
+                            if (sub.manageId === mid) {
+                                return { type: 'subtask', item: subNode, trail: [clientNode, projectNode, taskNode, subNode], ids: { clientId: client.id, projectId, taskId, subtaskId: subId } };
+                            }
+                        }
+                    }
+
+                    const products = project.products || {};
+                    for (const [productId, product] of Object.entries(products)) {
+                        const productNode = { type: 'product', id: productId, ...product };
+                        if (product.manageId === mid) {
+                            return { type: 'product', item: productNode, trail: [clientNode, projectNode, productNode], ids: { clientId: client.id, projectId, productId } };
+                        }
+                        const prodTasks = product.tasks || {};
+                        for (const [taskId, task] of Object.entries(prodTasks)) {
+                            const taskNode = { type: 'task', id: taskId, ...task };
+                            if (task.manageId === mid) {
+                                return { type: 'task', item: taskNode, trail: [clientNode, projectNode, productNode, taskNode], ids: { clientId: client.id, projectId, productId, taskId } };
+                            }
+                            const subtasks = task.subtasks || {};
+                            for (const [subId, sub] of Object.entries(subtasks)) {
+                                const subNode = { type: 'subtask', id: subId, ...sub };
+                                if (sub.manageId === mid) {
+                                    return { type: 'subtask', item: subNode, trail: [clientNode, projectNode, productNode, taskNode, subNode], ids: { clientId: client.id, projectId, productId, taskId, subtaskId: subId } };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        };
+
+        const renderBreadcrumb = (trail) => {
+            const breadcrumb = qs('breadcrumb');
+            if (!breadcrumb) return;
+            breadcrumb.innerHTML = '';
+            trail.forEach((node, idx) => {
+                const span = document.createElement('span');
+                span.className = 'text-text-muted';
+                span.textContent = node.name || TYPE_LABELS[node.type] || 'Detalle';
+                breadcrumb.appendChild(span);
+                if (idx < trail.length - 1) {
+                    const icon = document.createElement('span');
+                    icon.className = 'material-symbols-outlined text-text-muted text-[16px]';
+                    icon.textContent = 'chevron_right';
+                    breadcrumb.appendChild(icon);
+                }
+            });
+        };
+
+        const buildItemPath = (ids, type) => {
+            if (!ids?.clientId) return null;
+            let path = `clients/${ids.clientId}`;
+            if (ids.projectId) path += `/projects/${ids.projectId}`;
+            if (type === 'project' && !ids.productId && !ids.taskId) return path;
+            if (ids.productId) path += `/products/${ids.productId}`;
+            if (type === 'product' && !ids.taskId) return path;
+            if (ids.taskId) path += `/tasks/${ids.taskId}`;
+            if (type === 'task' && !ids.subtaskId) return path;
+            if (ids.subtaskId) path += `/subtasks/${ids.subtaskId}`;
+            return path;
+        };
+
+        const renderMeta = (result) => {
+            const trail = result.trail || [];
+            const findNode = (type) => trail.find(n => n.type === type);
+            const clientNode = findNode('client');
+            const projectNode = findNode('project');
+            const productNode = findNode('product');
+            const taskNode = result.type === 'task' ? result.item : findNode('task');
+            setText('meta-client', clientNode?.name || '-');
+            setText('meta-project', projectNode?.name || '-');
+            setText('meta-product', productNode?.name || (result.type === 'task' && !productNode ? 'Sin producto' : '-'));
+            setText('meta-task', taskNode?.name || '-');
+        };
+
+        const renderChildren = (result) => {
+            if (!childrenList) return;
+            childrenList.innerHTML = '';
+            const ids = result.ids;
+            const client = loadedClients.find(c => c.id === ids.clientId);
+            if (!client) {
+                childrenList.textContent = 'No hay datos relacionados.';
+                return;
+            }
+
+            const groups = [];
+
+            if (result.type === 'client') {
+                const projects = client.projects || {};
+                const items = Object.entries(projects).map(([id, p]) => ({ id, ...p, type: 'project' }));
+                groups.push({ label: 'Proyectos', icon: 'layers', items });
+            } else if (result.type === 'project') {
+                const project = client.projects?.[ids.projectId] || {};
+                const products = project.products || {};
+                const tasks = project.tasks || {};
+                const productItems = Object.entries(products).map(([id, p]) => ({ id, ...p, type: 'product' }));
+                const taskItems = Object.entries(tasks).map(([id, t]) => ({ id, ...t, type: 'task' }));
+                groups.push({ label: 'Productos', icon: 'category', items: productItems });
+                groups.push({ label: 'Tareas (sin producto)', icon: 'check_circle', items: taskItems });
+            } else if (result.type === 'product') {
+                const project = client.projects?.[ids.projectId] || {};
+                const product = project.products?.[ids.productId] || {};
+                const taskItems = Object.entries(product.tasks || {}).map(([id, t]) => ({ id, ...t, type: 'task' }));
+                groups.push({ label: 'Tareas', icon: 'check_circle', items: taskItems });
+            } else if (result.type === 'task') {
+                let task = null;
+                if (ids.productId) {
+                    task = client.projects?.[ids.projectId]?.products?.[ids.productId]?.tasks?.[ids.taskId];
+                } else {
+                    task = client.projects?.[ids.projectId]?.tasks?.[ids.taskId];
+                }
+                const subItems = Object.entries(task?.subtasks || {}).map(([id, s]) => ({ id, ...s, type: 'subtask' }));
+                groups.push({ label: 'Subtareas', icon: 'subdirectory_arrow_right', items: subItems });
+            }
+
+            const nonEmpty = groups.filter(g => g.items.length);
+            if (!nonEmpty.length) {
+                const msg = document.createElement('p');
+                msg.className = 'text-text-muted text-sm';
+                msg.textContent = 'No hay elementos relacionados.';
+                childrenList.appendChild(msg);
+                return;
+            }
+
+            nonEmpty.forEach(group => {
+                const title = document.createElement('p');
+                title.className = 'text-xs font-bold uppercase tracking-wide text-text-muted flex items-center gap-2 pt-2';
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined text-primary text-[16px]';
+                icon.textContent = group.icon;
+                title.append(icon, document.createTextNode(group.label));
+                childrenList.appendChild(title);
+
+                group.items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                group.items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-surface-dark border border-border-dark text-white';
+                    const left = document.createElement('div');
+                    left.className = 'flex items-center gap-2';
+                    const bullet = document.createElement('span');
+                    bullet.className = 'material-symbols-outlined text-text-muted text-[18px]';
+                    bullet.textContent = group.icon;
+                    const name = document.createElement('span');
+                    name.className = 'text-sm font-medium';
+                    name.textContent = item.name || TYPE_LABELS[item.type] || '-';
+                    left.append(bullet, name);
+
+                    const idTag = document.createElement('span');
+                    idTag.className = 'text-xs font-mono text-text-muted bg-white/5 px-2 py-1 rounded border border-border-dark';
+                    idTag.textContent = item.manageId || '';
+
+                    row.append(left, idTag);
+                    childrenList.appendChild(row);
+                });
+            });
+        };
+
+        const renderComments = (snapshotVal) => {
+            if (!commentsList) return;
+            commentsList.innerHTML = '';
+            const entries = Object.entries(snapshotVal || {}).map(([id, value]) => ({ id, ...value }));
+            entries.sort((a, b) => {
+                const da = new Date(a.createdAt || 0).getTime();
+                const db = new Date(b.createdAt || 0).getTime();
+                return da - db;
+            });
+            if (commentCount) commentCount.textContent = `${entries.length}`;
+
+            if (!entries.length) {
+                const empty = document.createElement('p');
+                empty.className = 'text-text-muted text-sm';
+                empty.textContent = 'Todavía no hay comentarios.';
+                commentsList.appendChild(empty);
+                return;
+            }
+
+            entries.forEach(entry => {
+                const card = document.createElement('div');
+                card.className = 'rounded-lg border border-border-dark bg-surface-dark px-3 py-2';
+                const header = document.createElement('div');
+                header.className = 'flex items-center justify-between text-xs text-text-muted mb-1';
+                const author = document.createElement('span');
+                author.className = 'font-semibold text-white';
+                author.textContent = entry.userName || entry.userId || 'Usuario';
+                const date = document.createElement('span');
+                date.textContent = formatDate(entry.createdAt);
+                header.append(author, date);
+
+                const text = document.createElement('p');
+                text.className = 'text-sm text-gray-200 whitespace-pre-line';
+                text.textContent = entry.text || '';
+
+                card.append(header, text);
+                commentsList.appendChild(card);
+            });
+        };
+
+        const subscribeToComments = () => {
+            if (commentsUnsubscribe) commentsUnsubscribe();
+            if (!currentItemPath) return;
+            const commentsRef = ref(database, `${currentItemPath}/comments`);
+            commentsUnsubscribe = onValue(commentsRef, (snap) => {
+                renderComments(snap.val());
+            });
+        };
+
+        const updateAuthUI = () => {
+            const canEdit = Boolean(currentUser);
+            const helperText = canEdit
+                ? `Comentando como ${currentUserProfile?.username || currentUser?.email || 'usuario'}`
+                : 'Inicia sesión para comentar.';
+            if (commentHelper) commentHelper.textContent = helperText;
+
+            [descriptionInput, saveDescriptionButton, commentInput, commentButton].forEach(el => {
+                if (!el) return;
+                el.disabled = !canEdit;
+                el.classList.toggle('opacity-60', !canEdit);
+            });
+        };
+
+        const populateView = (result) => {
+            const { type, item, trail } = result;
+            const title = item.name || TYPE_LABELS[type] || 'Detalle';
+            setText('header-title', title);
+            setText('header-manage', item.manageId || manageId || '-');
+            setText('item-title', title);
+            setText('item-manage', item.manageId || manageId || '-');
+            setText('type-chip', TYPE_LABELS[type] || 'Detalle');
+            setText('field-name', title);
+            setText('field-type', TYPE_LABELS[type] || '-');
+            setText('field-manage', item.manageId || manageId || '-');
+            setText('field-created', formatDate(item.createdAt));
+            setText('created-chip', formatDate(item.createdAt));
+
+            const descText = item.description || '';
+            if (descriptionInput) descriptionInput.value = descText;
+            if (descriptionPreview) descriptionPreview.textContent = descText || 'Aún no hay descripción para este elemento.';
+
+            renderBreadcrumb(trail, type);
+            renderMeta(result);
+            renderChildren(result);
+        };
+
+        const loadData = async () => {
+            if (!manageId) {
+                showError('No se encontró un manageId válido en la URL.');
+                return;
+            }
+            try {
+                const snap = await get(ref(database, 'clients'));
+                const data = snap.val() || {};
+                loadedClients = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                const found = findByManageId(loadedClients, manageId);
+                if (!found) {
+                    showError(`No se encontró información para ${manageId}.`);
+                    return;
+                }
+                currentItemPath = buildItemPath(found.ids, found.type);
+                populateView(found);
+                subscribeToComments();
+            } catch (err) {
+                console.error(err);
+                showError(err.message || 'Error cargando datos.');
+            }
+        };
+
+        const saveDescription = async () => {
+            if (!currentUser) {
+                alert('Debes iniciar sesión para actualizar la descripción.');
+                return;
+            }
+            if (!currentItemPath) return;
+            const text = (descriptionInput?.value || '').trim();
+            if (descriptionStatus) descriptionStatus.textContent = 'Guardando...';
+            try {
+                await update(ref(database, currentItemPath), { description: text });
+                if (descriptionPreview) descriptionPreview.textContent = text || 'Aún no hay descripción para este elemento.';
+                if (descriptionStatus) {
+                    descriptionStatus.textContent = 'Descripción guardada';
+                    setTimeout(() => { descriptionStatus.textContent = ''; }, 2000);
+                }
+            } catch (err) {
+                console.error(err);
+                if (descriptionStatus) descriptionStatus.textContent = 'No se pudo guardar';
+                showError(err.message || 'Error guardando la descripción.');
+            }
+        };
+
+        const submitComment = async () => {
+            if (!currentUser) {
+                alert('Debes iniciar sesión para comentar.');
+                return;
+            }
+            if (!currentItemPath) return;
+            const text = (commentInput?.value || '').trim();
+            if (!text || !commentButton) return;
+            commentButton.textContent = 'Publicando...';
+            commentButton.disabled = true;
+            try {
+                await push(ref(database, `${currentItemPath}/comments`), {
+                    text,
+                    userId: currentUser.uid,
+                    userName: currentUserProfile?.username || currentUser.email || 'Usuario',
+                    createdAt: new Date().toISOString()
+                });
+                if (commentInput) commentInput.value = '';
+            } catch (err) {
+                console.error(err);
+                showError(err.message || 'No se pudo publicar el comentario.');
+            } finally {
+                commentButton.textContent = 'Publicar';
+                updateAuthUI();
+            }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            if (user) {
+                try {
+                    const snap = await get(ref(database, `users/${user.uid}`));
+                    currentUserProfile = snap.val();
+                } catch (e) {
+                    console.warn('No se pudo cargar el perfil del usuario', e);
+                }
+            } else {
+                currentUserProfile = null;
+            }
+            updateAuthUI();
+        });
+
+        saveDescriptionButton?.addEventListener('click', saveDescription);
+        commentButton?.addEventListener('click', submitComment);
+        qs('open-dashboard')?.addEventListener('click', () => { window.location.href = 'maindashboard.html'; });
+
+        loadData();
+    </script>
+</body>
+</html>
+                <!-- Info grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 flex flex-col gap-6">
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <h3 class="text-white text-lg font-bold flex items-center gap-2 mb-3">
+                                <span class="material-symbols-outlined text-primary">info</span>
+                                Resumen
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-text-muted">
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Nombre</span>
+                                    <span id="field-name" class="text-white text-base font-semibold">-</span>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Tipo</span>
+                                    <span id="field-type" class="text-white">-</span>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Manage ID</span>
+                                    <span id="field-manage" class="text-white font-mono">-</span>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <span class="uppercase text-xs font-bold tracking-wide text-text-muted/80">Creado</span>
+                                    <span id="field-created" class="text-white">-</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">article</span>
+                                    Descripción
+                                </h3>
+                                <span id="description-status" class="text-xs text-text-muted"></span>
+                            </div>
+                            <p class="text-text-muted text-sm mb-3">Añade o edita la descripción de este elemento.</p>
+                            <textarea id="description-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[120px]" placeholder="Escribe una descripción..."></textarea>
+                            <div class="flex justify-end mt-3">
+                                <button id="save-description" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
+                                    <span class="material-symbols-outlined text-[18px]">save</span>
+                                    Guardar descripción
+                                </button>
+                            </div>
+                            <div class="mt-4">
+                                <p class="text-xs font-bold uppercase tracking-wide text-text-muted mb-1">Vista previa</p>
+                                <p id="description-preview" class="text-gray-300 text-sm leading-relaxed whitespace-pre-line">Aún no hay descripción para este elemento.</p>
+                            </div>
+                        </section>
+
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <h3 class="text-white text-lg font-bold flex items-center gap-2 mb-3">
+                                <span class="material-symbols-outlined text-primary">account_tree</span>
+                                Hijos inmediatos
+                            </h3>
+                            <div id="children-list" class="flex flex-col gap-2 text-sm text-text-muted">
+                                <p class="text-text-muted text-sm">No hay elementos relacionados.</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="flex flex-col gap-6">
+                        <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <h3 class="text-white font-bold flex items-center gap-2 mb-3">
+                                <span class="material-symbols-outlined text-primary">badge</span>
+                                Metadatos
+                            </h3>
+                            <div class="flex flex-col gap-3 text-sm text-text-muted">
+                                <div class="flex items-center justify-between">
+                                    <span>Cliente</span>
+                                    <span id="meta-client" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Proyecto</span>
+                                    <span id="meta-project" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Producto</span>
+                                    <span id="meta-product" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Tarea</span>
+                                    <span id="meta-task" class="text-white font-semibold truncate max-w-[12rem] text-right">-</span>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">forum</span>
+                            Comentarios
+                        </h3>
+                        <span id="comment-count" class="text-xs text-text-muted">0</span>
+                    </div>
+                    <div id="comments-list" class="flex flex-col gap-3 text-sm"></div>
+                    <div class="mt-4 flex flex-col gap-2">
+                        <label class="text-xs font-bold uppercase tracking-wide text-text-muted">Añadir comentario</label>
+                        <textarea id="comment-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[100px]" placeholder="Escribe tu comentario..."></textarea>
+                        <div class="flex items-center justify-between gap-3">
+                            <span id="comment-helper" class="text-xs text-text-muted">Inicia sesión para comentar.</span>
+                            <button id="comment-submit" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">send</span>
+                                Publicar
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <div id="error-box" class="hidden rounded-lg border border-red-400 bg-red-500/10 text-red-100 px-4 py-3 text-sm"></div>
+            </div>
+        </main>
+    </div>
