@@ -930,6 +930,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.target.closest('.manage-chip')) return;
                 openDetailPage(task.manageId);
             });
+            chip.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openDetailPage(task.manageId);
+            });
             return row;
         };
 
@@ -1035,7 +1039,41 @@ document.addEventListener('DOMContentLoaded', () => {
                                 emptyT.textContent = 'Sin tareas en este producto.';
                                 prodContent.appendChild(emptyT);
                             } else {
-                                prodTaskArray.forEach(t => prodContent.appendChild(makeTaskItem(t)));
+                                prodTaskArray.forEach(t => {
+                                    const taskBlock = document.createElement('div');
+                                    taskBlock.className = 'flex flex-col gap-1';
+                                    taskBlock.appendChild(makeTaskItem(t));
+                                    const subtasks = t.subtasks || {};
+                                    const subArray = Object.keys(subtasks).map(id => ({ id, ...subtasks[id] }));
+                                    subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                                    if (subArray.length) {
+                                        const subList = document.createElement('div');
+                                        subList.className = 'pl-5 flex flex-col gap-1';
+                                        subArray.forEach(sub => {
+                                            const row = document.createElement('div');
+                                            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white hover:bg-white/5 cursor-pointer';
+                                            const l = document.createElement('div');
+                                            l.className = 'flex items-center gap-2';
+                                            const ic = document.createElement('span');
+                                            ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
+                                            ic.textContent = 'subdirectory_arrow_right';
+                                            const name = document.createElement('span');
+                                            name.className = 'text-sm';
+                                            name.textContent = sub.name || 'Subtarea';
+                                            l.append(ic, name);
+                                            const chip = createIdChip(sub.manageId);
+                                            chip.classList.add('text-[11px]');
+                                            row.append(l, chip);
+                                            row.addEventListener('click', (e) => {
+                                                if (e.target.closest('.manage-chip')) return;
+                                                openDetailPage(sub.manageId);
+                                            });
+                                            subList.appendChild(row);
+                                        });
+                                        taskBlock.appendChild(subList);
+                                    }
+                                    prodContent.appendChild(taskBlock);
+                                });
                             }
 
                             prodDetails.appendChild(prodContent);
