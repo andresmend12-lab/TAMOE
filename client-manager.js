@@ -900,7 +900,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = document.createElement('span');
             title.className = 'text-sm font-semibold';
             title.textContent = name;
-            title.addEventListener('click', (e) => { e.stopPropagation(); openDetailPage(manageId); });
             left.append(ic, title);
 
             const chip = createIdChip(manageId);
@@ -911,7 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeTaskItem = (task) => {
             const row = document.createElement('div');
-            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-dark border border-border-dark text-white hover:bg-white/5 cursor-pointer';
+            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-dark border border-border-dark text-white';
 
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2';
@@ -926,14 +925,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const chip = createIdChip(task.manageId);
             chip.classList.add('text-[11px]');
             row.append(left, chip);
-            row.addEventListener('click', (e) => {
-                if (e.target.closest('.manage-chip')) return;
-                openDetailPage(task.manageId);
-            });
-            chip.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openDetailPage(task.manageId);
-            });
             return row;
         };
 
@@ -985,7 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 subList.className = 'pl-5 flex flex-col gap-1';
                                 subArray.forEach(sub => {
                                     const row = document.createElement('div');
-                                    row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white hover:bg-white/5 cursor-pointer';
+                                    row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white';
                                     const l = document.createElement('div');
                                     l.className = 'flex items-center gap-2';
                                     const ic = document.createElement('span');
@@ -998,10 +989,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const chip = createIdChip(sub.manageId);
                                     chip.classList.add('text-[11px]');
                                     row.append(l, chip);
-                                    row.addEventListener('click', (e) => {
-                                        if (e.target.closest('.manage-chip')) return;
-                                        openDetailPage(sub.manageId);
-                                    });
                                     subList.appendChild(row);
                                 });
                                 taskBlock.appendChild(subList);
@@ -1051,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         subList.className = 'pl-5 flex flex-col gap-1';
                                         subArray.forEach(sub => {
                                             const row = document.createElement('div');
-                                            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white hover:bg-white/5 cursor-pointer';
+                                            row.className = 'flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white';
                                             const l = document.createElement('div');
                                             l.className = 'flex items-center gap-2';
                                             const ic = document.createElement('span');
@@ -1064,10 +1051,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                             const chip = createIdChip(sub.manageId);
                                             chip.classList.add('text-[11px]');
                                             row.append(l, chip);
-                                            row.addEventListener('click', (e) => {
-                                                if (e.target.closest('.manage-chip')) return;
-                                                openDetailPage(sub.manageId);
-                                            });
                                             subList.appendChild(row);
                                         });
                                         taskBlock.appendChild(subList);
