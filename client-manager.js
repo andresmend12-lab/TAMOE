@@ -1249,6 +1249,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Render list of clients
     const renderClients = () => {
+        const sidebarOpenKeys = new Set(
+            Array.from(clientListNav.querySelectorAll('details[open][data-tree-key]'))
+                .map(el => el.dataset.treeKey)
+                .filter(Boolean)
+        );
         clientListNav.innerHTML = '';
 
         if (clientsLoading) {
@@ -1288,6 +1293,398 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         noClientsMessage?.classList.add('hidden');
+        // Sidebar tree mode (clients -> projects -> products)
+        const sortedClients = [...visibleClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        const makeChevron = (isOpen) => {
+            const chevron = document.createElement('span');
+            chevron.className = 'material-symbols-outlined text-[18px] text-text-muted';
+            chevron.textContent = isOpen ? 'expand_more' : 'chevron_right';
+            return chevron;
+        };
+
+        const makeSidebarRow = ({ icon, label, manageId, active = false, indentClass = '', chevron = null }) => {
+            const row = document.createElement('div');
+            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors ${indentClass}`;
+            if (active) row.classList.add('bg-white/5', 'text-white');
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2 flex-1 min-w-0';
+            if (chevron) left.appendChild(chevron);
+
+            const iconEl = document.createElement('span');
+            iconEl.className = 'material-symbols-outlined';
+            iconEl.textContent = icon;
+
+            const nameWrap = document.createElement('div');
+            nameWrap.className = 'flex items-center gap-2 min-w-0 flex-1';
+
+            const name = document.createElement('span');
+            name.className = 'text-sm font-medium truncate';
+            name.textContent = label || '';
+
+            nameWrap.appendChild(name);
+            if (manageId) {
+                const idTag = createIdChip(manageId);
+                nameWrap.appendChild(idTag);
+            }
+
+            left.append(iconEl, nameWrap);
+            row.appendChild(left);
+
+            return { row, nameEl: name };
+        };
+
+        const makeAddRow = ({ label, onClick, indentClass = '' }) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `flex items-center gap-2 w-full px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
+            button.innerHTML = '<span class="material-symbols-outlined text-[18px]">add</span>';
+            const text = document.createElement('span');
+            text.className = 'text-sm font-semibold truncate';
+            text.textContent = label;
+            button.appendChild(text);
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClick?.();
+            });
+            return button;
+        };
+
+        sortedClients.forEach(client => {
+            const clientKey = `client:${client.id}`;
+            const clientDetails = document.createElement('details');
+            clientDetails.dataset.treeKey = clientKey;
+            clientDetails.open = sidebarOpenKeys.has(clientKey) || selectedClientId === client.id;
+
+            const clientSummary = document.createElement('summary');
+            clientSummary.className = 'list-none';
+
+            const clientChevron = makeChevron(clientDetails.open);
+            const clientActive = selectedClientId === client.id;
+            const { row: clientRow, nameEl: clientNameEl } = makeSidebarRow({
+                icon: 'folder_open',
+                label: client.name || 'Cliente',
+                manageId: client.manageId,
+                active: clientActive,
+                chevron: clientChevron,
+            });
+
+            clientSummary.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                clientDetails.open = !clientDetails.open;
+                showProjectView(client.id);
+            });
+
+            const clientActions = createActionMenu({
+                onRename: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesi¢n para editar clientes.");
+                        return;
+                    }
+                    const nextNameRaw = prompt('Nuevo nombre del cliente', client.name);
+                    if (nextNameRaw === null) return;
+                    const nextName = nextNameRaw.trim();
+                    if (!nextName || nextName === client.name) return;
+
+                    try {
+                        const previousName = client.name;
+                        await update(ref(database, `clients/${client.id}`), { name: nextName });
+                        await logActivity(
+                            client.id,
+                            `Renombr¢ cliente "${previousName}" a "${nextName}".`,
+                            { action: 'rename', path: `clients/${client.id}`, entityType: 'client' }
+                        );
+                        client.name = nextName;
+                        clientNameEl.textContent = nextName;
+                        if (selectedClientId === client.id) {
+                            if (clientNameHeader) clientNameHeader.textContent = nextName;
+                            if (productClientNameHeader) productClientNameHeader.textContent = nextName;
+                        }
+                        renderClients();
+                        renderTree();
+                    } catch (error) {
+                        console.error('Error renaming client:', error);
+                        alert(`No se pudo renombrar el cliente: ${error.message}`);
+                    }
+                },
+                onDelete: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesi¢n para eliminar clientes.");
+                        return;
+                    }
+                    const confirmed = confirm(`¨Eliminar el cliente "${client.name}"?\n\nSe borrar n tambi‚n sus proyectos, productos y tareas.`);
+                    if (!confirmed) return;
+
+                    try {
+                        await remove(ref(database, `clients/${client.id}`));
+                        allClients = allClients.filter(c => c.id !== client.id);
+                        if (selectedClientId === client.id) {
+                            showClientView();
+                        }
+                        renderClients();
+                        renderTree();
+                    } catch (error) {
+                        console.error('Error deleting client:', error);
+                        alert(`No se pudo eliminar el cliente: ${error.message}`);
+                    }
+                },
+            });
+
+            clientRow.appendChild(clientActions);
+            clientSummary.appendChild(clientRow);
+            clientDetails.appendChild(clientSummary);
+
+            const clientChildren = document.createElement('div');
+            clientChildren.className = 'ml-4 mt-1 flex flex-col gap-1';
+
+            const projects = client?.projects || {};
+            const projectArray = Object.keys(projects || {}).map(id => ({ id, ...projects[id] }));
+            projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            if (projectArray.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'px-3 py-1 text-xs text-text-muted';
+                empty.textContent = 'Sin proyectos.';
+                clientChildren.appendChild(empty);
+            } else {
+                projectArray.forEach(proj => {
+                    const projectKey = `project:${client.id}:${proj.id}`;
+                    const projectDetails = document.createElement('details');
+                    projectDetails.dataset.treeKey = projectKey;
+                    projectDetails.open = sidebarOpenKeys.has(projectKey) || (
+                        selectedClientId === client.id && selectedProjectId === proj.id
+                    );
+
+                    const projectSummary = document.createElement('summary');
+                    projectSummary.className = 'list-none';
+
+                    const projectChevron = makeChevron(projectDetails.open);
+                    const projectActive = selectedClientId === client.id && selectedProjectId === proj.id;
+                    const { row: projectRow, nameEl: projectNameEl } = makeSidebarRow({
+                        icon: 'layers',
+                        label: proj.name || 'Proyecto',
+                        manageId: proj.manageId,
+                        active: projectActive,
+                        indentClass: 'pl-2',
+                        chevron: projectChevron,
+                    });
+
+                    projectSummary.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        projectDetails.open = !projectDetails.open;
+                        showProductView(client.id, proj.id);
+                    });
+
+                    const projectActions = createActionMenu({
+                        onRename: async () => {
+                            if (!currentUser) {
+                                alert("Debes iniciar sesi¢n para editar proyectos.");
+                                return;
+                            }
+                            const nextNameRaw = prompt('Nuevo nombre del proyecto', proj.name);
+                            if (nextNameRaw === null) return;
+                            const nextName = nextNameRaw.trim();
+                            if (!nextName || nextName === proj.name) return;
+
+                            try {
+                                const previousName = proj.name;
+                                await update(ref(database, `clients/${client.id}/projects/${proj.id}`), { name: nextName });
+                                await logActivity(
+                                    client.id,
+                                    `Renombr¢ proyecto "${previousName}" a "${nextName}".`,
+                                    { action: 'rename', path: `clients/${client.id}/projects/${proj.id}`, entityType: 'project' }
+                                );
+                                proj.name = nextName;
+                                if (projects?.[proj.id]) projects[proj.id].name = nextName;
+                                projectNameEl.textContent = nextName;
+                                if (selectedClientId === client.id && selectedProjectId === proj.id) {
+                                    if (projectNameHeader) projectNameHeader.textContent = nextName;
+                                    if (!selectedProductId && projectDetailName) projectDetailName.textContent = nextName;
+                                }
+                                renderClients();
+                                renderTree();
+                            } catch (error) {
+                                console.error('Error renaming project:', error);
+                                alert(`No se pudo renombrar el proyecto: ${error.message}`);
+                            }
+                        },
+                        onDelete: async () => {
+                            if (!currentUser) {
+                                alert("Debes iniciar sesi¢n para eliminar proyectos.");
+                                return;
+                            }
+                            const confirmed = confirm(`¨Eliminar el proyecto "${proj.name}"?\n\nSe borrar n tambi‚n sus productos y tareas.`);
+                            if (!confirmed) return;
+
+                            try {
+                                await remove(ref(database, `clients/${client.id}/projects/${proj.id}`));
+                                await logActivity(
+                                    client.id,
+                                    `Elimin¢ proyecto "${proj.name}".`,
+                                    { action: 'delete', path: `clients/${client.id}/projects/${proj.id}`, entityType: 'project' }
+                                );
+                                if (projects?.[proj.id]) delete projects[proj.id];
+                                if (selectedClientId === client.id && selectedProjectId === proj.id) {
+                                    showProjectView(client.id);
+                                } else {
+                                    renderClients();
+                                }
+                                renderTree();
+                            } catch (error) {
+                                console.error('Error deleting project:', error);
+                                alert(`No se pudo eliminar el proyecto: ${error.message}`);
+                            }
+                        },
+                    });
+
+                    projectRow.appendChild(projectActions);
+                    projectSummary.appendChild(projectRow);
+                    projectDetails.appendChild(projectSummary);
+
+                    const projectChildren = document.createElement('div');
+                    projectChildren.className = 'ml-4 mt-1 flex flex-col gap-1';
+
+                    const products = proj?.products || {};
+                    const productArray = Object.keys(products || {}).map(id => ({ id, ...products[id] }));
+                    productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                    if (productArray.length === 0) {
+                        const empty = document.createElement('p');
+                        empty.className = 'px-3 py-1 text-xs text-text-muted';
+                        empty.textContent = 'Sin productos.';
+                        projectChildren.appendChild(empty);
+                    } else {
+                        productArray.forEach(prod => {
+                            const productActive =
+                                selectedClientId === client.id &&
+                                selectedProjectId === proj.id &&
+                                selectedProductId === prod.id;
+
+                            const { row: productRow, nameEl: productNameEl } = makeSidebarRow({
+                                icon: 'category',
+                                label: prod.name || 'Producto',
+                                manageId: prod.manageId,
+                                active: productActive,
+                                indentClass: 'pl-4',
+                            });
+
+                            productRow.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                selectSidebarProduct(client.id, proj.id, prod.id);
+                            });
+
+                            const productActions = createActionMenu({
+                                onRename: async () => {
+                                    if (!currentUser) {
+                                        alert("Debes iniciar sesi¢n para editar productos.");
+                                        return;
+                                    }
+                                    const nextNameRaw = prompt('Nuevo nombre del producto', prod.name);
+                                    if (nextNameRaw === null) return;
+                                    const nextName = nextNameRaw.trim();
+                                    if (!nextName || nextName === prod.name) return;
+
+                                    try {
+                                        const previousName = prod.name;
+                                        await update(ref(database, `clients/${client.id}/projects/${proj.id}/products/${prod.id}`), { name: nextName });
+                                        await logActivity(
+                                            client.id,
+                                            `Renombr¢ producto "${previousName}" a "${nextName}".`,
+                                            { action: 'rename', path: `clients/${client.id}/projects/${proj.id}/products/${prod.id}`, entityType: 'product' }
+                                        );
+                                        prod.name = nextName;
+                                        if (products?.[prod.id]) products[prod.id].name = nextName;
+                                        productNameEl.textContent = nextName;
+                                        if (
+                                            selectedClientId === client.id &&
+                                            selectedProjectId === proj.id &&
+                                            selectedProductId === prod.id &&
+                                            projectDetailName
+                                        ) {
+                                            projectDetailName.textContent = nextName;
+                                        }
+                                        renderClients();
+                                        renderTree();
+                                    } catch (error) {
+                                        console.error('Error renaming product:', error);
+                                        alert(`No se pudo renombrar el producto: ${error.message}`);
+                                    }
+                                },
+                                onDelete: async () => {
+                                    if (!currentUser) {
+                                        alert("Debes iniciar sesi¢n para eliminar productos.");
+                                        return;
+                                    }
+                                    const confirmed = confirm(`¨Eliminar el producto "${prod.name}"?\n\nSe borrar n tambi‚n sus tareas.`);
+                                    if (!confirmed) return;
+
+                                    try {
+                                        await remove(ref(database, `clients/${client.id}/projects/${proj.id}/products/${prod.id}`));
+                                        await logActivity(
+                                            client.id,
+                                            `Elimin¢ producto "${prod.name}".`,
+                                            { action: 'delete', path: `clients/${client.id}/projects/${proj.id}/products/${prod.id}`, entityType: 'product' }
+                                        );
+                                        if (products?.[prod.id]) delete products[prod.id];
+                                        if (
+                                            selectedClientId === client.id &&
+                                            selectedProjectId === proj.id &&
+                                            selectedProductId === prod.id
+                                        ) {
+                                            selectedProductId = null;
+                                            selectedTaskId = null;
+                                            selectedSubtaskId = null;
+                                            if (projectDetail) projectDetail.classList.remove('hidden');
+                                            if (projectDetailName) projectDetailName.textContent = proj?.name || 'Selecciona un proyecto';
+                                            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+                                            renderTasks(client.id, proj.id, null);
+                                        }
+                                        renderClients();
+                                        renderTree();
+                                    } catch (error) {
+                                        console.error('Error deleting product:', error);
+                                        alert(`No se pudo eliminar el producto: ${error.message}`);
+                                    }
+                                },
+                            });
+
+                            productRow.appendChild(productActions);
+                            projectChildren.appendChild(productRow);
+                        });
+                    }
+
+                    projectChildren.appendChild(makeAddRow({
+                        label: 'Crear producto',
+                        indentClass: 'pl-4',
+                        onClick: () => {
+                            showProductView(client.id, proj.id);
+                            openProductModal();
+                        }
+                    }));
+
+                    projectDetails.appendChild(projectChildren);
+                    clientChildren.appendChild(projectDetails);
+                });
+            }
+
+            clientChildren.appendChild(makeAddRow({
+                label: 'A¤adir proyecto',
+                onClick: () => {
+                    showProjectView(client.id);
+                    openProjectModal();
+                }
+            }));
+
+            clientDetails.appendChild(clientChildren);
+            clientListNav.appendChild(clientDetails);
+        });
+
+        return;
         visibleClients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         visibleClients.forEach(client => {
                 const row = document.createElement('div');
@@ -1382,11 +1779,13 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProjectId = null;
         selectedProductId = null;
         hideEl(backToClientsBtn);
+        hideEl(backToProjectsBtn);
         resetProjectDetail();
         showEl(treeView);
         hideEl(productListSection);
         hideEl(projectListSection);
         showEl(clientListSection);
+        renderClients();
     };
 
     const resetProjectDetail = () => {
@@ -1418,14 +1817,15 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProductId = null;
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
         if (clientNameHeader) clientNameHeader.textContent = client.name;
-        renderProjects(clientId);
         resetProjectDetail();
         hideEl(treeView);
         showEl(projectDetail);
-        showEl(backToClientsBtn);
         hideEl(productListSection);
-        showEl(projectListSection);
-        hideEl(clientListSection);
+        hideEl(projectListSection);
+        showEl(clientListSection);
+        hideEl(backToClientsBtn);
+        hideEl(backToProjectsBtn);
+        renderClients();
     };
 
     const showProductView = (clientId, projectId) => {
@@ -1444,17 +1844,47 @@ document.addEventListener('DOMContentLoaded', () => {
         if (productClientNameHeader) productClientNameHeader.textContent = client.name;
         if (projectNameHeader) projectNameHeader.textContent = project.name;
 
-        renderProducts(clientId, projectId);
-
         if (projectDetail) projectDetail.classList.remove('hidden');
         if (projectDetailName) projectDetailName.textContent = project.name;
         if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
         renderTasks(clientId, projectId, null);
 
         hideEl(treeView);
-        showEl(productListSection);
+        hideEl(productListSection);
         hideEl(projectListSection);
-        hideEl(clientListSection);
+        showEl(clientListSection);
+        hideEl(backToClientsBtn);
+        hideEl(backToProjectsBtn);
+        renderClients();
+    };
+
+    const selectSidebarProduct = (clientId, projectId, productId) => {
+        const client = allClients.find(c => c.id === clientId);
+        if (!client) return;
+        const project = client.projects?.[projectId];
+        if (!project) return;
+        const product = project.products?.[productId];
+        if (!product) return;
+
+        selectedClientId = clientId;
+        selectedProjectId = projectId;
+        selectedProductId = productId;
+        selectedTaskId = null;
+        selectedSubtaskId = null;
+        ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
+
+        if (projectDetail) projectDetail.classList.remove('hidden');
+        if (projectDetailName) projectDetailName.textContent = product.name || 'Producto';
+        if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
+        renderTasks(clientId, projectId, productId);
+
+        hideEl(treeView);
+        hideEl(productListSection);
+        hideEl(projectListSection);
+        showEl(clientListSection);
+        hideEl(backToClientsBtn);
+        hideEl(backToProjectsBtn);
+        renderClients();
     };
 
     // Modal handling
@@ -1593,7 +2023,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (projectNameHeader) projectNameHeader.textContent = nextName;
                             if (!selectedProductId && projectDetailName) projectDetailName.textContent = nextName;
                         }
-                        renderProjects(clientId);
+                        renderClients();
                     } catch (error) {
                         console.error('Error renaming project:', error);
                         alert(`No se pudo renombrar el proyecto: ${error.message}`);
@@ -1619,7 +2049,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (selectedClientId === clientId && selectedProjectId === proj.id) {
                             showProjectView(clientId);
                         } else {
-                            renderProjects(clientId);
+                            renderClients();
                         }
                         renderTree();
                     } catch (error) {
@@ -1710,7 +2140,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
                             if (projectDetailName) projectDetailName.textContent = nextName;
                         }
-                        renderProducts(clientId, projectId);
+                        renderClients();
                         renderTree();
                     } catch (error) {
                         console.error('Error renaming product:', error);
@@ -1742,7 +2172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
                             renderTasks(clientId, projectId, null);
                         }
-                        renderProducts(clientId, projectId);
+                        renderClients();
                         renderTree();
                     } catch (error) {
                         console.error('Error deleting product:', error);
@@ -2139,7 +2569,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             proj.status = nextStatus;
                             if (client?.projects?.[proj.id]) client.projects[proj.id].status = nextStatus;
                             if (selectedClientId === client.id && !selectedProjectId) {
-                                renderProjects(client.id);
+                                renderClients();
                             }
                         },
                         projProgress
@@ -2281,7 +2711,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         selectedProjectId === proj.id &&
                                         !selectedProductId
                                     ) {
-                                        renderProducts(client.id, proj.id);
+                                        renderClients();
                                     }
                                 },
                                 prodProgress
@@ -2615,10 +3045,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!selectedProjectId) {
             if (clientNameHeader) clientNameHeader.textContent = client.name;
-            showEl(backToClientsBtn);
+            resetProjectDetail();
+            hideEl(treeView);
+            showEl(projectDetail);
             hideEl(productListSection);
-            showEl(projectListSection);
-            hideEl(clientListSection);
+            hideEl(projectListSection);
+            showEl(clientListSection);
+            hideEl(backToClientsBtn);
+            hideEl(backToProjectsBtn);
             return;
         }
 
@@ -2630,10 +3064,13 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedSubtaskId = null;
             resetProjectDetail();
             if (clientNameHeader) clientNameHeader.textContent = client.name;
-            showEl(backToClientsBtn);
+            hideEl(treeView);
+            showEl(projectDetail);
             hideEl(productListSection);
-            showEl(projectListSection);
-            hideEl(clientListSection);
+            hideEl(projectListSection);
+            showEl(clientListSection);
+            hideEl(backToClientsBtn);
+            hideEl(backToProjectsBtn);
             return;
         }
 
@@ -2656,9 +3093,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
         }
 
-        showEl(productListSection);
+        hideEl(treeView);
+        hideEl(productListSection);
         hideEl(projectListSection);
-        hideEl(clientListSection);
+        showEl(clientListSection);
+        hideEl(backToClientsBtn);
+        hideEl(backToProjectsBtn);
+        renderTasks(selectedClientId, selectedProjectId, selectedProductId);
     };
 
    const subscribeUsers = () => {
@@ -2697,14 +3138,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             syncSelectionAfterDataChange();
             renderClients();
-            if (selectedClientId) {
-                if (selectedProjectId) {
-                    renderProducts(selectedClientId, selectedProjectId);
-                    renderTasks(selectedClientId, selectedProjectId, selectedProductId);
-                } else {
-                    renderProjects(selectedClientId);
-                }
-            }
             renderTree();
         }, (error) => {
             console.error("Error fetching clients: ", error);
@@ -2786,7 +3219,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             await set(newProjectRef, projectData);
             closeProjectModal();
-            renderProjects(selectedClientId);
+            renderClients();
+            renderTree();
         } catch (error) {
             console.error("Error adding project: ", error);
             alert(`Hubo un error al guardar el proyecto: ${error.message}`);
@@ -2826,7 +3260,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             await set(newProductRef, productData);
             closeProductModal();
-            renderProducts(selectedClientId, selectedProjectId);
+            renderClients();
+            renderTree();
         } catch (error) {
             console.error("Error adding product: ", error);
             alert(`Hubo un error al guardar el producto: ${error.message}`);
