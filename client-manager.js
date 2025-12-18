@@ -86,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedProductId = null;
     let selectedTaskId = null;
     let selectedSubtaskId = null;
+    let sidebarAutoOpenKeys = new Set();
     let clientSearchQuery = '';
     let clientsLoading = false;
 
@@ -1356,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientKey = `client:${client.id}`;
             const clientDetails = document.createElement('details');
             clientDetails.dataset.treeKey = clientKey;
-            clientDetails.open = sidebarOpenKeys.has(clientKey) || selectedClientId === client.id;
+            clientDetails.open = sidebarOpenKeys.has(clientKey) || sidebarAutoOpenKeys.has(clientKey);
 
             const clientSummary = document.createElement('summary');
             clientSummary.className = 'list-none';
@@ -1374,8 +1375,9 @@ document.addEventListener('DOMContentLoaded', () => {
             clientSummary.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                clientDetails.open = !clientDetails.open;
-                showProjectView(client.id);
+                const nextOpen = !clientDetails.open;
+                clientDetails.open = nextOpen;
+                showProjectView(client.id, { autoOpen: nextOpen });
             });
 
             const clientActions = createActionMenu({
@@ -1454,9 +1456,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const projectKey = `project:${client.id}:${proj.id}`;
                     const projectDetails = document.createElement('details');
                     projectDetails.dataset.treeKey = projectKey;
-                    projectDetails.open = sidebarOpenKeys.has(projectKey) || (
-                        selectedClientId === client.id && selectedProjectId === proj.id
-                    );
+                    projectDetails.open = sidebarOpenKeys.has(projectKey) || sidebarAutoOpenKeys.has(projectKey);
 
                     const projectSummary = document.createElement('summary');
                     projectSummary.className = 'list-none';
@@ -1475,8 +1475,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     projectSummary.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        projectDetails.open = !projectDetails.open;
-                        showProductView(client.id, proj.id);
+                        const nextOpen = !projectDetails.open;
+                        projectDetails.open = nextOpen;
+                        showProductView(client.id, proj.id, { autoOpen: nextOpen });
                     });
 
                     const projectActions = createActionMenu({
@@ -1684,6 +1685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientListNav.appendChild(clientDetails);
         });
 
+        sidebarAutoOpenKeys.clear();
         return;
         visibleClients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         visibleClients.forEach(client => {
@@ -1809,12 +1811,13 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(subtaskSection);
     };
 
-    const showProjectView = (clientId) => {
+    const showProjectView = (clientId, { autoOpen = true } = {}) => {
         const client = allClients.find(c => c.id === clientId);
         if (!client) return;
         selectedClientId = clientId;
         selectedProjectId = null;
         selectedProductId = null;
+        if (autoOpen) sidebarAutoOpenKeys = new Set([`client:${clientId}`]);
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
         if (clientNameHeader) clientNameHeader.textContent = client.name;
         resetProjectDetail();
@@ -1828,7 +1831,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderClients();
     };
 
-    const showProductView = (clientId, projectId) => {
+    const showProductView = (clientId, projectId, { autoOpen = true } = {}) => {
         const client = allClients.find(c => c.id === clientId);
         if (!client) return;
         const project = client.projects?.[projectId];
@@ -1839,6 +1842,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProductId = null;
         selectedTaskId = null;
         selectedSubtaskId = null;
+        if (autoOpen) sidebarAutoOpenKeys = new Set([`client:${clientId}`, `project:${clientId}:${projectId}`]);
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
 
         if (productClientNameHeader) productClientNameHeader.textContent = client.name;
@@ -1871,6 +1875,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProductId = productId;
         selectedTaskId = null;
         selectedSubtaskId = null;
+        sidebarAutoOpenKeys = new Set([`client:${clientId}`, `project:${clientId}:${projectId}`]);
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
 
         if (projectDetail) projectDetail.classList.remove('hidden');
