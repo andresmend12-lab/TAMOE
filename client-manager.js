@@ -2426,7 +2426,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : visibleClients;
         const clientsToRender = [...baseClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-        const treeGrid = 'grid grid-cols-[minmax(0,1fr)_120px_140px_260px] items-center gap-1';
+        const treeGrid = 'grid grid-cols-[minmax(0,1fr)_120px_140px_260px_220px] items-center gap-1';
 
         const computeTasksProgress = (tasksObject) => {
             const tasks = Object.values(tasksObject || {}).filter(Boolean);
@@ -2508,7 +2508,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 metaCell.appendChild(wrap);
             }
 
-            summary.append(nameCell, idCell, statusCell, metaCell);
+            const assigneeCell = document.createElement('div');
+            assigneeCell.className = 'min-w-0';
+            summary.append(nameCell, idCell, statusCell, metaCell, assigneeCell);
             return summary;
         };
 
@@ -2554,7 +2556,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            row.append(nameCell, idCell, statusControl, assigneeControl);
+            const progressCell = document.createElement('div');
+            progressCell.className = 'min-w-0';
+            row.append(nameCell, idCell, statusControl, progressCell, assigneeControl);
             return row;
         };
 
@@ -2703,7 +2707,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     chip.classList.add('text-[11px]', 'shrink-0');
                                     idCell.appendChild(chip);
 
-                                    row.append(nameCell, idCell, statusControl, assigneeControl);
+                                    const progressCell = document.createElement('div');
+                                    progressCell.className = 'min-w-0';
+                                    row.append(nameCell, idCell, statusControl, progressCell, assigneeControl);
                                     subList.appendChild(row);
                                 });
                                 taskBlock.appendChild(subList);
@@ -2861,7 +2867,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                             chip.classList.add('text-[11px]', 'shrink-0');
                                             idCell.appendChild(chip);
 
-                                            row.append(nameCell, idCell, statusControl, assigneeControl);
+                                            const progressCell = document.createElement('div');
+                                            progressCell.className = 'min-w-0';
+                                            row.append(nameCell, idCell, statusControl, progressCell, assigneeControl);
                                             subList.appendChild(row);
                                         });
                                         taskBlock.appendChild(subList);
