@@ -44,29 +44,6 @@
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-display overflow-hidden flex flex-col h-screen">
-    <header class="flex shrink-0 items-center justify-between border-b border-surface-dark px-6 py-3 bg-background-dark z-20">
-        <div class="flex items-center gap-3 text-white">
-            <img src="imagotipo_tamoe.png" class="h-8 w-auto" alt="Tamoe logo"/>
-            <div class="flex flex-col">
-                <span class="text-sm text-text-muted">Detalle</span>
-                <h1 id="header-title" class="text-lg font-bold leading-tight tracking-tight">Cargando...</h1>
-            </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2 text-text-muted text-sm">
-                <span class="material-symbols-outlined">badge</span>
-                <span id="header-manage" class="font-mono">...</span>
-            </div>
-            <div class="flex items-center gap-3">
-                <div id="header-user-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
-                <div class="flex flex-col leading-tight">
-                    <span id="header-user-name" class="text-white text-sm font-semibold">Invitado</span>
-                    <span id="header-user-dept" class="text-text-muted text-xs"></span>
-                </div>
-            </div>
-        </div>
-    </header>
-
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 flex flex-col overflow-y-auto relative">
             <div class="px-8 py-8 flex flex-col gap-8 max-w-6xl mx-auto w-full">
@@ -1048,10 +1025,25 @@
             if (!breadcrumb) return;
             breadcrumb.innerHTML = '';
             trail.forEach((node, idx) => {
-                const span = document.createElement('span');
-                span.className = 'text-text-muted';
-                span.textContent = node.name || TYPE_LABELS[node.type] || 'Detalle';
-                breadcrumb.appendChild(span);
+                const label = node.name || TYPE_LABELS[node.type] || 'Detalle';
+                const manage = String(node.manageId || '').trim();
+
+                const crumb = document.createElement(manage ? 'a' : 'span');
+                crumb.className = manage
+                    ? 'text-text-muted hover:text-white hover:underline transition-colors'
+                    : 'text-text-muted';
+                crumb.textContent = label;
+
+                if (manage) {
+                    crumb.href = `/${encodeURIComponent(manage)}`;
+                    crumb.setAttribute('aria-label', `Abrir detalle: ${label}`);
+                }
+                if (idx === trail.length - 1) {
+                    crumb.classList.add('text-white');
+                    crumb.setAttribute('aria-current', 'page');
+                }
+
+                breadcrumb.appendChild(crumb);
                 if (idx < trail.length - 1) {
                     const icon = document.createElement('span');
                     icon.className = 'material-symbols-outlined text-text-muted text-[16px]';

@@ -12,6 +12,16 @@ onAuthStateChanged(auth, (user) => {
                 const userData = snapshot.val();
                 const userName = userData.username || 'User';
                 const department = userData.department || 'No Department';
+                const photoUrl = userData.profile_picture || user.photoURL || '';
+
+                const getInitials = (value) => {
+                    const text = String(value || '').trim();
+                    if (!text) return '?';
+                    const parts = text.split(/\s+/).filter(Boolean);
+                    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+                    if (parts[0].length >= 2) return parts[0].slice(0, 2).toUpperCase();
+                    return parts[0][0].toUpperCase();
+                };
 
                 // Update Welcome Message
                 const welcomeMessage = document.getElementById('welcome-message');
@@ -23,7 +33,7 @@ onAuthStateChanged(auth, (user) => {
                 const sideBarUserName = document.getElementById('sidebar-user-name');
                 const sideBarUserDepartment = document.getElementById('sidebar-user-department');
                 const sideBarUserEmail = document.getElementById('user-email');
-                const sideBarUserAvatar = document.getElementById('user-avatar');
+                const sideBarUserAvatar = document.getElementById('sidebar-user-avatar');
 
                 if(sideBarUserName) {
                     sideBarUserName.textContent = userName;
@@ -34,8 +44,12 @@ onAuthStateChanged(auth, (user) => {
                 if(sideBarUserEmail) {
                     sideBarUserEmail.textContent = user.email;
                 }
-                 if (sideBarUserAvatar && user.photoURL) {
-                    sideBarUserAvatar.style.backgroundImage = `url(${user.photoURL})`;
+                if (sideBarUserAvatar) {
+                    const safePhoto = String(photoUrl || '').trim();
+                    const hasPhoto = Boolean(safePhoto);
+                    sideBarUserAvatar.style.backgroundImage = hasPhoto ? `url(${JSON.stringify(safePhoto)})` : '';
+                    sideBarUserAvatar.textContent = hasPhoto ? '' : getInitials(userName);
+                    sideBarUserAvatar.setAttribute('aria-label', userName);
                 }
 
             } else {
