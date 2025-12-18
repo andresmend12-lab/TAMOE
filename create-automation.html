@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Crear Nueva Automatización - TaskMaster</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#e619a1",
+                        "primary-hover": "#c9168d",
+                        "background-light": "#ffffff",
+                        "background-dark": "#21111c",
+                        "surface-dark": "#2f1a28",
+                        "surface-darker": "#1a0d15",
+                        "border-dark": "#47243b",
+                        "text-muted": "#c893b6",
+                        "border-muted": "#5e3a50",
+                        "surface-input": "#3a2433",
+                    },
+                    fontFamily: { "display": ["Manrope", "sans-serif"] },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for webkit browsers */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #21111c; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #5e3a50; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e619a1; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden selection:bg-primary selection:text-white">
+<div class="flex h-screen w-full">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col w-64 h-full border-r border-border-muted bg-background-dark flex-shrink-0">
+    <div class="p-6 flex items-center gap-3">
+        <a href="maindashboard.html" class="flex items-center gap-3">
+            <img src="logotipo_tamoe.png" alt="Tamoe" class="h-9 w-auto"/>
+        </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-2">
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface-dark transition-colors group" href="maindashboard.html">
+            <span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">dashboard</span>
+            <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Tablero</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface-dark transition-colors group" href="#">
+            <span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">folder</span>
+            <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Proyectos</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface-dark transition-colors group" href="#">
+            <span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">check_box</span>
+            <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Tareas</span>
+        </a>
+        <!-- Active Item -->
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/20 text-white shadow-[inset_4px_0_0_0_#e619a1]" href="maindashboard.html">
+            <span class="material-symbols-outlined text-primary fill-1">bolt</span>
+            <span class="font-semibold">Automatizaciones</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface-dark transition-colors group" href="#">
+            <span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">settings</span>
+            <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Configuración</span>
+        </a>
+    </nav>
+    <div class="p-4 border-t border-border-muted">
+        <button id="logout-button-ca" class="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-surface-dark text-left transition-colors text-gray-400 hover:text-white">
+            <span class="material-symbols-outlined">logout</span>
+            <span class="font-medium">Cerrar Sesión</span>
+        </button>
+    </div>
+</aside>
+
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-[#261421] relative">
+    <!-- Header -->
+    <header class="flex items-center justify-between px-8 py-6 bg-background-dark/80 backdrop-blur-md sticky top-0 z-10 border-b border-border-muted">
+        <div>
+            <div class="flex items-center gap-2 text-sm text-primary font-medium mb-1">
+                <span class="material-symbols-outlined text-[18px]">bolt</span>
+                <span>Automatizaciones</span>
+                <span class="text-gray-500">/</span>
+                <span class="text-white">Nueva</span>
+            </div>
+            <h2 class="text-3xl font-black text-white tracking-tight">Crear Nueva Automatización</h2>
+        </div>
+        <a href="maindashboard.html" id="close-ca-btn" class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+            <span class="material-symbols-outlined">close</span>
+        </a>
+    </header>
+    <!-- Scrollable Form Content -->
+    <div class="flex-1 overflow-y-auto p-8 flex justify-center">
+        <div class="w-full max-w-3xl flex flex-col gap-8 pb-20">
+            <!-- Name Section -->
+            <div class="flex flex-col gap-2">
+                <label class="text-sm font-bold uppercase tracking-wider text-gray-400" for="auto-name">Nombre</label>
+                <input autofocus="" class="w-full bg-transparent text-4xl font-bold text-white placeholder:text-white/20 border-0 border-b-2 border-border-muted focus:border-primary focus:ring-0 px-0 py-2 transition-colors" id="auto-name" placeholder="Ej. Notificar al gerente al completar" type="text"/>
+            </div>
+
+            <!-- Workflow Visualizer -->
+            <div class="relative flex flex-col gap-0">
+                <!-- Connecting Line Background -->
+                <div class="absolute left-8 top-10 bottom-10 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-border-muted -z-0"></div>
+                
+                <!-- Step 1: Trigger -->
+                <div class="group relative z-10">
+                    <div class="flex items-start gap-6">
+                        <!-- Icon Circle -->
+                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-primary/30 flex items-center justify-center shadow-[0_0_15px_-3px_rgba(230,25,161,0.3)] group-hover:border-primary transition-colors">
+                            <span class="material-symbols-outlined text-primary text-3xl">touch_app</span>
+                        </div>
+                        <!-- Card -->
+                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl hover:border-primary/50 transition-all duration-300">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-white">Cuando (Disparador)</h3>
+                                <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wide">Paso 1</span>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-sm font-medium text-gray-300">Tipo de Actividad</label>
+                                    <div class="relative">
+                                        <select id="trigger-activity-type" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                            <option value="Project">Proyecto</option>
+                                            <option value="Product">Producto</option>
+                                            <option value="Task" selected>Tarea</option>
+                                        </select>
+                                        <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-sm font-medium text-gray-300">Tipo de Disparador</label>
+                                    <div class="relative">
+                                        <select id="trigger-type" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                            <!-- Options populated by JS -->
+                                        </select>
+                                        <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
+                                    </div>
+                                </div>
+                                <div id="status-change-options" class="hidden grid grid-cols-2 gap-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label class="text-sm font-medium text-gray-300">De</label>
+                                        <div class="relative">
+                                            <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                                <option>Pendiente</option>
+                                                <option>En Progreso</option>
+                                            </select>
+                                            <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label class="text-sm font-medium text-gray-300">A</label>
+                                        <div class="relative">
+                                            <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                                <option>En Progreso</option>
+                                                <option>Finalizado</option>
+                                            </select>
+                                            <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Step Connector -->
+                <div class="py-6 flex justify-start pl-[22px] relative z-10">
+                    <button class="size-10 rounded-full bg-background-dark border-2 border-dashed border-gray-600 text-gray-400 flex items-center justify-center hover:border-primary hover:text-primary hover:scale-110 transition-all group" title="Agregar condición intermedia">
+                        <span class="material-symbols-outlined text-xl">add</span>
+                    </button>
+                </div>
+                
+                <!-- Step 2: Action -->
+                <div class="group relative z-10">
+                    <div class="flex items-start gap-6">
+                        <!-- Icon Circle -->
+                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-gray-700 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+                            <span class="material-symbols-outlined text-white text-3xl">send</span>
+                        </div>
+                        <!-- Card -->
+                        <div id="action-step" class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl hover:border-primary/50 transition-all duration-300">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-white">Entonces (Acción)</h3>
+                                <span class="px-3 py-1 rounded-full bg-gray-700 text-gray-300 text-xs font-bold uppercase tracking-wide">Paso 2</span>
+                            </div>
+                            <div class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-sm font-medium text-gray-300">Realizar acción</label>
+                                    <div class="relative">
+                                        <select id="action-select" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                            <!-- Options will be dynamically populated by JS -->
+                                        </select>
+                                        <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
+                                    </div>
+                                </div>
+                                <!-- Dynamic sub-form based on action -->
+                                <div id="action-details"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <!-- Scope Settings -->
+            <div class="mt-4 pt-8 border-t border-border-muted">
+                <h3 class="text-lg font-bold text-white mb-4">Configuración Adicional</h3>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1 bg-surface-dark border border-border-muted rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-surface-input transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-blue-500/10 rounded-lg">
+                                <span class="material-symbols-outlined text-blue-400">domain</span>
+                            </div>
+                            <div>
+                                <p class="text-white font-medium">Alcance</p>
+                                <p class="text-sm text-gray-400">Solo este proyecto</p>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined text-gray-500">chevron_right</span>
+                    </div>
+                    <div class="flex-1 bg-surface-dark border border-border-muted rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-surface-input transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-yellow-500/10 rounded-lg">
+                                <span class="material-symbols-outlined text-yellow-400">schedule</span>
+                            </div>
+                            <div>
+                                <p class="text-white font-medium">Horario</p>
+                                <p class="text-sm text-gray-400">Ejecutar siempre</p>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined text-gray-500">chevron_right</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="p-6 bg-background-dark border-t border-border-muted flex items-center justify-end gap-4 z-20">
+        <a href="maindashboard.html" id="cancel-ca-btn" class="px-6 py-3 rounded-xl text-white font-semibold hover:bg-white/5 transition-colors">
+            Cancelar
+        </a>
+        <button id="save-ca-btn" class="px-8 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold shadow-[0_0_20px_-5px_rgba(230,25,161,0.5)] transition-all transform hover:scale-[1.02] flex items-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">save</span>
+            Guardar Automatización
+        </button>
+    </div>
+</main>
+</div>
+<script src="create-automation.js" type="module"></script>
+</body>
+</html>

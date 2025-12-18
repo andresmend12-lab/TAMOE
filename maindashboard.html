@@ -63,7 +63,7 @@
                     </a>
                     <button id="logout-button" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left">
                         <span class="material-symbols-outlined text-[18px]">logout</span>
-                        Cerrar Sesión
+                        Cerrar Sesiï¿½n
                     </button>
                 </div>
             </div>
@@ -72,7 +72,7 @@
                 <div class="px-4 py-2">
                     <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
                         <span class="material-symbols-outlined text-[20px]">add</span>
-                        <span>Añadir Cliente</span>
+                        <span>Aï¿½adir Cliente</span>
                     </button>
                 </div>
                 <!-- Navigation / Client List -->
@@ -101,7 +101,7 @@
                     <div class="flex flex-col gap-2">
                         <button id="add-project-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
                             <span class="material-symbols-outlined text-[20px]">add</span>
-                            <span>Añadir Proyecto</span>
+                            <span>Aï¿½adir Proyecto</span>
                         </button>
                     </div>
                 </div>
@@ -167,7 +167,7 @@
         <!-- Tabs Navigation -->
         <div id="dashboard-tabs" class="sticky top-16 z-10 border-b border-gray-200 dark:border-border-dark bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md">
             <div class="px-8">
-                <nav class="flex items-center gap-2 py-3 overflow-x-auto" role="tablist" aria-label="Navegación del dashboard">
+                <nav class="flex items-center gap-2 py-3 overflow-x-auto" role="tablist" aria-label="Navegaciï¿½n del dashboard">
                     <button id="tab-projects" type="button" role="tab" aria-selected="true" aria-controls="tab-panel-projects" data-tab="projects" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-white text-sm font-semibold shadow-lg shadow-primary/20">
                         <span class="material-symbols-outlined text-[18px]">folder</span>
                         Proyectos
@@ -205,7 +205,7 @@
                      <iframe id="detail-frame" title="Detalle" class="w-full bg-white dark:bg-background-dark" style="height: calc(100vh - 8rem);" loading="lazy"></iframe>
                  </section>
 
-                 <!-- Árbol de Clientes / Proyectos / Productos / Tareas -->
+                 <!-- ï¿½rbol de Clientes / Proyectos / Productos / Tareas -->
                  <section id="tree-view" class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
                      <div class="flex items-center justify-between mb-4">
                          <div class="min-w-0 flex flex-col">
@@ -220,7 +220,7 @@
                          <span class="truncate">Nombre</span>
                          <span>Estado</span>
                          <span>Progreso</span>
-                         <span>Asignación</span>
+                         <span>Asignaciï¿½n</span>
                      </div>
                      <div id="tree-body" class="flex flex-col gap-2">
                          <div class="flex flex-col gap-2 animate-pulse">
@@ -329,7 +329,7 @@
                         <span class="material-symbols-outlined text-primary">checklist</span>
                         <h2 class="text-gray-900 dark:text-white text-xl font-bold">Mis tareas</h2>
                     </div>
-                    <p class="text-text-muted text-sm">Próximamente.</p>
+                    <p class="text-text-muted text-sm">Prï¿½ximamente.</p>
                 </section>
 
                 <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
@@ -337,7 +337,7 @@
                         <span class="material-symbols-outlined text-primary">timeline</span>
                         <h2 class="text-gray-900 dark:text-white text-xl font-bold">Cronograma</h2>
                     </div>
-                    <p class="text-text-muted text-sm">Próximamente.</p>
+                    <p class="text-text-muted text-sm">Prï¿½ximamente.</p>
                 </section>
 
                 <section id="tab-panel-calendar" data-tab-panel="calendar" role="tabpanel" aria-labelledby="tab-calendar" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
@@ -345,19 +345,70 @@
                         <span class="material-symbols-outlined text-primary">calendar_month</span>
                         <h2 class="text-gray-900 dark:text-white text-xl font-bold">Calendario</h2>
                     </div>
-                    <p class="text-text-muted text-sm">Próximamente.</p>
+                    <p class="text-text-muted text-sm">Prï¿½ximamente.</p>
                 </section>
 
-                <section id="tab-panel-automations" data-tab-panel="automations" role="tabpanel" aria-labelledby="tab-automations" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="material-symbols-outlined text-primary">settings_suggest</span>
-                        <h2 class="text-gray-900 dark:text-white text-xl font-bold">Automatizaciones</h2>
+                <section id="tab-panel-automations" data-tab-panel="automations" role="tabpanel" aria-labelledby="tab-automations" class="hidden">
+                    <div class="flex flex-col gap-6">
+                        <header class="flex-shrink-0 flex flex-col gap-6">
+                            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <h1 class="text-gray-900 dark:text-white text-4xl font-extrabold tracking-tight">Automatizaciones</h1>
+                                    <p class="text-text-muted text-base font-normal max-w-2xl">Optimiza tu flujo de trabajo configurando reglas automÃ¡ticas y disparadores personalizados.</p>
+                                </div>
+                                <button id="create-automation-btn" class="group flex items-center justify-center gap-2 h-11 px-6 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-primary/20 active:scale-95">
+                                    <span class="material-symbols-outlined text-[20px]">add</span>
+                                    <span>Crear AutomatizaciÃ³n</span>
+                                </button>
+                            </div>
+                
+                            <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between mt-2">
+                                <div id="automation-filter-buttons" class="flex gap-2 overflow-x-auto pb-1 max-w-full no-scrollbar">
+                                    <button data-filter="all" class="flex h-9 items-center justify-center px-4 rounded-lg bg-white dark:bg-surface-dark text-gray-900 dark:text-white text-sm font-medium border border-primary text-primary shadow-[0_0_10px_rgba(230,25,161,0.2)]">
+                                        Todos
+                                    </button>
+                                    <button data-filter="active" class="flex h-9 items-center justify-center px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white text-sm font-medium transition-colors">
+                                        Activos
+                                    </button>
+                                    <button data-filter="paused" class="flex h-9 items-center justify-center px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white text-sm font-medium transition-colors">
+                                        Pausados
+                                    </button>
+                                    <button data-filter="drafts" class="flex h-9 items-center justify-center px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white text-sm font-medium transition-colors">
+                                        Borradores
+                                    </button>
+                                    <button data-filter="errors" class="flex h-9 items-center justify-center px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white text-sm font-medium transition-colors gap-2">
+                                        <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                                        Errores
+                                    </button>
+                                </div>
+                
+                                <div class="relative w-full lg:w-80">
+                                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[20px]">search</span>
+                                    <input id="automation-search-input" class="w-full bg-white dark:bg-surface-input border border-border-dark text-gray-900 dark:text-white text-sm rounded-lg pl-10 pr-4 h-10 placeholder:text-text-muted/60 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" placeholder="Buscar automatizaciÃ³n..." type="text"/>
+                                </div>
+                            </div>
+                        </header>
+                
+                        <div class="flex-1 overflow-y-auto">
+                            <div id="automations-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                <!-- Automation cards will be dynamically inserted here -->
+                            </div>
+                            <div id="automations-empty-state" class="hidden flex flex-col items-center justify-center text-center py-12">
+                                <span class="material-symbols-outlined text-6xl text-text-muted/50 mb-4">auto_mode</span>
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white">No hay automatizaciones</h3>
+                                <p class="text-text-muted mt-2 max-w-sm">Empieza a crear tu primera automatizaciÃ³n para optimizar tu flujo de trabajo.</p>
+                            </div>
+                        </div>
+            
+                        <div id="automations-pagination" class="mt-8 flex justify-between items-center text-sm text-text-muted border-t border-border-dark pt-4">
+                            <p id="pagination-summary">Mostrando 0 de 0 automatizaciones</p>
+                            <div class="flex gap-2">
+                                <button id="pagination-prev" class="px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-surface-dark disabled:opacity-50" disabled>Anterior</button>
+                                <div id="pagination-pages" class="flex gap-2"></div>
+                                <button id="pagination-next" class="px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-surface-dark">Siguiente</button>
+                            </div>
+                        </div>
                     </div>
-                    <p class="text-text-muted text-sm mb-4">Gestiona reglas y disparadores avanzados en la nueva pantalla.</p>
-                    <a href="automations.html" class="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold shadow-lg shadow-primary/20 transition-colors">
-                        <span class="material-symbols-outlined text-[18px]">auto_mode</span>
-                        Abrir Automatizaciones
-                    </a>
                 </section>
 </div>
 </div>
@@ -368,7 +419,7 @@
 <div id="add-client-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
     <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
         <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Nuevo Cliente</h2>
+             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Aï¿½adir Nuevo Cliente</h2>
              <button id="close-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                  <span class="material-symbols-outlined text-text-muted">close</span>
              </button>
@@ -396,7 +447,7 @@
 <div id="add-project-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
     <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
         <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Proyecto</h2>
+             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Aï¿½adir Proyecto</h2>
              <button id="close-project-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                  <span class="material-symbols-outlined text-text-muted">close</span>
              </button>
@@ -424,7 +475,7 @@
 <div id="add-product-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
     <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
         <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Producto</h2>
+             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Aï¿½adir Producto</h2>
              <button id="close-product-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                  <span class="material-symbols-outlined text-text-muted">close</span>
              </button>
@@ -452,7 +503,7 @@
 <div id="add-task-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
     <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
         <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Tarea</h2>
+             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Aï¿½adir Tarea</h2>
              <button id="close-task-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                  <span class="material-symbols-outlined text-text-muted">close</span>
              </button>
@@ -480,7 +531,7 @@
 <div id="add-project-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
     <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
         <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Proyecto</h2>
+             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Aï¿½adir Proyecto</h2>
              <button id="close-project-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                  <span class="material-symbols-outlined text-text-muted">close</span>
              </button>
@@ -508,7 +559,7 @@
 <div id="add-subtask-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
     <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
         <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Subtarea</h2>
+             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Aï¿½adir Subtarea</h2>
              <button id="close-subtask-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                  <span class="material-symbols-outlined text-text-muted">close</span>
              </button>
@@ -545,6 +596,8 @@
 <script src="client-manager.js" type="module"></script>
 <script src="detail-router.js" type="module"></script>
 
+<script src="automations.js" type="module"></script>
+</body>
 </body>
 </html>
 
