@@ -156,9 +156,38 @@
             </div>
         </header>
 
+        <!-- Tabs Navigation -->
+        <div id="dashboard-tabs" class="sticky top-16 z-10 border-b border-gray-200 dark:border-border-dark bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md">
+            <div class="px-8">
+                <nav class="flex items-center gap-2 py-3 overflow-x-auto" role="tablist" aria-label="Navegación del dashboard">
+                    <button id="tab-project-status" type="button" role="tab" aria-selected="true" aria-controls="tab-panel-project-status" data-tab="project-status" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-white text-sm font-semibold shadow-lg shadow-primary/20">
+                        <span class="material-symbols-outlined text-[18px]">dashboard</span>
+                        Estado de proyectos
+                    </button>
+                    <button id="tab-my-tasks" type="button" role="tab" aria-selected="false" aria-controls="tab-panel-my-tasks" data-tab="my-tasks" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 dark:border-border-dark bg-white/60 dark:bg-surface-dark text-gray-700 dark:text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                        <span class="material-symbols-outlined text-[18px]">checklist</span>
+                        Mis tareas
+                    </button>
+                    <button id="tab-timeline" type="button" role="tab" aria-selected="false" aria-controls="tab-panel-timeline" data-tab="timeline" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 dark:border-border-dark bg-white/60 dark:bg-surface-dark text-gray-700 dark:text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                        <span class="material-symbols-outlined text-[18px]">timeline</span>
+                        Cronograma
+                    </button>
+                    <button id="tab-calendar" type="button" role="tab" aria-selected="false" aria-controls="tab-panel-calendar" data-tab="calendar" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 dark:border-border-dark bg-white/60 dark:bg-surface-dark text-gray-700 dark:text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                        <span class="material-symbols-outlined text-[18px]">calendar_month</span>
+                        Calendario
+                    </button>
+                    <button id="tab-automations" type="button" role="tab" aria-selected="false" aria-controls="tab-panel-automations" data-tab="automations" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 dark:border-border-dark bg-white/60 dark:bg-surface-dark text-gray-700 dark:text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                        <span class="material-symbols-outlined text-[18px]">settings_suggest</span>
+                        Automatizaciones
+                    </button>
+                </nav>
+            </div>
+        </div>
+
          <!-- Dashboard Content -->
          <div class="flex-1 overflow-y-auto">
              <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
+                 <div id="tab-panel-project-status" data-tab-panel="project-status" role="tabpanel" aria-labelledby="tab-project-status" class="flex flex-col gap-8">
                  <!-- Detail View (manageId route) -->
                  <section id="detail-view" class="hidden rounded-xl border border-border-dark bg-surface-darker shadow-lg shadow-black/20 overflow-hidden">
                      <iframe id="detail-frame" title="Detalle" class="w-full bg-background-dark" style="height: calc(100vh - 8rem);" loading="lazy"></iframe>
@@ -218,6 +247,42 @@
                         <div id="subtask-list" class="flex flex-col gap-2"></div>
                     </div>
                 </div>
+                </div>
+
+                <section id="tab-panel-my-tasks" data-tab-panel="my-tasks" role="tabpanel" aria-labelledby="tab-my-tasks" class="hidden rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-primary">checklist</span>
+                        <h2 class="text-white text-xl font-bold">Mis tareas</h2>
+                    </div>
+                    <p class="text-text-muted text-sm">Próximamente.</p>
+                </section>
+
+                <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-primary">timeline</span>
+                        <h2 class="text-white text-xl font-bold">Cronograma</h2>
+                    </div>
+                    <p class="text-text-muted text-sm">Próximamente.</p>
+                </section>
+
+                <section id="tab-panel-calendar" data-tab-panel="calendar" role="tabpanel" aria-labelledby="tab-calendar" class="hidden rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-primary">calendar_month</span>
+                        <h2 class="text-white text-xl font-bold">Calendario</h2>
+                    </div>
+                    <p class="text-text-muted text-sm">Próximamente.</p>
+                </section>
+
+                <section id="tab-panel-automations" data-tab-panel="automations" role="tabpanel" aria-labelledby="tab-automations" class="hidden rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-primary">settings_suggest</span>
+                        <h2 class="text-white text-xl font-bold">Automatizaciones</h2>
+                    </div>
+                    <p class="text-text-muted text-sm">Próximamente.</p>
+                </section>
+</div>
+</div>
+</main>
 </div>
 
 <!-- Add Client Modal -->
@@ -397,6 +462,7 @@
 <script src="dashboard-data.js" type="module"></script>
 <script src="logout.js" type="module"></script>
 <script src="theme-toggle.js" type="module"></script>
+<script src="dashboard-tabs.js" type="module"></script>
 <script src="client-manager.js" type="module"></script>
 <script src="detail-router.js" type="module"></script>
 
