@@ -48,7 +48,7 @@
         <main class="flex-1 flex flex-col overflow-y-auto relative">
             <div class="px-8 py-8 flex flex-col gap-8 max-w-6xl mx-auto w-full">
                 <div class="flex items-center justify-between">
-                    <button id="tamoe-home" type="button" class="shrink-0 rounded-md px-2 py-1 hover:bg-surface-dark/60 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60" aria-label="Ir al inicio">
+                    <button id="tamoe-home" type="button" class="shrink-0 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-surface-dark/60 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60" aria-label="Ir al inicio">
                         <img src="logotipo_tamoe.png" alt="Tamoe" class="h-9 w-auto"/>
                     </button>
                 </div>
@@ -60,13 +60,13 @@
                     <div class="flex flex-col gap-2">
                         <div class="flex items-center gap-2">
                             <span id="type-chip" class="bg-primary/15 text-primary text-xs font-bold px-2.5 py-1 rounded-md border border-primary/30 uppercase tracking-wide">...</span>
-                            <span id="created-chip" class="text-text-muted text-xs bg-surface-dark px-2 py-1 rounded-md">...</span>
+                            <span id="created-chip" class="text-text-muted text-xs bg-gray-100 dark:bg-surface-dark px-2 py-1 rounded-md">...</span>
                         </div>
-                        <h2 id="item-title" class="text-3xl md:text-4xl font-extrabold leading-tight tracking-tight text-white">Cargando...</h2>
+                        <h2 id="item-title" class="text-3xl md:text-4xl font-extrabold leading-tight tracking-tight text-gray-900 dark:text-white">Cargando...</h2>
                         <p id="item-manage" class="text-text-muted text-sm font-mono">...</p>
                     </div>
                     <div class="flex gap-2">
-                        <button id="open-dashboard" class="flex items-center gap-2 h-10 px-4 rounded-lg border border-surface-dark text-text-muted hover:text-white hover:bg-surface-dark transition-colors text-sm font-bold">
+                        <button id="open-dashboard" class="flex items-center gap-2 h-10 px-4 rounded-lg border border-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors text-sm font-bold">
                             <span class="material-symbols-outlined text-[18px]">dashboard</span>
                             Volver al dashboard
                         </button>
@@ -74,9 +74,9 @@
                 </div>
 
                 <div class="flex flex-col gap-6 max-w-4xl mx-auto w-full">
-                    <section id="status-section" class="hidden bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                    <section id="status-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between gap-2 mb-4">
-                            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">timeline</span>
                                 Estado
                             </h3>
@@ -88,25 +88,25 @@
 
                         <div class="w-full overflow-x-auto pb-2">
                             <div class="min-w-[520px] flex items-center justify-between relative px-2">
-                                <div class="absolute top-1/2 left-0 w-full h-1 bg-surface-dark -z-10 rounded-full transform -translate-y-1/2"></div>
+                                <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-surface-dark -z-10 rounded-full transform -translate-y-1/2"></div>
                                 <div id="status-progress" class="absolute top-1/2 left-0 h-1 -z-0 rounded-full transform -translate-y-1/2"></div>
 
                                 <button type="button" class="flex flex-col items-center gap-2 group cursor-pointer" data-status-step="Pendiente">
-                                    <div data-status-circle class="size-8 rounded-full bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                    <div data-status-circle class="size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
                                         <span data-status-icon class="material-symbols-outlined text-sm">schedule</span>
                                     </div>
                                     <span data-status-label class="text-text-muted text-xs font-bold uppercase tracking-wider">Pendiente</span>
                                 </button>
 
                                 <button type="button" class="flex flex-col items-center gap-2 group cursor-pointer" data-status-step="En proceso">
-                                    <div data-status-circle class="size-8 rounded-full bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                    <div data-status-circle class="size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
                                         <span data-status-icon class="material-symbols-outlined text-sm">autorenew</span>
                                     </div>
                                     <span data-status-label class="text-text-muted text-xs font-bold uppercase tracking-wider">En proceso</span>
                                 </button>
 
                                 <button type="button" class="flex flex-col items-center gap-2 group cursor-pointer" data-status-step="Finalizado">
-                                    <div data-status-circle class="size-8 rounded-full bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                    <div data-status-circle class="size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
                                         <span data-status-icon class="material-symbols-outlined text-sm">check_circle</span>
                                     </div>
                                     <span data-status-label class="text-text-muted text-xs font-bold uppercase tracking-wider">Finalizado</span>
@@ -117,9 +117,9 @@
                         <p id="status-helper" class="text-xs text-text-muted mt-2"></p>
                     </section>
 
-                    <section id="assignee-section" class="hidden bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                    <section id="assignee-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between gap-2 mb-3">
-                            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">person</span>
                                 Asignacion
                             </h3>
@@ -131,24 +131,24 @@
                                 <div id="assignee-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
                                 <div class="min-w-0">
                                     <p class="text-xs font-bold uppercase tracking-wide text-text-muted">Asignado a</p>
-                                    <p id="assignee-name" class="text-white font-semibold truncate">Sin asignar</p>
+                                    <p id="assignee-name" class="text-gray-900 dark:text-white font-semibold truncate">Sin asignar</p>
                                     <p id="assignee-dept" class="text-text-muted text-xs truncate"></p>
                                 </div>
                             </div>
 
                             <div class="relative flex-shrink-0">
-                                <button id="assignee-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-surface-dark text-text-muted hover:text-white hover:bg-white/5 transition-colors text-sm font-semibold">
+                                <button id="assignee-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
                                     <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
                                     Cambiar
                                 </button>
-                                <div id="assignee-menu" class="action-menu hidden absolute right-0 top-full mt-2 w-72 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-y-auto max-h-80 z-50"></div>
+                                <div id="assignee-menu" class="action-menu hidden absolute right-0 top-full mt-2 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-y-auto max-h-80 z-50"></div>
                             </div>
                         </div>
                     </section>
 
-                    <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                    <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between gap-2 mb-3">
-                            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">article</span>
                                 Descripción
                             </h3>
@@ -159,11 +159,11 @@
                                 </button>
                             </div>
                         </div>
-                        <textarea id="description-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[120px] max-h-[240px] overflow-y-auto" placeholder="Escribe una descripción..."></textarea>
+                        <textarea id="description-input" class="w-full bg-white dark:bg-background-dark text-gray-900 dark:text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[120px] max-h-[240px] overflow-y-auto" placeholder="Escribe una descripción..."></textarea>
                     </section>
 
-                    <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                        <h3 class="text-white text-lg font-bold flex items-center gap-2 mb-3">
+                    <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                        <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2 mb-3">
                             <span class="material-symbols-outlined text-primary">account_tree</span>
                             Actividades
                         </h3>
@@ -172,9 +172,9 @@
                         </div>
                     </section>
 
-                    <section class="bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                    <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">forum</span>
                                 Comentarios
                             </h3>
@@ -185,7 +185,7 @@
 
                         <div class="mt-4 flex flex-col gap-2">
                             <label class="text-xs font-bold uppercase tracking-wide text-text-muted">Añadir comentario</label>
-                            <textarea id="comment-input" class="w-full bg-background-dark text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[100px]" placeholder="Escribe tu comentario..."></textarea>
+                            <textarea id="comment-input" class="w-full bg-white dark:bg-background-dark text-gray-900 dark:text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[100px]" placeholder="Escribe tu comentario..."></textarea>
                             <div class="flex items-center justify-between gap-3">
                                 <span id="comment-helper" class="text-xs text-text-muted">Inicia sesión para comentar.</span>
                                 <button id="comment-submit" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
@@ -721,9 +721,9 @@
                     if (isActive) {
                         circle.className = `size-10 rounded-full ${style.fill} text-white flex items-center justify-center z-10 ring-4 ${style.ring} shadow-lg transition-all`;
                     } else if (isCompleted) {
-                        circle.className = `size-8 rounded-full bg-surface-dark border-2 ${style.border} ${style.label} flex items-center justify-center z-10 transition-all`;
+                        circle.className = `size-8 rounded-full bg-white dark:bg-surface-dark border-2 ${style.border} ${style.label} flex items-center justify-center z-10 transition-all`;
                     } else {
-                        circle.className = 'size-8 rounded-full bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10 opacity-60 transition-all';
+                        circle.className = 'size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10 opacity-60 transition-all';
                     }
                 }
 
@@ -817,7 +817,7 @@
             const makeOption = ({ uid, name, dept, photo }) => {
                 const optBtn = document.createElement('button');
                 optBtn.type = 'button';
-                optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+                optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
                 optBtn.dataset.uid = uid;
 
                 const left = document.createElement('div');
@@ -1045,7 +1045,7 @@
 
                 const crumb = document.createElement(manage ? 'a' : 'span');
                 crumb.className = manage
-                    ? 'text-text-muted hover:text-white hover:underline transition-colors'
+                    ? 'text-text-muted hover:text-gray-900 dark:hover:text-white hover:underline transition-colors'
                     : 'text-text-muted';
                 crumb.textContent = label;
 
@@ -1054,7 +1054,7 @@
                     crumb.setAttribute('aria-label', `Abrir detalle: ${label}`);
                 }
                 if (idx === trail.length - 1) {
-                    crumb.classList.add('text-white');
+                crumb.classList.add('text-gray-900', 'dark:text-white');
                     crumb.setAttribute('aria-current', 'page');
                 }
 
@@ -1096,7 +1096,7 @@
         const createManageLink = (manageIdValue) => {
             const manageIdText = String(manageIdValue || '').trim();
             const link = document.createElement(manageIdText ? 'a' : 'span');
-            link.className = 'text-xs font-mono text-text-muted hover:text-white hover:underline shrink-0';
+            link.className = 'text-xs font-mono text-text-muted hover:text-gray-900 dark:hover:text-white hover:underline shrink-0';
             if (manageIdText) {
                 link.href = `/${encodeURIComponent(manageIdText)}`;
                 link.target = '_top';
@@ -1272,7 +1272,7 @@
 
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = 'inline-flex items-center justify-between gap-2 text-[11px] font-bold px-2 py-0.5 rounded-full border border-border-dark bg-white/5 text-text-muted hover:text-white hover:bg-white/10 transition-colors';
+            button.className = 'inline-flex items-center justify-between gap-2 text-[11px] font-bold px-2 py-0.5 rounded-full border border-border-dark bg-white/70 dark:bg-white/5 text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors';
 
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2 min-w-0';
@@ -1320,7 +1320,7 @@
             applyAssignee(assigneeUid);
 
             const menu = document.createElement('div');
-            menu.className = 'action-menu hidden absolute right-0 w-72 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
+            menu.className = 'action-menu hidden absolute right-0 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50 text-gray-900 dark:text-white';
 
             const canEdit = Boolean(currentUser) && typeof onChange === 'function';
             button.disabled = !canEdit;
@@ -1338,7 +1338,7 @@
             const makeOption = ({ uid, name, dept, photo }) => {
                 const optBtn = document.createElement('button');
                 optBtn.type = 'button';
-                optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+                optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
                 optBtn.dataset.uid = uid;
 
                 const optLeft = document.createElement('div');
@@ -1529,7 +1529,7 @@
             applyStatusChipStyle(button, label, status);
 
             const menu = document.createElement('div');
-            menu.className = 'action-menu hidden absolute right-0 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
+            menu.className = 'action-menu hidden absolute right-0 w-44 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50 text-gray-900 dark:text-white';
 
             const canEdit = Boolean(currentUser) && typeof onChange === 'function';
             button.disabled = !canEdit;
@@ -1547,7 +1547,7 @@
             STATUS_STEPS.forEach(option => {
                 const optBtn = document.createElement('button');
                 optBtn.type = 'button';
-                optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+                optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
                 optBtn.dataset.status = option;
 
                 const left = document.createElement('div');
@@ -1672,7 +1672,7 @@
 
         const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null) => {
             const summary = document.createElement('summary');
-            summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg';
+            summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg';
 
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2 min-w-0';
@@ -1705,7 +1705,7 @@
 
         const makeRow = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null) => {
             const row = document.createElement('div');
-            row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-surface-dark border border-border-dark text-white';
+            row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white dark:bg-surface-dark border border-border-dark text-gray-900 dark:text-white';
 
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2 min-w-0';
@@ -1774,7 +1774,7 @@
             }
 
             const details = document.createElement('details');
-            details.className = 'border border-border-dark rounded-lg bg-surface-dark';
+            details.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
             details.appendChild(makeSummary(
                 'check_circle',
                 taskName,
@@ -1859,7 +1859,7 @@
                         : null;
 
                     const projDetails = document.createElement('details');
-                    projDetails.className = 'border border-border-dark rounded-lg bg-surface-dark';
+                    projDetails.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
                     projDetails.appendChild(makeSummary(
                         'layers',
                         proj.name || 'Proyecto',
@@ -1905,7 +1905,7 @@
                                 : null;
 
                             const prodDetails = document.createElement('details');
-                            prodDetails.className = 'border border-border-dark/70 rounded-lg bg-background-dark/10';
+                            prodDetails.className = 'border border-border-dark/70 rounded-lg bg-white dark:bg-background-dark/10';
                             prodDetails.appendChild(makeSummary(
                                 'category',
                                 prod.name || 'Producto',
@@ -1989,7 +1989,7 @@
                             : null;
 
                         const prodDetails = document.createElement('details');
-                        prodDetails.className = 'border border-border-dark rounded-lg bg-surface-dark';
+                        prodDetails.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
                         prodDetails.appendChild(makeSummary(
                             'category',
                             prod.name || 'Producto',
@@ -2116,7 +2116,7 @@
 
                 const card = document.createElement('div');
                 card.id = `comment-${entry.id}`;
-                card.className = 'rounded-lg border border-border-dark bg-surface-dark px-3 py-3 scroll-mt-24';
+                card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark px-3 py-3 scroll-mt-24';
 
                 const header = document.createElement('div');
                 header.className = 'flex items-start justify-between gap-3';
@@ -2132,7 +2132,7 @@
                 authorMeta.className = 'flex flex-col min-w-0 leading-tight';
 
                 const author = document.createElement('span');
-                author.className = 'text-sm font-semibold text-white truncate';
+                author.className = 'text-sm font-semibold text-gray-900 dark:text-white truncate';
                 author.textContent = authorName;
                 authorMeta.appendChild(author);
 

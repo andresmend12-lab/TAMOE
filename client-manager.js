@@ -350,8 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const activityLabel = document.createElement(row.manageId ? 'a' : 'span');
             activityLabel.className = row.manageId
-                ? 'text-white font-semibold hover:underline truncate'
-                : 'text-white font-semibold truncate';
+                ? 'text-gray-900 dark:text-white font-semibold hover:underline truncate'
+                : 'text-gray-900 dark:text-white font-semibold truncate';
             activityLabel.textContent = row.activityName;
             if (row.manageId) {
                 activityLabel.href = `/${encodeURIComponent(row.manageId)}`;
@@ -374,9 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="p-4">
                     <div class="flex flex-col gap-1 w-32">
                         <div class="flex justify-between text-xs">
-                            <span class="text-white font-medium">${row.progress}%</span>
+                            <span class="text-gray-900 dark:text-white font-medium">${row.progress}%</span>
                         </div>
-                        <div class="h-1.5 w-full bg-background-dark rounded-full overflow-hidden">
+                        <div class="h-1.5 w-full bg-white dark:bg-background-dark rounded-full overflow-hidden">
                             <div class="h-full bg-primary rounded-full" style="width: ${row.progress}%"></div>
                         </div>
                     </div>
@@ -465,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const createIdChip = (manageId) => {
         const chip = document.createElement('button');
         chip.type = 'button';
-        chip.className = 'manage-chip text-[11px] text-text-muted shrink-0 hover:text-white hover:underline';
+        chip.className = 'manage-chip text-[11px] text-text-muted shrink-0 hover:text-gray-900 dark:hover:text-white hover:underline';
         chip.textContent = manageId || '';
         chip.addEventListener('click', (e) => {
             e.preventDefault();
@@ -831,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyStatusChipStyle(button, label, status);
 
         const menu = document.createElement('div');
-        menu.className = 'action-menu hidden absolute right-0 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
+        menu.className = 'action-menu hidden absolute right-0 w-44 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50 text-gray-900 dark:text-white';
 
         let saving = false;
         const setSaving = (isSaving) => {
@@ -844,7 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
         STATUS_OPTIONS.forEach(option => {
             const optBtn = document.createElement('button');
             optBtn.type = 'button';
-            optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+            optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
             optBtn.dataset.status = option;
 
             const left = document.createElement('div');
@@ -977,7 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'inline-flex items-center justify-between gap-2 text-[11px] font-bold px-2 py-0.5 rounded-full border border-border-dark bg-white/5 text-text-muted hover:text-white hover:bg-white/10 transition-colors';
+        button.className = 'inline-flex items-center justify-between gap-2 text-[11px] font-bold px-2 py-0.5 rounded-full border border-border-dark bg-white/70 dark:bg-white/5 text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors';
 
         const left = document.createElement('div');
         left.className = 'flex items-center gap-2 min-w-0';
@@ -1025,7 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyAssignee(assigneeUid);
 
         const menu = document.createElement('div');
-        menu.className = 'action-menu hidden absolute right-0 w-72 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50';
+        menu.className = 'action-menu hidden absolute right-0 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-x-hidden overflow-y-auto z-50 text-gray-900 dark:text-white';
 
         let saving = false;
         const setSaving = (isSaving) => {
@@ -1038,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const makeOption = ({ uid, name, dept, photo }) => {
             const optBtn = document.createElement('button');
             optBtn.type = 'button';
-            optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+            optBtn.className = 'w-full flex items-center justify-between gap-3 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
             optBtn.dataset.uid = uid;
 
             const optLeft = document.createElement('div');
@@ -1222,16 +1222,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'p-1 rounded-md text-text-muted hover:text-white hover:bg-white/5 transition-colors';
+        button.className = 'p-1 rounded-md text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors';
         button.setAttribute('aria-label', 'Opciones');
         button.innerHTML = '<span class="material-symbols-outlined text-[18px]">settings</span>';
 
         const menu = document.createElement('div');
-        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-44 bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-40';
+        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-44 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-40 text-gray-900 dark:text-white';
 
         const renameButton = document.createElement('button');
         renameButton.type = 'button';
-        renameButton.className = 'w-full flex items-center gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 text-left';
+        renameButton.className = 'w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
         renameButton.innerHTML = '<span class="material-symbols-outlined text-[18px]">edit</span>Editar nombre';
         renameButton.addEventListener('click', (event) => {
             event.preventDefault();
@@ -1479,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
 
         const card = document.createElement('div');
-        card.className = 'flex items-start gap-3 rounded-lg border border-border-dark bg-surface-dark/60 p-3';
+        card.className = 'flex items-start gap-3 rounded-lg border border-border-dark bg-white/80 dark:bg-surface-dark/60 p-3';
 
         const ic = document.createElement('span');
         ic.className = 'material-symbols-outlined text-primary';
@@ -1489,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
         textWrap.className = 'flex flex-col min-w-0';
 
         const titleEl = document.createElement('p');
-        titleEl.className = 'text-sm font-semibold text-white';
+        titleEl.className = 'text-sm font-semibold text-gray-900 dark:text-white';
         titleEl.textContent = title || '';
 
         const descEl = document.createElement('p');
@@ -1507,7 +1507,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clientListNav.innerHTML = '';
         for (let i = 0; i < rows; i += 1) {
             const row = document.createElement('div');
-            row.className = 'animate-pulse flex items-center gap-3 px-3 py-2 rounded-lg border border-border-dark bg-surface-dark/40';
+            row.className = 'animate-pulse flex items-center gap-3 px-3 py-2 rounded-lg border border-border-dark bg-white/70 dark:bg-surface-dark/40';
 
             const icon = document.createElement('div');
             icon.className = 'h-6 w-6 rounded bg-white/10';
@@ -1601,8 +1601,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeSidebarRow = ({ icon, label, manageId, active = false, indentClass = '', chevron = null }) => {
             const row = document.createElement('div');
-            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors ${indentClass}`;
-            if (active) row.classList.add('bg-white/5', 'text-white');
+            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
+            if (active) row.classList.add('bg-gray-100', 'text-gray-900', 'dark:bg-white/5', 'dark:text-white');
 
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2 flex-1 min-w-0';
@@ -1634,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const makeAddRow = ({ label, onClick, indentClass = '' }) => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = `flex items-center gap-2 w-full px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
+            button.className = `flex items-center gap-2 w-full px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
             button.innerHTML = '<span class="material-symbols-outlined text-[18px]">add</span>';
             const text = document.createElement('span');
             text.className = 'text-sm font-semibold truncate';
@@ -1985,7 +1985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         visibleClients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         visibleClients.forEach(client => {
                 const row = document.createElement('div');
-                row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
+                row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
                 row.dataset.clientId = client.id;
 
                 const selectButton = document.createElement('button');
@@ -2282,7 +2282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         projectArray.sort((a, b) => a.name.localeCompare(b.name));
         projectArray.forEach(proj => {
             const row = document.createElement('div');
-            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
             row.dataset.projectId = proj.id;
 
             const selectButton = document.createElement('button');
@@ -2395,7 +2395,7 @@ document.addEventListener('DOMContentLoaded', () => {
         productArray.sort((a, b) => a.name.localeCompare(b.name));
         productArray.forEach(prod => {
             const row = document.createElement('div');
-            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-white/5 hover:text-white transition-colors';
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
             row.dataset.productId = prod.id;
 
             const selectButton = document.createElement('button');
@@ -2547,7 +2547,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         subtaskArray.forEach(subtask => {
             const row = document.createElement('div');
-            row.className = `group ${activityGrid} items-center gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors`;
+            row.className = `group ${activityGrid} items-center gap-2 px-3 py-2 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors`;
             row.dataset.subtaskId = subtask.id;
 
             const selectButton = document.createElement('button');
@@ -2674,7 +2674,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const renderTreeState = ({ icon, title, description }) => {
             const card = document.createElement('div');
-            card.className = 'flex items-start gap-3 rounded-lg border border-border-dark bg-surface-dark/60 p-4';
+            card.className = 'flex items-start gap-3 rounded-lg border border-border-dark bg-white/80 dark:bg-surface-dark/60 p-4';
 
             const ic = document.createElement('span');
             ic.className = 'material-symbols-outlined text-primary';
@@ -2684,7 +2684,7 @@ document.addEventListener('DOMContentLoaded', () => {
             textWrap.className = 'flex flex-col min-w-0';
 
             const titleEl = document.createElement('p');
-            titleEl.className = 'text-sm font-semibold text-white';
+            titleEl.className = 'text-sm font-semibold text-gray-900 dark:text-white';
             titleEl.textContent = title || '';
 
             const descEl = document.createElement('p');
@@ -2758,7 +2758,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null, depth = 0) => {
             const summary = document.createElement('summary');
-            summary.className = `${treeGrid} cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg list-none`;
+            summary.className = `${treeGrid} cursor-pointer select-none px-3 py-2 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg list-none`;
 
             const nameCell = document.createElement('div');
             nameCell.className = 'flex items-center gap-2 min-w-0';
@@ -2833,7 +2833,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeTaskItem = (task, { taskPath, onStatusChange = null, onAssigneeChange = null, depth = 0 } = {}) => {
             const row = document.createElement('div');
-            row.className = `${treeGrid} px-3 py-1 rounded-md bg-surface-dark border border-border-dark text-white`;
+            row.className = `${treeGrid} px-3 py-1 rounded-md bg-white dark:bg-surface-dark border border-border-dark text-gray-900 dark:text-white`;
 
             const nameCell = document.createElement('div');
             nameCell.className = 'flex items-center gap-2 min-w-0';
@@ -2889,7 +2889,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clientsToRender.forEach(client => {
             const clientDetails = document.createElement('details');
-            clientDetails.className = 'bg-surface-dark border border-border-dark rounded-lg';
+            clientDetails.className = 'bg-white dark:bg-surface-dark border border-border-dark rounded-lg';
             const clientManage = client.manageId || '';
             clientDetails.dataset.manageId = client.manageId || `client:${client.id}`;
             if (selectionClientId && client.id === selectionClientId) clientDetails.open = true;
@@ -2978,7 +2978,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 subList.className = 'flex flex-col gap-1';
                                 subArray.forEach(sub => {
                                     const row = document.createElement('div');
-                                    row.className = `${treeGrid} px-3 py-1 rounded-md bg-surface-darker border border-border-dark text-white`;
+                                    row.className = `${treeGrid} px-3 py-1 rounded-md bg-white dark:bg-surface-darker border border-border-dark text-gray-900 dark:text-white`;
 
                                     const nameCell = document.createElement('div');
                                     nameCell.className = 'flex items-center gap-2 min-w-0';
@@ -3147,7 +3147,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         subList.className = 'flex flex-col gap-1';
                                         subArray.forEach(sub => {
                                             const row = document.createElement('div');
-                                            row.className = `${treeGrid} px-3 py-1 rounded-md bg-surface-darker border border-border-dark text-white`;
+                                            row.className = `${treeGrid} px-3 py-1 rounded-md bg-white dark:bg-surface-darker border border-border-dark text-gray-900 dark:text-white`;
 
                                             const nameCell = document.createElement('div');
                                             nameCell.className = 'flex items-center gap-2 min-w-0';
@@ -3296,7 +3296,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         taskArray.forEach(task => {
             const row = document.createElement('div');
-            row.className = `group ${activityGrid} items-center gap-2 px-3 py-2 rounded-lg border border-border-dark bg-surface-darker text-white hover:bg-white/5 transition-colors`;
+            row.className = `group ${activityGrid} items-center gap-2 px-3 py-2 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors`;
             row.dataset.taskId = task.id;
 
             const selectButton = document.createElement('button');
