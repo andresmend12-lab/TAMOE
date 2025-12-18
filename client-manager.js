@@ -1383,7 +1383,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientActions = createActionMenu({
                 onRename: async () => {
                     if (!currentUser) {
-                        alert("Debes iniciar sesi¢n para editar clientes.");
+                        alert("Debes iniciar sesión para editar clientes.");
                         return;
                     }
                     const nextNameRaw = prompt('Nuevo nombre del cliente', client.name);
@@ -1396,7 +1396,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         await update(ref(database, `clients/${client.id}`), { name: nextName });
                         await logActivity(
                             client.id,
-                            `Renombr¢ cliente "${previousName}" a "${nextName}".`,
+                            `Renombró cliente "${previousName}" a "${nextName}".`,
                             { action: 'rename', path: `clients/${client.id}`, entityType: 'client' }
                         );
                         client.name = nextName;
@@ -1414,10 +1414,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 onDelete: async () => {
                     if (!currentUser) {
-                        alert("Debes iniciar sesi¢n para eliminar clientes.");
+                        alert("Debes iniciar sesión para eliminar clientes.");
                         return;
                     }
-                    const confirmed = confirm(`¨Eliminar el cliente "${client.name}"?\n\nSe borrar n tambi‚n sus proyectos, productos y tareas.`);
+                    const confirmed = confirm(`¿Eliminar el cliente "${client.name}"?\n\nSe borrarán también sus proyectos, productos y tareas.`);
                     if (!confirmed) return;
 
                     try {
@@ -1483,7 +1483,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const projectActions = createActionMenu({
                         onRename: async () => {
                             if (!currentUser) {
-                                alert("Debes iniciar sesi¢n para editar proyectos.");
+                                alert("Debes iniciar sesión para editar proyectos.");
                                 return;
                             }
                             const nextNameRaw = prompt('Nuevo nombre del proyecto', proj.name);
@@ -1496,7 +1496,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 await update(ref(database, `clients/${client.id}/projects/${proj.id}`), { name: nextName });
                                 await logActivity(
                                     client.id,
-                                    `Renombr¢ proyecto "${previousName}" a "${nextName}".`,
+                                    `Renombró proyecto "${previousName}" a "${nextName}".`,
                                     { action: 'rename', path: `clients/${client.id}/projects/${proj.id}`, entityType: 'project' }
                                 );
                                 proj.name = nextName;
@@ -1515,17 +1515,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         },
                         onDelete: async () => {
                             if (!currentUser) {
-                                alert("Debes iniciar sesi¢n para eliminar proyectos.");
+                                alert("Debes iniciar sesión para eliminar proyectos.");
                                 return;
                             }
-                            const confirmed = confirm(`¨Eliminar el proyecto "${proj.name}"?\n\nSe borrar n tambi‚n sus productos y tareas.`);
+                            const confirmed = confirm(`¿Eliminar el proyecto "${proj.name}"?\n\nSe borrarán también sus productos y tareas.`);
                             if (!confirmed) return;
 
                             try {
                                 await remove(ref(database, `clients/${client.id}/projects/${proj.id}`));
                                 await logActivity(
                                     client.id,
-                                    `Elimin¢ proyecto "${proj.name}".`,
+                                    `Eliminó proyecto "${proj.name}".`,
                                     { action: 'delete', path: `clients/${client.id}/projects/${proj.id}`, entityType: 'project' }
                                 );
                                 if (projects?.[proj.id]) delete projects[proj.id];
@@ -1582,7 +1582,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const productActions = createActionMenu({
                                 onRename: async () => {
                                     if (!currentUser) {
-                                        alert("Debes iniciar sesi¢n para editar productos.");
+                                        alert("Debes iniciar sesión para editar productos.");
                                         return;
                                     }
                                     const nextNameRaw = prompt('Nuevo nombre del producto', prod.name);
@@ -1595,7 +1595,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         await update(ref(database, `clients/${client.id}/projects/${proj.id}/products/${prod.id}`), { name: nextName });
                                         await logActivity(
                                             client.id,
-                                            `Renombr¢ producto "${previousName}" a "${nextName}".`,
+                                            `Renombró producto "${previousName}" a "${nextName}".`,
                                             { action: 'rename', path: `clients/${client.id}/projects/${proj.id}/products/${prod.id}`, entityType: 'product' }
                                         );
                                         prod.name = nextName;
@@ -1618,17 +1618,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 },
                                 onDelete: async () => {
                                     if (!currentUser) {
-                                        alert("Debes iniciar sesi¢n para eliminar productos.");
+                                        alert("Debes iniciar sesión para eliminar productos.");
                                         return;
                                     }
-                                    const confirmed = confirm(`¨Eliminar el producto "${prod.name}"?\n\nSe borrar n tambi‚n sus tareas.`);
+                                    const confirmed = confirm(`¿Eliminar el producto "${prod.name}"?\n\nSe borrarán también sus tareas.`);
                                     if (!confirmed) return;
 
                                     try {
                                         await remove(ref(database, `clients/${client.id}/projects/${proj.id}/products/${prod.id}`));
                                         await logActivity(
                                             client.id,
-                                            `Elimin¢ producto "${prod.name}".`,
+                                            `Eliminó producto "${prod.name}".`,
                                             { action: 'delete', path: `clients/${client.id}/projects/${proj.id}/products/${prod.id}`, entityType: 'product' }
                                         );
                                         if (products?.[prod.id]) delete products[prod.id];
@@ -1674,7 +1674,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             clientChildren.appendChild(makeAddRow({
-                label: 'A¤adir proyecto',
+                label: 'Añadir proyecto',
                 onClick: () => {
                     showProjectView(client.id);
                     openProjectModal();
