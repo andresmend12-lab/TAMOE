@@ -29,6 +29,11 @@
             },
         }
     </script>
+    <style>
+        summary::-webkit-details-marker { display: none; }
+        summary::marker { content: ""; }
+        summary { list-style: none; }
+    </style>
     <script src="auth-guard.js" type="module"></script>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-900 dark:text-white h-screen overflow-hidden selection:bg-primary selection:text-white">

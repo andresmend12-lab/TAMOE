@@ -2447,19 +2447,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return progress;
         };
 
-        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null) => {
+        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null, depth = 0) => {
             const summary = document.createElement('summary');
-            summary.className = `${treeGrid} cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg`;
+            summary.className = `${treeGrid} cursor-pointer select-none px-3 py-2 text-white hover:bg-white/5 rounded-lg list-none`;
 
             const nameCell = document.createElement('div');
             nameCell.className = 'flex items-center gap-2 min-w-0';
+            const indent = document.createElement('span');
+            indent.className = 'shrink-0';
+            indent.style.width = `${Math.max(0, Number(depth) || 0) * 16}px`;
             const ic = document.createElement('span');
             ic.className = 'material-symbols-outlined text-text-muted';
             ic.textContent = icon;
             const title = document.createElement('span');
             title.className = 'text-sm font-semibold truncate flex-1 min-w-0';
             title.textContent = name;
-            nameCell.append(ic, title);
+            nameCell.append(indent, ic, title);
 
             const idCell = document.createElement('div');
             idCell.className = 'pl-4';
@@ -2514,19 +2517,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return summary;
         };
 
-        const makeTaskItem = (task, { taskPath, onStatusChange = null, onAssigneeChange = null } = {}) => {
+        const makeTaskItem = (task, { taskPath, onStatusChange = null, onAssigneeChange = null, depth = 0 } = {}) => {
             const row = document.createElement('div');
-            row.className = `${treeGrid} px-2 py-1 rounded-md bg-surface-dark border border-border-dark text-white`;
+            row.className = `${treeGrid} px-3 py-1 rounded-md bg-surface-dark border border-border-dark text-white`;
 
             const nameCell = document.createElement('div');
             nameCell.className = 'flex items-center gap-2 min-w-0';
+            const indent = document.createElement('span');
+            indent.className = 'shrink-0';
+            indent.style.width = `${Math.max(0, Number(depth) || 0) * 16}px`;
             const ic = document.createElement('span');
             ic.className = 'material-symbols-outlined text-text-muted text-[18px]';
             ic.textContent = 'check_circle';
             const name = document.createElement('span');
             name.className = 'text-sm truncate flex-1 min-w-0';
             name.textContent = task.name || 'Tarea';
-            nameCell.append(ic, name);
+            nameCell.append(indent, ic, name);
 
             const idCell = document.createElement('div');
             idCell.className = 'pl-4';
@@ -2571,7 +2577,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
 
             const clientContent = document.createElement('div');
-            clientContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2';
 
             const projects = client.projects || {};
             const rawProjectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
@@ -2605,11 +2611,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 renderClients();
                             }
                         },
-                        projProgress
+                        projProgress,
+                        1
                     ));
 
                     const projContent = document.createElement('div');
-                    projContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-2';
+                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2';
 
                     // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
@@ -2626,6 +2633,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             taskBlock.className = 'flex flex-col gap-1';
                             taskBlock.appendChild(makeTaskItem(t, {
                                 taskPath,
+                                depth: 2,
                                 onStatusChange: async (nextStatus) => {
                                     await updateStatusAtPath(taskPath, nextStatus);
                                     t.status = nextStatus;
@@ -2648,23 +2656,26 @@ document.addEventListener('DOMContentLoaded', () => {
                             subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
                             if (subArray.length) {
                                 const subList = document.createElement('div');
-                                subList.className = 'pl-5 flex flex-col gap-1';
+                                subList.className = 'flex flex-col gap-1';
                                 subArray.forEach(sub => {
                                     const row = document.createElement('div');
-                                    row.className = `${treeGrid} px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white`;
+                                    row.className = `${treeGrid} px-3 py-1 rounded-md bg-surface-darker border border-border-dark text-white`;
 
                                     const nameCell = document.createElement('div');
                                     nameCell.className = 'flex items-center gap-2 min-w-0';
+                                    const indent = document.createElement('span');
+                                    indent.className = 'shrink-0';
+                                    indent.style.width = `${3 * 16}px`;
 
                                     const ic = document.createElement('span');
                                     ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
                                     ic.textContent = 'subdirectory_arrow_right';
 
                                     const name = document.createElement('span');
-                                    name.className = 'text-sm truncate';
+                                    name.className = 'text-sm truncate flex-1 min-w-0';
                                     name.textContent = sub.name || 'Subtarea';
 
-                                    nameCell.append(ic, name);
+                                    nameCell.append(indent, ic, name);
 
                                     const subPath = `${taskPath}/subtasks/${sub.id}`;
                                     const statusControl = createStatusControl({
@@ -2756,11 +2767,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                         renderClients();
                                     }
                                 },
-                                prodProgress
+                                prodProgress,
+                                2
                             ));
 
                             const prodContent = document.createElement('div');
-                            prodContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-1';
+                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1';
 
                             const prodTasks = prod.tasks || {};
                             const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
@@ -2778,6 +2790,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     taskBlock.className = 'flex flex-col gap-1';
                                     taskBlock.appendChild(makeTaskItem(t, {
                                         taskPath,
+                                        depth: 3,
                                         onStatusChange: async (nextStatus) => {
                                             await updateStatusAtPath(taskPath, nextStatus);
                                             t.status = nextStatus;
@@ -2808,23 +2821,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                     subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
                                     if (subArray.length) {
                                         const subList = document.createElement('div');
-                                        subList.className = 'pl-5 flex flex-col gap-1';
+                                        subList.className = 'flex flex-col gap-1';
                                         subArray.forEach(sub => {
                                             const row = document.createElement('div');
-                                            row.className = `${treeGrid} px-2 py-1 rounded-md bg-surface-darker border border-border-dark text-white`;
+                                            row.className = `${treeGrid} px-3 py-1 rounded-md bg-surface-darker border border-border-dark text-white`;
 
                                             const nameCell = document.createElement('div');
                                             nameCell.className = 'flex items-center gap-2 min-w-0';
+                                            const indent = document.createElement('span');
+                                            indent.className = 'shrink-0';
+                                            indent.style.width = `${4 * 16}px`;
 
                                             const ic = document.createElement('span');
                                             ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
                                             ic.textContent = 'subdirectory_arrow_right';
 
                                             const name = document.createElement('span');
-                                            name.className = 'text-sm truncate';
+                                            name.className = 'text-sm truncate flex-1 min-w-0';
                                             name.textContent = sub.name || 'Subtarea';
 
-                                            nameCell.append(ic, name);
+                                            nameCell.append(indent, ic, name);
 
                                             const subPath = `${taskPath}/subtasks/${sub.id}`;
                                             const statusControl = createStatusControl({
