@@ -2426,7 +2426,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : visibleClients;
         const clientsToRender = [...baseClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-        const treeGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_90px] items-center gap-2';
+        const treeGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px] items-center gap-2';
 
         const computeTasksProgress = (tasksObject) => {
             const tasks = Object.values(tasksObject || {}).filter(Boolean);
@@ -2457,9 +2457,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ic.className = 'material-symbols-outlined text-text-muted';
             ic.textContent = icon;
             const title = document.createElement('span');
-            title.className = 'text-sm font-semibold truncate';
+            title.className = 'text-sm font-semibold truncate flex-1 min-w-0';
             title.textContent = name;
-            nameCell.append(ic, title);
+            const chip = createIdChip(manageId);
+            chip.classList.add('text-[11px]', 'shrink-0');
+            nameCell.append(ic, title, chip);
 
             const statusCell = document.createElement('div');
             if (status !== null) {
@@ -2502,9 +2504,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 metaCell.appendChild(wrap);
             }
 
-            const chip = createIdChip(manageId);
-            chip.classList.add('text-xs', 'justify-self-end');
-            summary.append(nameCell, statusCell, metaCell, chip);
+            summary.append(nameCell, statusCell, metaCell);
             return summary;
         };
 
@@ -2518,9 +2518,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ic.className = 'material-symbols-outlined text-text-muted text-[18px]';
             ic.textContent = 'check_circle';
             const name = document.createElement('span');
-            name.className = 'text-sm truncate';
+            name.className = 'text-sm truncate flex-1 min-w-0';
             name.textContent = task.name || 'Tarea';
-            nameCell.append(ic, name);
+            const chip = createIdChip(task.manageId);
+            chip.classList.add('text-[11px]', 'shrink-0');
+            nameCell.append(ic, name, chip);
 
             const statusControl = createStatusControl({
                 status: task.status,
@@ -2544,9 +2546,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            const chip = createIdChip(task.manageId);
-            chip.classList.add('text-[11px]', 'justify-self-end');
-            row.append(nameCell, statusControl, assigneeControl, chip);
+            row.append(nameCell, statusControl, assigneeControl);
             return row;
         };
 
@@ -2690,9 +2690,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                     });
 
                                     const chip = createIdChip(sub.manageId);
-                                    chip.classList.add('text-[11px]', 'justify-self-end');
+                                    chip.classList.add('text-[11px]', 'shrink-0');
+                                    nameCell.appendChild(chip);
 
-                                    row.append(nameCell, statusControl, assigneeControl, chip);
+                                    row.append(nameCell, statusControl, assigneeControl);
                                     subList.appendChild(row);
                                 });
                                 taskBlock.appendChild(subList);
@@ -2845,9 +2846,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                             });
 
                                             const chip = createIdChip(sub.manageId);
-                                            chip.classList.add('text-[11px]', 'justify-self-end');
+                                            chip.classList.add('text-[11px]', 'shrink-0');
+                                            nameCell.appendChild(chip);
 
-                                            row.append(nameCell, statusControl, assigneeControl, chip);
+                                            row.append(nameCell, statusControl, assigneeControl);
                                             subList.appendChild(row);
                                         });
                                         taskBlock.appendChild(subList);
