@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailFrame = document.getElementById('detail-frame');
     const treeView = document.getElementById('tree-view');
     const projectDetail = document.getElementById('project-detail');
+    const dashboardTabs = document.getElementById('dashboard-tabs');
 
     if (!detailView || !detailFrame) return;
 
@@ -20,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         detailFrame.src = `detail.html?mid=${encodeURIComponent(manageId)}`;
         treeView?.classList.add('hidden');
         projectDetail?.classList.add('hidden');
+        dashboardTabs?.classList.add('hidden');
         document.title = `Detalle ${manageId} | Tamoe`;
         return;
     }
@@ -27,5 +29,5 @@ document.addEventListener('DOMContentLoaded', () => {
     detailView.classList.add('hidden');
     detailFrame.removeAttribute('src');
     treeView?.classList.remove('hidden');
+    dashboardTabs?.classList.remove('hidden');
 });
-
