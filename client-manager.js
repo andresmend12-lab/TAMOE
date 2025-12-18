@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const treeView = document.getElementById('tree-view');
     const clientSearchInput = document.getElementById('client-search-input');
     const tamoeHomeButton = document.getElementById('tamoe-home');
+    const activityPathEls = Array.from(document.querySelectorAll('[data-activity-path]'));
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -103,6 +104,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // helpers to show/hide elements
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
+
+    const updateActivityPath = () => {
+        if (!activityPathEls.length) return;
+
+        const setPath = (text) => {
+            for (const el of activityPathEls) {
+                el.textContent = text;
+                el.title = text || '';
+            }
+        };
+
+        if (!selectedClientId) {
+            setPath('Todas las actividades');
+            return;
+        }
+
+        const client = allClients.find(c => c.id === selectedClientId);
+        const clientName = client?.name || selectedClientId;
+        const clientManage = client?.manageId ? ` (${client.manageId})` : '';
+
+        if (!selectedProjectId) {
+            const text = `${clientName}${clientManage}`;
+            setPath(text);
+            return;
+        }
+
+        const project = client?.projects?.[selectedProjectId];
+        const projectName = project?.name || selectedProjectId;
+        const projectManage = project?.manageId ? ` (${project.manageId})` : '';
+
+        if (!selectedProductId) {
+            const text = `${clientName}${clientManage} / ${projectName}${projectManage}`;
+            setPath(text);
+            return;
+        }
+
+        const product = project?.products?.[selectedProductId];
+        const productName = product?.name || selectedProductId;
+        const productManage = product?.manageId ? ` (${product.manageId})` : '';
+
+        const text = `${clientName}${clientManage} / ${projectName}${projectManage} / ${productName}${productManage}`;
+        setPath(text);
+    };
 
     const stripWrappingQuotes = (value) => {
         let text = String(value ?? '').trim();
@@ -314,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const ENABLE_QC_AUTOMATION = false;
     const QC_TASK_TEMPLATE = 'qc_review';
     const QC_TASK_NAME = '✅ Revisión de Control de Calidad';
 
@@ -449,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const shouldTriggerFinalization = prevStatus !== 'Finalizado' && normalized === 'Finalizado';
 
-                if (shouldTriggerFinalization && parsed?.clientId && parsed.projectId) {
+                if (ENABLE_QC_AUTOMATION && shouldTriggerFinalization && parsed?.clientId && parsed.projectId) {
                     if (parsed.type === 'task') {
                         if (!isQualityControlTask(itemBefore)) {
                             const tasksPath = parsed.productId
@@ -1789,6 +1834,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(projectListSection);
         showEl(clientListSection);
         renderClients();
+        updateActivityPath();
         renderTree();
     };
 
@@ -1830,6 +1876,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderClients();
+        updateActivityPath();
         renderTree();
     };
 
@@ -1862,6 +1909,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderClients();
+        updateActivityPath();
         renderTree();
     };
 
@@ -1893,6 +1941,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderClients();
+        updateActivityPath();
         renderTree();
     };
 
@@ -3116,6 +3165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showEl(clientListSection);
             hideEl(backToClientsBtn);
             hideEl(backToProjectsBtn);
+            updateActivityPath();
             renderTree();
             return;
         }
@@ -3135,6 +3185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showEl(clientListSection);
             hideEl(backToClientsBtn);
             hideEl(backToProjectsBtn);
+            updateActivityPath();
             renderTree();
             return;
         }
@@ -3165,6 +3216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderTasks(selectedClientId, selectedProjectId, selectedProductId);
+        updateActivityPath();
         renderTree();
     };
 
