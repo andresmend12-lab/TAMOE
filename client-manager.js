@@ -44,6 +44,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMetricInProgressTasks = document.getElementById('status-metric-inprogress-tasks');
     const statusMetricDoneTasks = document.getElementById('status-metric-done-tasks');
     const statusRecentProjectsBody = document.getElementById('status-recent-projects');
+    const statusScopeTitle = document.getElementById('status-scope-title');
+    const statusScopeSubtitle = document.getElementById('status-scope-subtitle');
+    const statusRecentTitle = document.getElementById('status-recent-title');
+    const statusActivityHeader = document.getElementById('status-activity-header');
+    const statusMetricActiveLabel = document.getElementById('status-metric-active-label');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -154,16 +159,76 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderStatusDashboard = () => {
-        if (!statusMetricActiveProjects && !statusRecentProjectsBody) return;
+        if (
+            !statusMetricActiveProjects &&
+            !statusRecentProjectsBody &&
+            !statusScopeTitle &&
+            !statusScopeSubtitle
+        ) {
+            return;
+        }
 
         const safeClients = Array.isArray(allClients) ? allClients : [];
-        const projectRows = [];
-        let activeProjects = 0;
+        const selectionClient = selectedClientId
+            ? safeClients.find(c => c.id === selectedClientId)
+            : null;
+        const selectionProject = selectionClient?.projects?.[selectedProjectId] || null;
+        const selectionProduct = selectionProject && selectedProductId
+            ? selectionProject.products?.[selectedProductId]
+            : null;
+
+        const scopeType = selectionProduct
+            ? 'product'
+            : selectionProject
+                ? 'project'
+                : selectionClient
+                    ? 'client'
+                    : 'all';
+
+        const scopeName = scopeType === 'product'
+            ? (selectionProduct?.name || selectedProductId || 'Producto')
+            : scopeType === 'project'
+                ? (selectionProject?.name || selectedProjectId || 'Proyecto')
+                : scopeType === 'client'
+                    ? (selectionClient?.name || selectedClientId || 'Cliente')
+                    : 'Todos los clientes';
+
+        const scopeTitle = scopeType === 'product'
+            ? 'Estado del producto'
+            : scopeType === 'project'
+                ? 'Estado del proyecto'
+                : 'Estado de proyectos';
+
+        const scopeSubtitle = scopeType === 'all'
+            ? 'Resumen general de clientes, proyectos y tareas.'
+            : scopeType === 'client'
+                ? `Resumen del cliente ${scopeName}.`
+                : scopeType === 'project'
+                    ? `Resumen del proyecto ${scopeName}.`
+                    : `Resumen del producto ${scopeName}.`;
+
+        const recentTitle = scopeType === 'product'
+            ? 'Producto seleccionado'
+            : scopeType === 'project'
+                ? 'Proyecto seleccionado'
+                : 'Proyectos recientes';
+
+        const activityHeader = scopeType === 'product' ? 'Producto' : 'Proyecto';
+        const activeLabel = scopeType === 'product' ? 'Productos activos' : 'Proyectos activos';
+
+        if (statusScopeTitle) statusScopeTitle.textContent = scopeTitle;
+        if (statusScopeSubtitle) statusScopeSubtitle.textContent = scopeSubtitle;
+        if (statusRecentTitle) statusRecentTitle.textContent = recentTitle;
+        if (statusActivityHeader) statusActivityHeader.textContent = activityHeader;
+        if (statusMetricActiveLabel) statusMetricActiveLabel.textContent = activeLabel;
+
+        const activityRows = [];
+        let activeItems = 0;
         let pendingTasks = 0;
         let inProgressTasks = 0;
         let doneTasks = 0;
 
-        const getProjectTasks = (project) => {
+        const getTasksFromProject = (project) => {
             const tasks = [];
             const projectTasks = project?.tasks || {};
             for (const [taskId, task] of Object.entries(projectTasks)) {
@@ -179,39 +244,77 @@ document.addEventListener('DOMContentLoaded', () => {
             return tasks;
         };
 
-        for (const client of safeClients) {
-            const clientName = client?.name || client?.id || '';
-            const projects = client?.projects || {};
-            for (const [projectId, project] of Object.entries(projects)) {
-                const status = normalizeStatus(project?.status);
-                if (status !== 'Finalizado') activeProjects += 1;
+        const getTasksFromProduct = (product) => {
+            const tasks = [];
+            const productTasks = product?.tasks || {};
+            for (const [taskId, task] of Object.entries(productTasks)) {
+                tasks.push({ id: taskId, ...task });
+            }
+            return tasks;
+        };
 
-                const tasks = getProjectTasks(project);
-                let total = 0;
-                let done = 0;
-                for (const task of tasks) {
-                    const taskStatus = normalizeStatus(task?.status);
-                    total += 1;
-                    if (taskStatus === 'Finalizado') done += 1;
-                    else if (taskStatus === 'En proceso') inProgressTasks += 1;
-                    else pendingTasks += 1;
-                }
-                doneTasks += done;
+        const countTasks = (tasks) => {
+            let total = 0;
+            let done = 0;
+            for (const task of tasks) {
+                const taskStatus = normalizeStatus(task?.status);
+                total += 1;
+                if (taskStatus === 'Finalizado') done += 1;
+                else if (taskStatus === 'En proceso') inProgressTasks += 1;
+                else pendingTasks += 1;
+            }
+            doneTasks += done;
+            return { total, done };
+        };
 
-                const createdAt = project?.createdAt || '';
-                projectRows.push({
-                    clientName,
-                    projectId,
-                    projectName: project?.name || projectId,
+        if (scopeType === 'product') {
+            if (selectionClient && selectionProject && selectionProduct) {
+                const status = normalizeStatus(selectionProduct?.status);
+                if (status !== 'Finalizado') activeItems += 1;
+                const tasks = getTasksFromProduct(selectionProduct);
+                const { total, done } = countTasks(tasks);
+                const createdAt = selectionProduct?.createdAt || '';
+
+                activityRows.push({
+                    clientName: selectionClient?.name || selectionClient?.id || '',
+                    activityName: selectionProduct?.name || selectedProductId || 'Producto',
                     status,
-                    manageId: project?.manageId || '',
+                    manageId: selectionProduct?.manageId || '',
                     createdAt,
                     progress: total ? Math.round((done / total) * 100) : 0,
                 });
             }
+        } else {
+            const clientsToScan = selectionClient ? [selectionClient] : safeClients;
+            for (const client of clientsToScan) {
+                const clientName = client?.name || client?.id || '';
+                const projects = client?.projects || {};
+                const projectEntries = scopeType === 'project' && selectedProjectId
+                    ? [[selectedProjectId, projects?.[selectedProjectId]]]
+                    : Object.entries(projects);
+
+                for (const [projectId, project] of projectEntries) {
+                    if (!project) continue;
+                    const status = normalizeStatus(project?.status);
+                    if (status !== 'Finalizado') activeItems += 1;
+
+                    const tasks = getTasksFromProject(project);
+                    const { total, done } = countTasks(tasks);
+                    const createdAt = project?.createdAt || '';
+
+                    activityRows.push({
+                        clientName,
+                        activityName: project?.name || projectId,
+                        status,
+                        manageId: project?.manageId || '',
+                        createdAt,
+                        progress: total ? Math.round((done / total) * 100) : 0,
+                    });
+                }
+            }
         }
 
-        if (statusMetricActiveProjects) statusMetricActiveProjects.textContent = String(activeProjects);
+        if (statusMetricActiveProjects) statusMetricActiveProjects.textContent = String(activeItems);
         if (statusMetricPendingTasks) statusMetricPendingTasks.textContent = String(pendingTasks);
         if (statusMetricInProgressTasks) statusMetricInProgressTasks.textContent = String(inProgressTasks);
         if (statusMetricDoneTasks) statusMetricDoneTasks.textContent = String(doneTasks);
@@ -223,15 +326,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return Number.isFinite(t) ? t : 0;
         };
 
-        const sorted = projectRows
+        const sorted = activityRows
             .slice()
-            .sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt) || a.projectName.localeCompare(b.projectName));
+            .sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt) || a.activityName.localeCompare(b.activityName));
 
         statusRecentProjectsBody.innerHTML = '';
 
         if (!sorted.length) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="p-4 text-text-muted text-sm" colspan="5">No hay proyectos.</td>`;
+            const emptyLabel = scopeType === 'product' ? 'No hay productos.' : 'No hay proyectos.';
+            tr.innerHTML = `<td class="p-4 text-text-muted text-sm" colspan="4">${emptyLabel}</td>`;
             statusRecentProjectsBody.appendChild(tr);
             return;
         }
@@ -241,13 +345,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-white/5 transition-colors';
 
-            const projectLabel = document.createElement(row.manageId ? 'a' : 'span');
-            projectLabel.className = row.manageId ? 'text-white font-semibold hover:underline' : 'text-white font-semibold';
-            projectLabel.textContent = row.projectName;
+            const nameWrap = document.createElement('span');
+            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+
+            const activityLabel = document.createElement(row.manageId ? 'a' : 'span');
+            activityLabel.className = row.manageId
+                ? 'text-white font-semibold hover:underline truncate'
+                : 'text-white font-semibold truncate';
+            activityLabel.textContent = row.activityName;
             if (row.manageId) {
-                projectLabel.href = `/${encodeURIComponent(row.manageId)}`;
-                projectLabel.target = '_blank';
-                projectLabel.rel = 'noopener';
+                activityLabel.href = `/${encodeURIComponent(row.manageId)}`;
+                activityLabel.target = '_blank';
+                activityLabel.rel = 'noopener';
+            }
+            nameWrap.appendChild(activityLabel);
+
+            if (row.manageId) {
+                const idTag = createIdChip(row.manageId);
+                idTag.classList.add('text-[11px]', 'font-mono');
+                nameWrap.appendChild(idTag);
             }
 
             const statusStyle = STATUS_STYLES[row.status] || STATUS_STYLES['Pendiente'];
@@ -268,10 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="p-4">
                     <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${statusStyle}">${row.status}</span>
                 </td>
-                <td class="p-4 text-text-muted text-sm font-mono">${row.manageId || '-'}</td>
             `;
 
-            tr.children[0].appendChild(projectLabel);
+            tr.children[0].appendChild(nameWrap);
             tr.children[1].textContent = row.clientName || '-';
 
             statusRecentProjectsBody.appendChild(tr);
@@ -1970,6 +2085,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderClients();
         updateActivityPath();
         renderTree();
+        renderStatusDashboard();
     };
 
     const resetProjectDetail = () => {
@@ -2012,6 +2128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderClients();
         updateActivityPath();
         renderTree();
+        renderStatusDashboard();
     };
 
     const showProductView = (clientId, projectId, { autoOpen = true } = {}) => {
@@ -2045,6 +2162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderClients();
         updateActivityPath();
         renderTree();
+        renderStatusDashboard();
     };
 
     const selectSidebarProduct = (clientId, projectId, productId) => {
@@ -2077,6 +2195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderClients();
         updateActivityPath();
         renderTree();
+        renderStatusDashboard();
     };
 
     // Modal handling
@@ -2306,6 +2425,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (projectDetailName) projectDetailName.textContent = prod.name;
                 if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
                 renderTasks(clientId, projectId, prod.id);
+                updateActivityPath();
+                renderStatusDashboard();
             });
 
             const actions = createActionMenu({
@@ -2408,7 +2529,7 @@ document.addEventListener('DOMContentLoaded', () => {
         noSubtasksMessage.classList.add('hidden');
         subtaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-        const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_90px_32px]';
+        const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_32px]';
 
         const headerRow = document.createElement('div');
         headerRow.className = `${activityGrid} items-center gap-2 px-3 pt-1 pb-2 text-[11px] text-text-muted uppercase tracking-wider`;
@@ -2416,7 +2537,6 @@ document.addEventListener('DOMContentLoaded', () => {
             Object.assign(document.createElement('span'), { textContent: 'Nombre' }),
             Object.assign(document.createElement('span'), { textContent: 'Estado' }),
             Object.assign(document.createElement('span'), { textContent: 'Asignado a' }),
-            Object.assign(document.createElement('span'), { textContent: 'ID' }),
             document.createElement('span')
         );
         subtaskList.appendChild(headerRow);
@@ -2438,9 +2558,13 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = 'material-symbols-outlined text-text-muted';
             icon.textContent = 'subdirectory_arrow_right';
 
+            const nameWrap = document.createElement('span');
+            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = subtask.name;
+            nameWrap.appendChild(nameSpan);
 
             const subtaskPath = `${basePath}/${subtask.id}`;
             const statusControl = createStatusControl({
@@ -2463,8 +2587,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             const idTag = createIdChip(subtask.manageId);
+            idTag.classList.add('text-[11px]');
+            if (subtask.manageId) nameWrap.appendChild(idTag);
 
-            selectButton.append(icon, nameSpan);
+            selectButton.append(icon, nameWrap);
             selectButton.addEventListener('click', () => {
                 selectedSubtaskId = subtask.id;
             });
@@ -2521,7 +2647,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            row.append(selectButton, statusControl, assigneeControl, idTag, actions);
+            row.append(selectButton, statusControl, assigneeControl, actions);
             subtaskList.appendChild(row);
         });
     };
@@ -2609,7 +2735,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : visibleClients;
         const clientsToRender = [...baseClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-        const treeGrid = 'grid grid-cols-[minmax(0,1fr)_120px_140px_260px_220px] items-center gap-1';
+        const treeGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_220px] items-center gap-1';
 
         const computeTasksProgress = (tasksObject) => {
             const tasks = Object.values(tasksObject || {}).filter(Boolean);
@@ -2642,16 +2768,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const ic = document.createElement('span');
             ic.className = 'material-symbols-outlined text-text-muted';
             ic.textContent = icon;
+            const nameWrap = document.createElement('span');
+            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+
             const title = document.createElement('span');
             title.className = 'text-sm font-semibold truncate flex-1 min-w-0';
             title.textContent = name;
-            nameCell.append(indent, ic, title);
+            nameWrap.appendChild(title);
 
-            const idCell = document.createElement('div');
-            idCell.className = 'pl-4';
-            const chip = createIdChip(manageId);
-            chip.classList.add('text-[11px]', 'shrink-0');
-            idCell.appendChild(chip);
+            if (manageId) {
+                const chip = createIdChip(manageId);
+                chip.classList.add('text-[11px]', 'shrink-0');
+                nameWrap.appendChild(chip);
+            }
+
+            nameCell.append(indent, ic, nameWrap);
 
             const statusCell = document.createElement('div');
             if (status !== null) {
@@ -2696,7 +2827,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const assigneeCell = document.createElement('div');
             assigneeCell.className = 'min-w-0';
-            summary.append(nameCell, idCell, statusCell, metaCell, assigneeCell);
+            summary.append(nameCell, statusCell, metaCell, assigneeCell);
             return summary;
         };
 
@@ -2712,16 +2843,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const ic = document.createElement('span');
             ic.className = 'material-symbols-outlined text-text-muted text-[18px]';
             ic.textContent = 'check_circle';
+            const nameWrap = document.createElement('span');
+            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+
             const name = document.createElement('span');
             name.className = 'text-sm truncate flex-1 min-w-0';
             name.textContent = task.name || 'Tarea';
-            nameCell.append(indent, ic, name);
+            nameWrap.appendChild(name);
 
-            const idCell = document.createElement('div');
-            idCell.className = 'pl-4';
-            const chip = createIdChip(task.manageId);
-            chip.classList.add('text-[11px]', 'shrink-0');
-            idCell.appendChild(chip);
+            if (task.manageId) {
+                const chip = createIdChip(task.manageId);
+                chip.classList.add('text-[11px]', 'shrink-0');
+                nameWrap.appendChild(chip);
+            }
+
+            nameCell.append(indent, ic, nameWrap);
 
             const statusControl = createStatusControl({
                 status: task.status,
@@ -2747,7 +2883,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const progressCell = document.createElement('div');
             progressCell.className = 'min-w-0';
-            row.append(nameCell, idCell, statusControl, progressCell, assigneeControl);
+            row.append(nameCell, statusControl, progressCell, assigneeControl);
             return row;
         };
 
@@ -2760,7 +2896,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
 
             const clientContent = document.createElement('div');
-            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2';
+            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2 border-l-2 border-border-dark/70 ml-4 pl-4';
 
             const projects = client.projects || {};
             const rawProjectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
@@ -2799,7 +2935,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ));
 
                     const projContent = document.createElement('div');
-                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2';
+                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2 border-l-2 border-border-dark/60 ml-4 pl-4';
 
                     // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
@@ -2854,11 +2990,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
                                     ic.textContent = 'subdirectory_arrow_right';
 
+                                    const nameWrap = document.createElement('span');
+                                    nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+
                                     const name = document.createElement('span');
                                     name.className = 'text-sm truncate flex-1 min-w-0';
                                     name.textContent = sub.name || 'Subtarea';
+                                    nameWrap.appendChild(name);
 
-                                    nameCell.append(indent, ic, name);
+                                    if (sub.manageId) {
+                                        const chip = createIdChip(sub.manageId);
+                                        chip.classList.add('text-[11px]', 'shrink-0');
+                                        nameWrap.appendChild(chip);
+                                    }
+
+                                    nameCell.append(indent, ic, nameWrap);
 
                                     const subPath = `${taskPath}/subtasks/${sub.id}`;
                                     const statusControl = createStatusControl({
@@ -2895,15 +3041,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                         }
                                     });
 
-                                    const idCell = document.createElement('div');
-                                    idCell.className = 'pl-4';
-                                    const chip = createIdChip(sub.manageId);
-                                    chip.classList.add('text-[11px]', 'shrink-0');
-                                    idCell.appendChild(chip);
-
                                     const progressCell = document.createElement('div');
                                     progressCell.className = 'min-w-0';
-                                    row.append(nameCell, idCell, statusControl, progressCell, assigneeControl);
+                                    row.append(nameCell, statusControl, progressCell, assigneeControl);
                                     subList.appendChild(row);
                                 });
                                 taskBlock.appendChild(subList);
@@ -2955,7 +3095,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ));
 
                             const prodContent = document.createElement('div');
-                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1';
+                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1 border-l-2 border-border-dark/50 ml-4 pl-4';
 
                             const prodTasks = prod.tasks || {};
                             const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
@@ -3019,11 +3159,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                             ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
                                             ic.textContent = 'subdirectory_arrow_right';
 
+                                            const nameWrap = document.createElement('span');
+                                            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+
                                             const name = document.createElement('span');
                                             name.className = 'text-sm truncate flex-1 min-w-0';
                                             name.textContent = sub.name || 'Subtarea';
+                                            nameWrap.appendChild(name);
 
-                                            nameCell.append(indent, ic, name);
+                                            if (sub.manageId) {
+                                                const chip = createIdChip(sub.manageId);
+                                                chip.classList.add('text-[11px]', 'shrink-0');
+                                                nameWrap.appendChild(chip);
+                                            }
+
+                                            nameCell.append(indent, ic, nameWrap);
 
                                             const subPath = `${taskPath}/subtasks/${sub.id}`;
                                             const statusControl = createStatusControl({
@@ -3060,15 +3210,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 }
                                             });
 
-                                            const idCell = document.createElement('div');
-                                            idCell.className = 'pl-4';
-                                            const chip = createIdChip(sub.manageId);
-                                            chip.classList.add('text-[11px]', 'shrink-0');
-                                            idCell.appendChild(chip);
-
                                             const progressCell = document.createElement('div');
                                             progressCell.className = 'min-w-0';
-                                            row.append(nameCell, idCell, statusControl, progressCell, assigneeControl);
+                                            row.append(nameCell, statusControl, progressCell, assigneeControl);
                                             subList.appendChild(row);
                                         });
                                         taskBlock.appendChild(subList);
@@ -3138,7 +3282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         noTasksMessage.classList.add('hidden');
         taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-        const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_90px_32px]';
+        const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_32px]';
 
         const headerRow = document.createElement('div');
         headerRow.className = `${activityGrid} items-center gap-2 px-3 pt-1 pb-2 text-[11px] text-text-muted uppercase tracking-wider`;
@@ -3146,7 +3290,6 @@ document.addEventListener('DOMContentLoaded', () => {
             Object.assign(document.createElement('span'), { textContent: 'Nombre' }),
             Object.assign(document.createElement('span'), { textContent: 'Estado' }),
             Object.assign(document.createElement('span'), { textContent: 'Asignado a' }),
-            Object.assign(document.createElement('span'), { textContent: 'ID' }),
             document.createElement('span')
         );
         taskList.appendChild(headerRow);
@@ -3164,9 +3307,13 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = 'material-symbols-outlined text-text-muted';
             icon.textContent = 'check_circle';
 
+            const nameWrap = document.createElement('span');
+            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
             nameSpan.textContent = task.name;
+            nameWrap.appendChild(nameSpan);
 
             const taskPath = productId
                 ? `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${task.id}`
@@ -3192,8 +3339,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             const idTag = createIdChip(task.manageId);
+            idTag.classList.add('text-[11px]');
+            if (task.manageId) nameWrap.appendChild(idTag);
 
-            selectButton.append(icon, nameSpan);
+            selectButton.append(icon, nameWrap);
             selectButton.addEventListener('click', () => {
                 selectedTaskId = task.id;
                 selectedSubtaskId = null;
@@ -3266,7 +3415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            row.append(selectButton, statusControl, assigneeControl, idTag, actions);
+            row.append(selectButton, statusControl, assigneeControl, actions);
             taskList.appendChild(row);
         });
 

@@ -216,9 +216,8 @@
                              <span id="tree-expand-label">Expandir todo</span>
                          </button>
                      </div>
-                     <div class="grid grid-cols-[minmax(0,1fr)_120px_140px_260px_220px] items-center gap-1 px-3 pb-2 text-[11px] text-text-muted uppercase tracking-wide">
+                     <div class="grid grid-cols-[minmax(0,1fr)_140px_260px_220px] items-center gap-1 px-3 pb-2 text-[11px] text-text-muted uppercase tracking-wide">
                          <span class="truncate">Nombre</span>
-                         <span class="pl-4">ID</span>
                          <span>Estado</span>
                          <span>Progreso</span>
                          <span>Asignación</span>
@@ -275,13 +274,13 @@
                             <span class="text-white font-medium">Estado</span>
                         </div>
                         <div class="flex flex-col border-b border-border-dark pb-4">
-                            <h2 class="text-white text-3xl font-bold tracking-tight">Estado de proyectos</h2>
-                            <p class="text-text-muted text-sm mt-2">Resumen general de clientes, proyectos y tareas.</p>
+                            <h2 id="status-scope-title" class="text-white text-3xl font-bold tracking-tight">Estado de proyectos</h2>
+                            <p id="status-scope-subtitle" class="text-text-muted text-sm mt-2">Resumen general de clientes, proyectos y tareas.</p>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div class="bg-surface-dark rounded-xl p-5 border border-white/5 shadow-lg">
-                                <p class="text-text-muted text-sm font-medium mb-2">Proyectos activos</p>
+                                <p id="status-metric-active-label" class="text-text-muted text-sm font-medium mb-2">Proyectos activos</p>
                                 <p id="status-metric-active-projects" class="text-3xl font-bold text-white">—</p>
                             </div>
                             <div class="bg-surface-dark rounded-xl p-5 border border-white/5 shadow-lg">
@@ -300,23 +299,22 @@
 
                         <div class="flex flex-col gap-3">
                             <div class="flex items-center justify-between">
-                                <h3 class="text-xl font-bold text-white">Proyectos recientes</h3>
+                                <h3 id="status-recent-title" class="text-xl font-bold text-white">Proyectos recientes</h3>
                             </div>
                             <div class="bg-surface-dark rounded-xl border border-white/5 overflow-hidden">
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-left border-collapse">
                                         <thead>
                                         <tr class="border-b border-white/5 bg-background-dark">
-                                            <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Proyecto</th>
+                                            <th id="status-activity-header" class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Proyecto</th>
                                             <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Cliente</th>
                                             <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Progreso</th>
                                             <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Estado</th>
-                                            <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">ID</th>
                                         </tr>
                                         </thead>
                                         <tbody id="status-recent-projects" class="divide-y divide-white/5">
                                         <tr>
-                                            <td class="p-4 text-text-muted text-sm" colspan="5">Cargando...</td>
+                                            <td class="p-4 text-text-muted text-sm" colspan="4">Cargando...</td>
                                         </tr>
                                         </tbody>
                                     </table>
