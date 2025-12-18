@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const treeExpandLabel = document.getElementById('tree-expand-label');
     const treeView = document.getElementById('tree-view');
     const clientSearchInput = document.getElementById('client-search-input');
+    const tamoeHomeButton = document.getElementById('tamoe-home');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -3454,6 +3455,13 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedProjectId = null;
             selectedProductId = null;
             if (selectedClientId) showProjectView(selectedClientId);
+        });
+
+        tamoeHomeButton?.addEventListener('click', () => {
+            clientSearchQuery = '';
+            if (clientSearchInput) clientSearchInput.value = '';
+            sidebarAutoOpenKeys.clear();
+            showClientView();
         });
 
         userMenuToggle?.addEventListener('click', toggleUserMenu);
