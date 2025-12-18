@@ -579,7 +579,11 @@
             const text = String(value || '').trim();
             if (!text) return '?';
             const parts = text.split(/\s+/).filter(Boolean);
-            if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+            if (parts.length >= 2) {
+                const firstName = parts[0];
+                const firstSurname = parts.length >= 3 ? parts[parts.length - 2] : parts[1];
+                return `${firstName[0] || ''}${firstSurname[0] || ''}`.toUpperCase() || '?';
+            }
             if (parts[0].length >= 2) return parts[0].slice(0, 2).toUpperCase();
             return parts[0][0].toUpperCase();
         };
