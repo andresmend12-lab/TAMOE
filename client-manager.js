@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const treeExpandToggle = document.getElementById('tree-expand-toggle');
     const treeExpandIcon = document.getElementById('tree-expand-icon');
     const treeExpandLabel = document.getElementById('tree-expand-label');
+    const treeView = document.getElementById('tree-view');
     const clientSearchInput = document.getElementById('client-search-input');
 
     // Modals & forms
@@ -1382,6 +1383,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedProductId = null;
         hideEl(backToClientsBtn);
         resetProjectDetail();
+        showEl(treeView);
         hideEl(productListSection);
         hideEl(projectListSection);
         showEl(clientListSection);
@@ -1418,6 +1420,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clientNameHeader) clientNameHeader.textContent = client.name;
         renderProjects(clientId);
         resetProjectDetail();
+        hideEl(treeView);
+        showEl(projectDetail);
         showEl(backToClientsBtn);
         hideEl(productListSection);
         showEl(projectListSection);
@@ -1447,6 +1451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
         renderTasks(clientId, projectId, null);
 
+        hideEl(treeView);
         showEl(productListSection);
         hideEl(projectListSection);
         hideEl(clientListSection);
