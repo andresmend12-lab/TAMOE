@@ -1788,6 +1788,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideEl(projectListSection);
         showEl(clientListSection);
         renderClients();
+        renderTree();
     };
 
     const resetProjectDetail = () => {
@@ -1821,14 +1822,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
         if (clientNameHeader) clientNameHeader.textContent = client.name;
         resetProjectDetail();
-        hideEl(treeView);
-        showEl(projectDetail);
+        showEl(treeView);
         hideEl(productListSection);
         hideEl(projectListSection);
         showEl(clientListSection);
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderClients();
+        renderTree();
     };
 
     const showProductView = (clientId, projectId, { autoOpen = true } = {}) => {
@@ -1853,13 +1854,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
         renderTasks(clientId, projectId, null);
 
-        hideEl(treeView);
+        showEl(treeView);
         hideEl(productListSection);
         hideEl(projectListSection);
         showEl(clientListSection);
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderClients();
+        renderTree();
     };
 
     const selectSidebarProduct = (clientId, projectId, productId) => {
@@ -1883,13 +1885,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
         renderTasks(clientId, projectId, productId);
 
-        hideEl(treeView);
+        showEl(treeView);
         hideEl(productListSection);
         hideEl(projectListSection);
         showEl(clientListSection);
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderClients();
+        renderTree();
     };
 
     // Modal handling
@@ -2413,7 +2416,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const sortedClients = [...visibleClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const selectionClientId = selectedClientId;
+        const selectionProjectId = selectedProjectId;
+        const selectionProductId = selectionProjectId ? selectedProductId : null;
+
+        const baseClients = selectionClientId
+            ? allClients.filter(c => c.id === selectionClientId)
+            : visibleClients;
+        const clientsToRender = [...baseClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
         const treeGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_90px] items-center gap-2';
 
@@ -2539,18 +2549,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return row;
         };
 
-        sortedClients.forEach(client => {
+        clientsToRender.forEach(client => {
             const clientDetails = document.createElement('details');
             clientDetails.className = 'bg-surface-dark border border-border-dark rounded-lg';
             const clientManage = client.manageId || '';
             clientDetails.dataset.manageId = client.manageId || `client:${client.id}`;
+            if (selectionClientId && client.id === selectionClientId) clientDetails.open = true;
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
 
             const clientContent = document.createElement('div');
             clientContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
 
             const projects = client.projects || {};
-            const projectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
+            const rawProjectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
+            const projectArray = selectionProjectId
+                ? rawProjectArray.filter(p => p.id === selectionProjectId)
+                : rawProjectArray;
             projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
             if (projectArray.length === 0) {
@@ -2563,6 +2577,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const projDetails = document.createElement('details');
                     projDetails.className = 'border border-border-dark/70 rounded-lg';
                     projDetails.dataset.manageId = proj.manageId || `project:${client.id}:${proj.id}`;
+                    if (selectionProjectId && proj.id === selectionProjectId) projDetails.open = true;
                     const projProgress = computeProjectProgress(proj);
                     projDetails.appendChild(makeSummary(
                         'layers',
@@ -2583,11 +2598,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const projContent = document.createElement('div');
                     projContent.className = 'pl-5 pr-2 pb-2 flex flex-col gap-2';
 
-                    // Tareas sin producto
+                    // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
                     const projTaskArray = Object.keys(projTasks).map(id => ({ id, ...projTasks[id] }));
                     projTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                    if (projTaskArray.length) {
+                    if (!selectionProductId && projTaskArray.length) {
                         const taskLabel = document.createElement('p');
                         taskLabel.className = 'text-text-muted text-xs px-1';
                         taskLabel.textContent = 'Tareas (sin producto)';
@@ -2687,10 +2702,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Productos
                     const products = proj.products || {};
-                    const productArray = Object.keys(products).map(id => ({ id, ...products[id] }));
+                    const rawProductArray = Object.keys(products).map(id => ({ id, ...products[id] }));
+                    const productArray = selectionProductId
+                        ? rawProductArray.filter(p => p.id === selectionProductId)
+                        : rawProductArray;
                     productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-                    if (productArray.length === 0 && projTaskArray.length === 0) {
+                    if (productArray.length === 0 && (!projTaskArray.length || selectionProductId)) {
                         const emptyP = document.createElement('p');
                         emptyP.className = 'text-text-muted text-xs px-1';
                         emptyP.textContent = 'Sin productos ni tareas.';
@@ -2701,6 +2719,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const prodDetails = document.createElement('details');
                             prodDetails.className = 'border border-border-dark/60 rounded-lg';
                             prodDetails.dataset.manageId = prod.manageId || `product:${client.id}:${proj.id}:${prod.id}`;
+                            if (selectionProductId && prod.id === selectionProductId) prodDetails.open = true;
                             const prodProgress = computeTasksProgress(prod.tasks);
                             prodDetails.appendChild(makeSummary(
                                 'category',
@@ -3051,13 +3070,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!selectedProjectId) {
             if (clientNameHeader) clientNameHeader.textContent = client.name;
             resetProjectDetail();
-            hideEl(treeView);
-            showEl(projectDetail);
+            showEl(treeView);
+            hideEl(projectDetail);
             hideEl(productListSection);
             hideEl(projectListSection);
             showEl(clientListSection);
             hideEl(backToClientsBtn);
             hideEl(backToProjectsBtn);
+            renderTree();
             return;
         }
 
@@ -3069,13 +3089,14 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedSubtaskId = null;
             resetProjectDetail();
             if (clientNameHeader) clientNameHeader.textContent = client.name;
-            hideEl(treeView);
-            showEl(projectDetail);
+            showEl(treeView);
+            hideEl(projectDetail);
             hideEl(productListSection);
             hideEl(projectListSection);
             showEl(clientListSection);
             hideEl(backToClientsBtn);
             hideEl(backToProjectsBtn);
+            renderTree();
             return;
         }
 
@@ -3098,13 +3119,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
         }
 
-        hideEl(treeView);
+        showEl(treeView);
         hideEl(productListSection);
         hideEl(projectListSection);
         showEl(clientListSection);
         hideEl(backToClientsBtn);
         hideEl(backToProjectsBtn);
         renderTasks(selectedClientId, selectedProjectId, selectedProductId);
+        renderTree();
     };
 
    const subscribeUsers = () => {
