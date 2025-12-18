@@ -46,12 +46,7 @@
 <body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-display overflow-hidden flex flex-col h-screen">
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 flex flex-col overflow-y-auto relative">
-            <div class="px-8 py-8 flex flex-col gap-8 max-w-6xl mx-auto w-full">
-                <div class="flex items-center justify-between">
-                    <button id="tamoe-home" type="button" class="shrink-0 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-surface-dark/60 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60" aria-label="Ir al inicio">
-                        <img src="logotipo_tamoe.png" alt="Tamoe" class="h-9 w-auto"/>
-                    </button>
-                </div>
+            <div class="px-6 py-6 flex flex-col gap-6 max-w-none mx-auto w-full">
                 <!-- Breadcrumb -->
                 <div id="breadcrumb" class="flex flex-wrap gap-2 items-center text-sm text-text-muted"></div>
 
@@ -65,15 +60,10 @@
                         <h2 id="item-title" class="text-3xl md:text-4xl font-extrabold leading-tight tracking-tight text-gray-900 dark:text-white">Cargando...</h2>
                         <p id="item-manage" class="text-text-muted text-sm font-mono">...</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button id="open-dashboard" class="flex items-center gap-2 h-10 px-4 rounded-lg border border-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors text-sm font-bold">
-                            <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                            Volver al dashboard
-                        </button>
-                    </div>
+                    <div class="flex gap-2"></div>
                 </div>
 
-                <div class="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+                <div class="flex flex-col gap-6 max-w-none mx-auto w-full">
                     <section id="status-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between gap-2 mb-4">
                             <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">

@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.className = 'hover:bg-white/5 transition-colors';
 
             const nameWrap = document.createElement('span');
-            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+            nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
             const activityLabel = document.createElement(row.manageId ? 'a' : 'span');
             activityLabel.className = row.manageId
@@ -2559,7 +2559,7 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.textContent = 'subdirectory_arrow_right';
 
             const nameWrap = document.createElement('span');
-            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+            nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
@@ -2769,7 +2769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ic.className = 'material-symbols-outlined text-text-muted';
             ic.textContent = icon;
             const nameWrap = document.createElement('span');
-            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+            nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
             const title = document.createElement('span');
             title.className = 'text-sm font-semibold truncate flex-1 min-w-0';
@@ -2844,7 +2844,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ic.className = 'material-symbols-outlined text-text-muted text-[18px]';
             ic.textContent = 'check_circle';
             const nameWrap = document.createElement('span');
-            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+            nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
             const name = document.createElement('span');
             name.className = 'text-sm truncate flex-1 min-w-0';
@@ -2991,7 +2991,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ic.textContent = 'subdirectory_arrow_right';
 
                                     const nameWrap = document.createElement('span');
-                                    nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+                                    nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
                                     const name = document.createElement('span');
                                     name.className = 'text-sm truncate flex-1 min-w-0';
@@ -3160,7 +3160,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             ic.textContent = 'subdirectory_arrow_right';
 
                                             const nameWrap = document.createElement('span');
-                                            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+                                            nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
                                             const name = document.createElement('span');
                                             name.className = 'text-sm truncate flex-1 min-w-0';
@@ -3308,7 +3308,7 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.textContent = 'check_circle';
 
             const nameWrap = document.createElement('span');
-            nameWrap.className = 'inline-flex items-baseline gap-0 min-w-0';
+            nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'text-sm font-medium truncate';
