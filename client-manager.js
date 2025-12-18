@@ -39,6 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const clientSearchInput = document.getElementById('client-search-input');
     const tamoeHomeButton = document.getElementById('tamoe-home');
     const activityPathEls = Array.from(document.querySelectorAll('[data-activity-path]'));
+    const statusMetricActiveProjects = document.getElementById('status-metric-active-projects');
+    const statusMetricPendingTasks = document.getElementById('status-metric-pending-tasks');
+    const statusMetricInProgressTasks = document.getElementById('status-metric-inprogress-tasks');
+    const statusMetricDoneTasks = document.getElementById('status-metric-done-tasks');
+    const statusRecentProjectsBody = document.getElementById('status-recent-projects');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -146,6 +151,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const text = `${clientName}${clientManage} / ${projectName}${projectManage} / ${productName}${productManage}`;
         setPath(text);
+    };
+
+    const renderStatusDashboard = () => {
+        if (!statusMetricActiveProjects && !statusRecentProjectsBody) return;
+
+        const safeClients = Array.isArray(allClients) ? allClients : [];
+        const projectRows = [];
+        let activeProjects = 0;
+        let pendingTasks = 0;
+        let inProgressTasks = 0;
+        let doneTasks = 0;
+
+        const getProjectTasks = (project) => {
+            const tasks = [];
+            const projectTasks = project?.tasks || {};
+            for (const [taskId, task] of Object.entries(projectTasks)) {
+                tasks.push({ id: taskId, ...task });
+            }
+            const products = project?.products || {};
+            for (const product of Object.values(products)) {
+                const productTasks = product?.tasks || {};
+                for (const [taskId, task] of Object.entries(productTasks)) {
+                    tasks.push({ id: taskId, ...task });
+                }
+            }
+            return tasks;
+        };
+
+        for (const client of safeClients) {
+            const clientName = client?.name || client?.id || '';
+            const projects = client?.projects || {};
+            for (const [projectId, project] of Object.entries(projects)) {
+                const status = normalizeStatus(project?.status);
+                if (status !== 'Finalizado') activeProjects += 1;
+
+                const tasks = getProjectTasks(project);
+                let total = 0;
+                let done = 0;
+                for (const task of tasks) {
+                    const taskStatus = normalizeStatus(task?.status);
+                    total += 1;
+                    if (taskStatus === 'Finalizado') done += 1;
+                    else if (taskStatus === 'En proceso') inProgressTasks += 1;
+                    else pendingTasks += 1;
+                }
+                doneTasks += done;
+
+                const createdAt = project?.createdAt || '';
+                projectRows.push({
+                    clientName,
+                    projectId,
+                    projectName: project?.name || projectId,
+                    status,
+                    manageId: project?.manageId || '',
+                    createdAt,
+                    progress: total ? Math.round((done / total) * 100) : 0,
+                });
+            }
+        }
+
+        if (statusMetricActiveProjects) statusMetricActiveProjects.textContent = String(activeProjects);
+        if (statusMetricPendingTasks) statusMetricPendingTasks.textContent = String(pendingTasks);
+        if (statusMetricInProgressTasks) statusMetricInProgressTasks.textContent = String(inProgressTasks);
+        if (statusMetricDoneTasks) statusMetricDoneTasks.textContent = String(doneTasks);
+
+        if (!statusRecentProjectsBody) return;
+
+        const parseDate = (value) => {
+            const t = Date.parse(String(value || ''));
+            return Number.isFinite(t) ? t : 0;
+        };
+
+        const sorted = projectRows
+            .slice()
+            .sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt) || a.projectName.localeCompare(b.projectName));
+
+        statusRecentProjectsBody.innerHTML = '';
+
+        if (!sorted.length) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="p-4 text-text-muted text-sm" colspan="5">No hay proyectos.</td>`;
+            statusRecentProjectsBody.appendChild(tr);
+            return;
+        }
+
+        const top = sorted.slice(0, 8);
+        for (const row of top) {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-white/5 transition-colors';
+
+            const projectLabel = document.createElement(row.manageId ? 'a' : 'span');
+            projectLabel.className = row.manageId ? 'text-white font-semibold hover:underline' : 'text-white font-semibold';
+            projectLabel.textContent = row.projectName;
+            if (row.manageId) {
+                projectLabel.href = `/${encodeURIComponent(row.manageId)}`;
+                projectLabel.target = '_blank';
+                projectLabel.rel = 'noopener';
+            }
+
+            const statusStyle = STATUS_STYLES[row.status] || STATUS_STYLES['Pendiente'];
+
+            tr.innerHTML = `
+                <td class="p-4"></td>
+                <td class="p-4 text-text-muted text-sm"></td>
+                <td class="p-4">
+                    <div class="flex flex-col gap-1 w-32">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-white font-medium">${row.progress}%</span>
+                        </div>
+                        <div class="h-1.5 w-full bg-background-dark rounded-full overflow-hidden">
+                            <div class="h-full bg-primary rounded-full" style="width: ${row.progress}%"></div>
+                        </div>
+                    </div>
+                </td>
+                <td class="p-4">
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${statusStyle}">${row.status}</span>
+                </td>
+                <td class="p-4 text-text-muted text-sm font-mono">${row.manageId || '-'}</td>
+            `;
+
+            tr.children[0].appendChild(projectLabel);
+            tr.children[1].textContent = row.clientName || '-';
+
+            statusRecentProjectsBody.appendChild(tr);
+        }
     };
 
     const stripWrappingQuotes = (value) => {
@@ -3261,6 +3391,7 @@ document.addEventListener('DOMContentLoaded', () => {
             syncSelectionAfterDataChange();
             renderClients();
             renderTree();
+            renderStatusDashboard();
         }, (error) => {
             console.error("Error fetching clients: ", error);
             clientsLoading = false;
@@ -3552,10 +3683,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         tamoeHomeButton?.addEventListener('click', () => {
-            clientSearchQuery = '';
-            if (clientSearchInput) clientSearchInput.value = '';
-            sidebarAutoOpenKeys.clear();
-            showClientView();
+            const target = `maindashboard.html?r=${Date.now()}`;
+            window.location.href = target;
         });
 
         userMenuToggle?.addEventListener('click', toggleUserMenu);

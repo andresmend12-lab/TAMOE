@@ -168,9 +168,13 @@
         <div id="dashboard-tabs" class="sticky top-16 z-10 border-b border-gray-200 dark:border-border-dark bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md">
             <div class="px-8">
                 <nav class="flex items-center gap-2 py-3 overflow-x-auto" role="tablist" aria-label="Navegación del dashboard">
-                    <button id="tab-project-status" type="button" role="tab" aria-selected="true" aria-controls="tab-panel-project-status" data-tab="project-status" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-white text-sm font-semibold shadow-lg shadow-primary/20">
-                        <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                        Estado de proyectos
+                    <button id="tab-projects" type="button" role="tab" aria-selected="true" aria-controls="tab-panel-projects" data-tab="projects" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-white text-sm font-semibold shadow-lg shadow-primary/20">
+                        <span class="material-symbols-outlined text-[18px]">folder</span>
+                        Proyectos
+                    </button>
+                    <button id="tab-project-status" type="button" role="tab" aria-selected="false" aria-controls="tab-panel-project-status" data-tab="project-status" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 dark:border-border-dark bg-white/60 dark:bg-surface-dark text-gray-700 dark:text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                        <span class="material-symbols-outlined text-[18px]">bar_chart</span>
+                        Estado
                     </button>
                     <button id="tab-my-tasks" type="button" role="tab" aria-selected="false" aria-controls="tab-panel-my-tasks" data-tab="my-tasks" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 dark:border-border-dark bg-white/60 dark:bg-surface-dark text-gray-700 dark:text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5 transition-colors text-sm font-semibold">
                         <span class="material-symbols-outlined text-[18px]">checklist</span>
@@ -195,7 +199,7 @@
          <!-- Dashboard Content -->
          <div class="flex-1 overflow-y-auto">
              <div class="max-w-7xl mx-auto px-8 py-8 flex flex-col gap-8">
-                 <div id="tab-panel-project-status" data-tab-panel="project-status" role="tabpanel" aria-labelledby="tab-project-status" class="flex flex-col gap-8">
+                 <div id="tab-panel-projects" data-tab-panel="projects" role="tabpanel" aria-labelledby="tab-projects" class="flex flex-col gap-8">
                  <!-- Detail View (manageId route) -->
                  <section id="detail-view" class="hidden rounded-xl border border-border-dark bg-surface-darker shadow-lg shadow-black/20 overflow-hidden">
                      <iframe id="detail-frame" title="Detalle" class="w-full bg-background-dark" style="height: calc(100vh - 8rem);" loading="lazy"></iframe>
@@ -205,9 +209,6 @@
                  <section id="tree-view" class="rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
                      <div class="flex items-center justify-between mb-4">
                          <div class="min-w-0 flex flex-col">
-                             <div class="flex items-center gap-2">
-                                 <span class="material-symbols-outlined text-primary">account_tree</span>
-                             </div>
                              <p data-activity-path class="text-sm text-text-muted truncate">Todas las actividades</p>
                          </div>
                          <button id="tree-expand-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-surface-dark text-text-muted hover:text-white hover:bg-white/5 transition-colors text-sm font-semibold">
@@ -265,6 +266,65 @@
                     </div>
                 </div>
                 </div>
+
+                <section id="tab-panel-project-status" data-tab-panel="project-status" role="tabpanel" aria-labelledby="tab-project-status" class="hidden rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
+                    <div class="flex flex-col gap-6">
+                        <div class="flex items-center gap-2 text-text-muted text-sm">
+                            <span>Dashboard</span>
+                            <span class="material-symbols-outlined text-xs">chevron_right</span>
+                            <span class="text-white font-medium">Estado</span>
+                        </div>
+                        <div class="flex flex-col border-b border-border-dark pb-4">
+                            <h2 class="text-white text-3xl font-bold tracking-tight">Estado de proyectos</h2>
+                            <p class="text-text-muted text-sm mt-2">Resumen general de clientes, proyectos y tareas.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-surface-dark rounded-xl p-5 border border-white/5 shadow-lg">
+                                <p class="text-text-muted text-sm font-medium mb-2">Proyectos activos</p>
+                                <p id="status-metric-active-projects" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-surface-dark rounded-xl p-5 border border-white/5 shadow-lg">
+                                <p class="text-text-muted text-sm font-medium mb-2">Tareas pendientes</p>
+                                <p id="status-metric-pending-tasks" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-surface-dark rounded-xl p-5 border border-white/5 shadow-lg">
+                                <p class="text-text-muted text-sm font-medium mb-2">Tareas en curso</p>
+                                <p id="status-metric-inprogress-tasks" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-surface-dark rounded-xl p-5 border border-white/5 shadow-lg">
+                                <p class="text-text-muted text-sm font-medium mb-2">Tareas finalizadas</p>
+                                <p id="status-metric-done-tasks" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-3">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-xl font-bold text-white">Proyectos recientes</h3>
+                            </div>
+                            <div class="bg-surface-dark rounded-xl border border-white/5 overflow-hidden">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                        <tr class="border-b border-white/5 bg-background-dark">
+                                            <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Proyecto</th>
+                                            <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Cliente</th>
+                                            <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Progreso</th>
+                                            <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">Estado</th>
+                                            <th class="p-4 text-xs font-bold text-text-muted uppercase tracking-wider">ID</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="status-recent-projects" class="divide-y divide-white/5">
+                                        <tr>
+                                            <td class="p-4 text-text-muted text-sm" colspan="5">Cargando...</td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <section id="tab-panel-my-tasks" data-tab-panel="my-tasks" role="tabpanel" aria-labelledby="tab-my-tasks" class="hidden rounded-xl border border-border-dark bg-surface-darker p-6 shadow-lg shadow-black/20">
                     <div class="flex items-center gap-2 mb-2">
