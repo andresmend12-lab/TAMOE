@@ -3889,7 +3889,12 @@ document.addEventListener('DOMContentLoaded', () => {
         clientsRef = query(ref(database, 'clients'));
         subscribeUsers();
         attachListeners();
-        showClientView();
+        
+        if (document.getElementById('tree-view')) {
+            // Main dashboard
+            showClientView();
+        }
+        
         fetchClients();
     };
 
