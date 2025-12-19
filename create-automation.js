@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         actionSelect.innerHTML = '';
 
-        if (selectedTrigger === 'created' && childActivityNames.length > 0) {
+        if ((selectedTrigger === 'created' || selectedTrigger === 'statusChange') && childActivityNames.length > 0) {
             childActivityNames.forEach(childName => {
                 const createChildOption = document.createElement('option');
                 createChildOption.value = `createChild_${childName}`; 
