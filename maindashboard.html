@@ -155,9 +155,24 @@
                 <button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
                     <span class="material-symbols-outlined text-[20px]">brightness_4</span>
                 </button>
-                <button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
-                    <span class="material-symbols-outlined">notifications</span>
-                </button>
+                <div class="relative">
+                    <button id="notification-toggle-btn" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
+                        <span class="material-symbols-outlined">notifications</span>
+                        <div id="notification-badge" class="hidden absolute top-0 right-0 size-2.5 rounded-full bg-primary border-2 border-background-light dark:border-background-dark"></div>
+                    </button>
+                    <div id="notification-panel" class="hidden absolute top-12 right-0 w-80 bg-white dark:bg-surface-darker border border-border-dark rounded-xl shadow-2xl z-50">
+                        <div class="p-4 border-b border-border-dark">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Notificaciones</h3>
+                        </div>
+                        <div id="notification-list" class="flex flex-col max-h-96 overflow-y-auto">
+                            <!-- Notifications will be rendered here -->
+                             <p id="no-notifications-msg" class="p-4 text-sm text-text-muted">No tienes notificaciones nuevas.</p>
+                        </div>
+                        <div class="p-2 border-t border-border-dark bg-gray-50 dark:bg-black/20">
+                            <a href="#" class="block w-full text-center text-sm font-semibold text-primary hover:underline">Ver todas</a>
+                        </div>
+                    </div>
+                </div>
                 <button class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
                     <span class="material-symbols-outlined">help</span>
                 </button>
@@ -597,6 +612,7 @@
 <script src="detail-router.js" type="module"></script>
 
 <script src="automations.js" type="module"></script>
+<script src="notifications.js" type="module"></script>
 </body>
 </body>
 </html>

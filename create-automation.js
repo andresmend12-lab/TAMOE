@@ -1,16 +1,45 @@
+import { auth, database } from './firebase.js';
+import { ref, push, serverTimestamp, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
-    const triggerActivityType = document.getElementById('trigger-activity-type');
-    const triggerType = document.getElementById('trigger-type');
-    const statusChangeOptions = document.getElementById('status-change-options');
-    const actionSelect = document.getElementById('action-select');
-    const actionDetails = document.getElementById('action-details');
+    const triggersContainer = document.getElementById('triggers-container');
+    const actionsContainer = document.getElementById('actions-container');
+    const triggerTemplate = document.getElementById('trigger-template');
+    const actionTemplate = document.getElementById('action-template');
+    const addTriggerBtn = document.getElementById('add-trigger-btn');
+    const addActionBtn = document.getElementById('add-action-btn');
+    const workflowContainer = document.getElementById('workflow-container');
     const saveBtn = document.getElementById('save-ca-btn');
     const logoutBtn = document.getElementById('logout-button-ca');
+    const automationNameInput = document.getElementById('auto-name');
+    
+    // Scope elements
+    const scopeClientSelect = document.getElementById('scope-client');
+    const scopeProjectsContainer = document.getElementById('scope-projects-container');
+    const scopeProjectsList = document.getElementById('scope-projects-list');
+
+    // --- App State ---
+    let currentUser = null;
+    let clientsData = null; // To store fetched client data
+
+    // --- Authentication ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            loadClients(); // Load client data once authenticated
+        } else {
+            currentUser = null;
+            alert("Debes iniciar sesión para crear una automatización.");
+            window.location.href = 'login.html';
+        }
+    });
 
     // --- Data Maps ---
     const childActivityMap = {
-        'Project': ['Producto', 'Tarea'], // Can be an array
+        'Project': ['Producto', 'Tarea'],
         'Product': ['Tarea'],
         'Task': ['Subtarea']
     };
@@ -32,48 +61,134 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionTemplates = {
         notify: `<div class="p-4 rounded-lg bg-background-dark/50 border border-border-muted/50 flex flex-col gap-3"><label class="text-xs font-bold uppercase text-gray-500 mt-2">Mensaje</label><textarea class="w-full bg-surface-input border border-border-muted rounded-lg p-2 text-white" placeholder="Escribe tu mensaje..."></textarea></div>`,
         move: `<div class="p-4 rounded-lg bg-background-dark/50 border border-border-muted/50 flex flex-col gap-3"><label class="text-xs font-bold uppercase text-gray-500">Mover a Proyecto</label><select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer"><option>Proyecto Phoenix</option><option>Proyecto Titán</option></select></div>`,
-        createChild: `<div class="p-4 rounded-lg bg-background-dark/50 border border-border-muted/50 flex flex-col gap-3"><label class="text-xs font-bold uppercase text-gray-500" id="child-activity-name-label">Nombre del Nuevo</label><input id="child-activity-name-input" class="w-full bg-surface-input border border-border-muted rounded-lg p-2 text-white" type="text"/></div>`
+        createChild: `<div class="p-4 rounded-lg bg-background-dark/50 border border-border-muted/50 flex flex-col gap-3"><label class="text-xs font-bold uppercase text-gray-500 child-activity-name-label">Nombre del Nuevo</label><input class="w-full bg-surface-input border border-border-muted rounded-lg p-2 text-white child-activity-name-input" type="text"/></div>`
     };
 
-    // --- Functions ---
+    // --- Core Functions ---
 
-    /**
-     * Updates the "Tipo de Disparador" dropdown based on the selected "Tipo de Actividad".
-     */
-    function updateTriggerTypeOptions() {
-        const selectedActivity = triggerActivityType.value;
+    async function loadClients() {
+        const clientsRef = ref(database, 'clients');
+        try {
+            const snapshot = await get(clientsRef);
+            if (snapshot.exists()) {
+                clientsData = snapshot.val();
+                populateClientScopeDropdown();
+            } else {
+                scopeClientSelect.innerHTML = '<option value="">No hay clientes</option>';
+            }
+        } catch (error) {
+            console.error("Error cargando clientes:", error);
+            scopeClientSelect.innerHTML = '<option value="">Error al cargar</option>';
+        }
+    }
+
+    function populateClientScopeDropdown() {
+        scopeClientSelect.innerHTML = '<option value="">Selecciona un cliente...</option><option value="all">Todos los Clientes</option>';
+        for (const clientId in clientsData) {
+            const client = clientsData[clientId];
+            const option = document.createElement('option');
+            option.value = clientId;
+            option.textContent = client.name || 'Cliente sin nombre';
+            scopeClientSelect.appendChild(option);
+        }
+    }
+
+    function renderProjectsForClient(clientId) {
+        scopeProjectsList.innerHTML = '';
+        if (!clientId || clientId === 'all' || !clientsData) {
+            scopeProjectsContainer.classList.add('hidden');
+            return;
+        }
+
+        const client = clientsData[clientId];
+        const projects = client?.projects;
+
+        if (!projects || Object.keys(projects).length === 0) {
+            scopeProjectsList.innerHTML = '<p class="text-text-muted text-sm">Este cliente no tiene proyectos.</p>';
+        } else {
+            for (const projectId in projects) {
+                const project = projects[projectId];
+                const checkboxId = `proj-scope-${projectId}`;
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-3';
+                div.innerHTML = `
+                    <input id="${checkboxId}" type="checkbox" value="${projectId}" class="h-5 w-5 rounded bg-surface-input border-border-muted text-primary focus:ring-primary">
+                    <label for="${checkboxId}" class="text-white">${project.name || 'Proyecto sin nombre'}</label>
+                `;
+                scopeProjectsList.appendChild(div);
+            }
+        }
+        scopeProjectsContainer.classList.remove('hidden');
+    }
+    const addTrigger = () => {
+        const triggerClone = triggerTemplate.content.cloneNode(true);
+        triggersContainer.appendChild(triggerClone);
+        const newBlock = triggersContainer.lastElementChild;
+        updateTriggerTypeOptions(newBlock);
+    };
+
+    const addAction = () => {
+        const actionClone = actionTemplate.content.cloneNode(true);
+        actionsContainer.appendChild(actionClone);
+        const newBlock = actionsContainer.lastElementChild;
+        const controllingTriggerBlock = triggersContainer.querySelector('.trigger-block');
+        updateActionOptions(newBlock, controllingTriggerBlock);
+    };
+    
+    function updateTriggerTypeOptions(triggerBlock) {
+        const activitySelect = triggerBlock.querySelector('.trigger-activity-type');
+        const triggerTypeSelect = triggerBlock.querySelector('.trigger-type');
+        const selectedActivity = activitySelect.value;
         const triggerOptions = triggerTypesByActivity[selectedActivity] || [];
         
-        triggerType.innerHTML = '';
+        triggerTypeSelect.innerHTML = '';
         triggerOptions.forEach(opt => {
             const option = document.createElement('option');
             option.value = opt.value;
             option.textContent = opt.label;
-            triggerType.appendChild(option);
+            triggerTypeSelect.appendChild(option);
         });
 
-        handleTriggerTypeChange();
+        handleTriggerTypeChange(triggerBlock);
     }
 
-    /**
-     * Shows/hides the status change dropdown and updates available actions.
-     */
-    function handleTriggerTypeChange() {
-        const selectedTriggerType = triggerType.value;
+    function handleTriggerTypeChange(triggerBlock) {
+        const triggerTypeSelect = triggerBlock.querySelector('.trigger-type');
+        const statusOptions = triggerBlock.querySelector('.status-change-options');
+        const selectedTriggerType = triggerTypeSelect.value;
+
         if (selectedTriggerType === 'statusChange') {
-            statusChangeOptions.classList.remove('hidden');
+            statusOptions.classList.remove('hidden');
+            statusOptions.classList.add('grid');
         } else {
-            statusChangeOptions.classList.add('hidden');
+            statusOptions.classList.add('hidden');
+            statusOptions.classList.remove('grid');
         }
-        updateActionOptions();
+        
+        document.querySelectorAll('.action-block').forEach(actionBlock => {
+            updateActionOptions(actionBlock, triggerBlock);
+        });
     }
     
-    /**
-     * Updates the "Acción" dropdown based on the selected activity and trigger type.
-     */
-    function updateActionOptions() {
-        const selectedActivity = triggerActivityType.value;
-        const selectedTrigger = triggerType.value;
+    function updateActionOptions(actionBlock, triggerBlock) {
+        const actionSelect = actionBlock.querySelector('.action-select');
+        if (!triggerBlock) {
+            actionSelect.innerHTML = '';
+            generalActions.forEach(action => {
+                const option = document.createElement('option');
+                option.value = action.value;
+                option.textContent = action.label;
+                actionSelect.appendChild(option);
+            });
+            updateActionDetails(actionBlock);
+            return;
+        }
+
+        const activitySelect = triggerBlock.querySelector('.trigger-activity-type');
+        const triggerTypeSelect = triggerBlock.querySelector('.trigger-type');
+        
+        const selectedActivity = activitySelect.value;
+        const selectedTrigger = triggerTypeSelect.value;
         const childActivityNames = childActivityMap[selectedActivity] || [];
         
         actionSelect.innerHTML = '';
@@ -81,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedTrigger === 'created' && childActivityNames.length > 0) {
             childActivityNames.forEach(childName => {
                 const createChildOption = document.createElement('option');
-                // The value now includes 'createChild' and the type of child
                 createChildOption.value = `createChild_${childName}`; 
                 createChildOption.textContent = `Crear ${childName}`;
                 actionSelect.appendChild(createChildOption);
@@ -95,45 +209,147 @@ document.addEventListener('DOMContentLoaded', () => {
             actionSelect.appendChild(option);
         });
 
-        updateActionDetails();
+        updateActionDetails(actionBlock);
     }
 
-    /**
-     * Updates the details section for the selected action.
-     */
-    function updateActionDetails() {
+    function updateActionDetails(actionBlock) {
+        const actionSelect = actionBlock.querySelector('.action-select');
+        const actionDetailsContainer = actionBlock.querySelector('.action-details');
         const selectedActionValue = actionSelect.value;
         
         if (selectedActionValue.startsWith('createChild_')) {
             const childActivityName = selectedActionValue.split('_')[1];
-            actionDetails.innerHTML = actionTemplates.createChild;
+            actionDetailsContainer.innerHTML = actionTemplates.createChild;
             if (childActivityName) {
-                document.getElementById('child-activity-name-label').textContent = `Nombre del Nuevo ${childActivityName}`;
-                document.getElementById('child-activity-name-input').placeholder = `Ej. 'Nuevo ${childActivityName}...'`;
+                actionDetailsContainer.querySelector('.child-activity-name-label').textContent = `Nombre del Nuevo ${childActivityName}`;
+                actionDetailsContainer.querySelector('.child-activity-name-input').placeholder = `Ej. 'Nuevo ${childActivityName}...'`;
             }
         } else {
-             actionDetails.innerHTML = actionTemplates[selectedActionValue] || '';
+             actionDetailsContainer.innerHTML = actionTemplates[selectedActionValue] || '';
+        }
+    }
+
+    async function saveAutomation() {
+        if (!currentUser) {
+            alert("Error: No has iniciado sesión.");
+            return;
+        }
+        
+        const name = automationNameInput.value.trim();
+        if (!name) {
+            alert("Por favor, dale un nombre a la automatización.");
+            automationNameInput.focus();
+            return;
+        }
+
+        const triggers = [];
+        document.querySelectorAll('.trigger-block').forEach(block => {
+            const activityType = block.querySelector('.trigger-activity-type').value;
+            const triggerType = block.querySelector('.trigger-type').value;
+            const triggerData = { activityType, triggerType };
+            if (triggerType === 'statusChange') {
+                const from = block.querySelector('.status-change-options select:first-child').value;
+                const to = block.querySelector('.status-change-options select:last-child').value;
+                triggerData.fromState = from;
+                triggerData.toState = to;
+            }
+            triggers.push(triggerData);
+        });
+
+        if (triggers.length === 0) {
+            alert("Debes añadir al menos un disparador.");
+            return;
+        }
+
+        const actions = [];
+        document.querySelectorAll('.action-block').forEach(block => {
+            const actionType = block.querySelector('.action-select').value;
+            // In a real app, you'd collect more detail from the action-details section
+            actions.push({ type: actionType });
+        });
+
+        if (actions.length === 0) {
+            alert("Debes añadir al menos una acción.");
+            return;
+        }
+
+        const selectedClientId = scopeClientSelect.value;
+        const selectedProjectIds = [];
+        if (selectedClientId && selectedClientId !== 'all') {
+            document.querySelectorAll('#scope-projects-list input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedProjectIds.push(checkbox.value);
+            });
+        }
+
+        const automationData = {
+            name,
+            triggers,
+            actions,
+            scope: {
+                client: selectedClientId,
+                projects: selectedProjectIds
+            },
+            createdByUid: currentUser.uid,
+            createdAt: serverTimestamp()
+        };
+
+        try {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Guardando...';
+            
+            const automationsRef = ref(database, 'automations');
+            await push(automationsRef, automationData);
+            
+            alert('¡Automatización guardada con éxito!');
+            window.location.href = 'maindashboard.html';
+
+        } catch (error) {
+            console.error("Error guardando la automatización: ", error);
+            alert(`Error al guardar: ${error.message}`);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">save</span> Guardar Automatización';
         }
     }
     
-    // --- Event Listeners ---
-    triggerActivityType.addEventListener('change', updateTriggerTypeOptions);
-    triggerType.addEventListener('change', handleTriggerTypeChange);
-    actionSelect.addEventListener('change', updateActionDetails);
-
-    saveBtn.addEventListener('click', () => {
-        const automationName = document.getElementById('auto-name').value;
-        console.log(`Guardando automatización: ${automationName}`);
-        alert(`Automatización "${automationName}" guardada (simulado). Redirigiendo al dashboard.`);
-        window.location.href = 'maindashboard.html#automations';
+    // --- Event Delegation & Listeners ---
+    
+    scopeClientSelect.addEventListener('change', (e) => {
+        renderProjectsForClient(e.target.value);
     });
 
+    workflowContainer.addEventListener('change', (e) => {
+        const target = e.target;
+        if (target.matches('.trigger-activity-type')) {
+            updateTriggerTypeOptions(target.closest('.trigger-block'));
+        }
+        if (target.matches('.trigger-type')) {
+            handleTriggerTypeChange(target.closest('.trigger-block'));
+        }
+        if (target.matches('.action-select')) {
+            updateActionDetails(target.closest('.action-block'));
+        }
+    });
+
+    workflowContainer.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-trigger-btn')) {
+            e.target.closest('.trigger-block').remove();
+        }
+        if (e.target.closest('.delete-action-btn')) {
+            e.target.closest('.action-block').remove();
+        }
+    });
+
+    addTriggerBtn.addEventListener('click', addTrigger);
+    addActionBtn.addEventListener('click', addAction);
+    saveBtn.addEventListener('click', saveAutomation);
+
     logoutBtn.addEventListener('click', () => {
-        console.log("Cerrando sesión...");
-        alert("Cerrando sesión (simulado).");
-        window.location.href = 'login.html';
+        auth.signOut().then(() => {
+            window.location.href = 'login.html';
+        });
     });
 
     // --- Initial Setup ---
-    updateTriggerTypeOptions();
+    addTrigger();
+    addAction();
 });

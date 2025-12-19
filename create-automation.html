@@ -48,6 +48,11 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #e619a1; 
         }
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden selection:bg-primary selection:text-white">
@@ -103,9 +108,14 @@
             </div>
             <h2 class="text-3xl font-black text-white tracking-tight">Crear Nueva Automatización</h2>
         </div>
-        <a href="maindashboard.html" id="close-ca-btn" class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-            <span class="material-symbols-outlined">close</span>
-        </a>
+        <div class="flex items-center gap-2">
+            <button id="theme-toggle" class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+                <span class="material-symbols-outlined">brightness_4</span>
+            </button>
+            <a href="maindashboard.html" id="close-ca-btn" class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+                <span class="material-symbols-outlined">close</span>
+            </a>
+        </div>
     </header>
     <!-- Scrollable Form Content -->
     <div class="flex-1 overflow-y-auto p-8 flex justify-center">
@@ -117,28 +127,51 @@
             </div>
 
             <!-- Workflow Visualizer -->
-            <div class="relative flex flex-col gap-0">
+            <div id="workflow-container" class="relative flex flex-col gap-0">
                 <!-- Connecting Line Background -->
-                <div class="absolute left-8 top-10 bottom-10 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-border-muted -z-0"></div>
+                <div id="workflow-line" class="absolute left-8 top-10 bottom-10 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-border-muted -z-0"></div>
+
+                <div id="triggers-container">
+                    <!-- Trigger blocks will be inserted here -->
+                </div>
                 
-                <!-- Step 1: Trigger -->
-                <div class="group relative z-10">
+                <div class="py-6 flex justify-start pl-[22px] relative z-10">
+                    <button id="add-trigger-btn" class="size-10 rounded-full bg-surface-dark border-2 border-dashed border-gray-600 text-gray-400 flex items-center justify-center hover:border-primary hover:text-primary hover:scale-110 transition-all group" title="Agregar Disparador">
+                        <span class="material-symbols-outlined text-xl">add</span>
+                    </button>
+                </div>
+
+                <div id="actions-container">
+                    <!-- Action blocks will be inserted here -->
+                </div>
+
+                <!-- Add Action Connector -->
+                <div class="py-6 flex justify-start pl-[22px] relative z-10">
+                    <button id="add-action-btn" class="size-10 rounded-full bg-background-dark border-2 border-dashed border-gray-600 text-gray-400 flex items-center justify-center hover:border-primary hover:text-primary hover:scale-110 transition-all group" title="Agregar Acción">
+                        <span class="material-symbols-outlined text-xl">add</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Templates (to be cloned by JS) -->
+            <template id="trigger-template">
+                <div class="group relative z-10 trigger-block mb-4">
                     <div class="flex items-start gap-6">
-                        <!-- Icon Circle -->
-                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-primary/30 flex items-center justify-center shadow-[0_0_15px_-3px_rgba(230,25,161,0.3)] group-hover:border-primary transition-colors">
+                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-primary/30 flex items-center justify-center shadow-[0_0_15px_-3px_rgba(230,25,161,0.3)]">
                             <span class="material-symbols-outlined text-primary text-3xl">touch_app</span>
                         </div>
-                        <!-- Card -->
-                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl hover:border-primary/50 transition-all duration-300">
+                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-xl font-bold text-white">Cuando (Disparador)</h3>
-                                <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wide">Paso 1</span>
+                                <button type="button" class="delete-trigger-btn size-8 flex items-center justify-center rounded-full hover:bg-red-500/20 text-red-400 transition-colors" title="Eliminar Disparador">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
                             </div>
-                            <div class="grid grid-cols-1 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="flex flex-col gap-2">
                                     <label class="text-sm font-medium text-gray-300">Tipo de Actividad</label>
                                     <div class="relative">
-                                        <select id="trigger-activity-type" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                        <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer trigger-activity-type">
                                             <option value="Project">Proyecto</option>
                                             <option value="Product">Producto</option>
                                             <option value="Task" selected>Tarea</option>
@@ -149,13 +182,13 @@
                                 <div class="flex flex-col gap-2">
                                     <label class="text-sm font-medium text-gray-300">Tipo de Disparador</label>
                                     <div class="relative">
-                                        <select id="trigger-type" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                        <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer trigger-type">
                                             <!-- Options populated by JS -->
                                         </select>
                                         <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
                                     </div>
                                 </div>
-                                <div id="status-change-options" class="hidden grid grid-cols-2 gap-4">
+                                <div class="hidden grid-cols-2 gap-4 status-change-options md:col-span-2">
                                     <div class="flex flex-col gap-2">
                                         <label class="text-sm font-medium text-gray-300">De</label>
                                         <div class="relative">
@@ -181,75 +214,61 @@
                         </div>
                     </div>
                 </div>
+            </template>
 
-                <!-- Add Step Connector -->
-                <div class="py-6 flex justify-start pl-[22px] relative z-10">
-                    <button class="size-10 rounded-full bg-background-dark border-2 border-dashed border-gray-600 text-gray-400 flex items-center justify-center hover:border-primary hover:text-primary hover:scale-110 transition-all group" title="Agregar condición intermedia">
-                        <span class="material-symbols-outlined text-xl">add</span>
-                    </button>
-                </div>
-                
-                <!-- Step 2: Action -->
-                <div class="group relative z-10">
+            <template id="action-template">
+                 <div class="group relative z-10 action-block mb-4">
                     <div class="flex items-start gap-6">
-                        <!-- Icon Circle -->
-                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-gray-700 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-gray-700 flex items-center justify-center">
                             <span class="material-symbols-outlined text-white text-3xl">send</span>
                         </div>
-                        <!-- Card -->
-                        <div id="action-step" class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl hover:border-primary/50 transition-all duration-300">
+                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-xl font-bold text-white">Entonces (Acción)</h3>
-                                <span class="px-3 py-1 rounded-full bg-gray-700 text-gray-300 text-xs font-bold uppercase tracking-wide">Paso 2</span>
+                                <button type="button" class="delete-action-btn size-8 flex items-center justify-center rounded-full hover:bg-red-500/20 text-red-400 transition-colors" title="Eliminar Acción">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
                             </div>
                             <div class="flex flex-col gap-4">
                                 <div class="flex flex-col gap-2">
                                     <label class="text-sm font-medium text-gray-300">Realizar acción</label>
                                     <div class="relative">
-                                        <select id="action-select" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                        <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer action-select">
                                             <!-- Options will be dynamically populated by JS -->
                                         </select>
                                         <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
                                     </div>
                                 </div>
-                                <!-- Dynamic sub-form based on action -->
-                                <div id="action-details"></div>
+                                <div class="action-details"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-            </div>
+            </template>
+            <!-- End Templates -->
             <!-- Scope Settings -->
             <div class="mt-4 pt-8 border-t border-border-muted">
-                <h3 class="text-lg font-bold text-white mb-4">Configuración Adicional</h3>
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <div class="flex-1 bg-surface-dark border border-border-muted rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-surface-input transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-blue-500/10 rounded-lg">
-                                <span class="material-symbols-outlined text-blue-400">domain</span>
-                            </div>
-                            <div>
-                                <p class="text-white font-medium">Alcance</p>
-                                <p class="text-sm text-gray-400">Solo este proyecto</p>
-                            </div>
+                <h3 class="text-lg font-bold text-white mb-4">Ámbito de aplicación</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-2">
+                        <label for="scope-client" class="text-sm font-medium text-gray-300">1. Selecciona un Cliente</label>
+                        <div class="relative">
+                            <select id="scope-client" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                                <option value="">Cargando clientes...</option>
+                            </select>
+                            <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
                         </div>
-                        <span class="material-symbols-outlined text-gray-500">chevron_right</span>
                     </div>
-                    <div class="flex-1 bg-surface-dark border border-border-muted rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-surface-input transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-yellow-500/10 rounded-lg">
-                                <span class="material-symbols-outlined text-yellow-400">schedule</span>
-                            </div>
-                            <div>
-                                <p class="text-white font-medium">Horario</p>
-                                <p class="text-sm text-gray-400">Ejecutar siempre</p>
-                            </div>
+                    <div id="scope-projects-container" class="flex flex-col gap-2 md:col-span-2 hidden">
+                        <label class="text-sm font-medium text-gray-300">2. Selecciona Proyectos</label>
+                        <div id="scope-projects-list" class="max-h-60 overflow-y-auto p-4 bg-surface-input border border-border-muted rounded-lg flex flex-col gap-3">
+                            <!-- Project checkboxes will be rendered here -->
+                            <p class="text-text-muted text-sm">Selecciona un cliente para ver sus proyectos.</p>
                         </div>
-                        <span class="material-symbols-outlined text-gray-500">chevron_right</span>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -265,6 +284,7 @@
     </div>
 </main>
 </div>
+<script src="theme-toggle.js" type="module"></script>
 <script src="create-automation.js" type="module"></script>
 </body>
 </html>

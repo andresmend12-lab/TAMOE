@@ -11,6 +11,10 @@
       ".read": "auth != null",
       ".write": "auth != null"
     },
+    "automations": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
     "notifications": {
       "$uid": {
         ".read": "$uid === auth.uid",
