@@ -1,4 +1,4 @@
-﻿import { auth, database } from './firebase.js';
+import { auth, database } from './firebase.js';
 import { ref, push, onValue, query, set, update, remove, runTransaction, serverTimestamp, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
@@ -622,115 +622,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const ENABLE_QC_AUTOMATION = false;
-    const QC_TASK_TEMPLATE = 'qc_review';
-    const QC_TASK_NAME = '✅ Revisión de Control de Calidad';
-
-    const isQualityControlTask = (task) => task?.automation?.template === QC_TASK_TEMPLATE;
-
-    const fetchTasksObject = async (tasksPathValue) => {
-        const tasksPath = String(tasksPathValue || '').trim();
-        if (!tasksPath) return {};
-        try {
-            const snap = await get(ref(database, tasksPath));
-            return snap.val() || {};
-        } catch (error) {
-            console.warn('No se pudo leer tareas para automatización:', error);
-            return {};
-        }
-    };
-
-    const qcTaskExistsForSource = (tasksObject, sourcePathValue) => {
-        const sourcePath = String(sourcePathValue || '').trim();
-        if (!sourcePath) return false;
-        return Object.values(tasksObject || {}).some((task) => (
-            task
-            && task.automation?.template === QC_TASK_TEMPLATE
-            && String(task.automation?.sourcePath || '') === sourcePath
-        ));
-    };
-
-    const ensureQualityControlTask = async ({ clientId, tasksPath, sourcePath, sourceType, sourceName, sourceManageId }) => {
-        const safeClientId = String(clientId || '').trim();
-        const safeTasksPath = String(tasksPath || '').trim();
-        const safeSourcePath = String(sourcePath || '').trim();
-        if (!safeClientId || !safeTasksPath || !safeSourcePath) return null;
-
-        const existingTasks = await fetchTasksObject(safeTasksPath);
-        if (qcTaskExistsForSource(existingTasks, safeSourcePath)) return null;
-
-        const manageId = await allocateNextManageId(safeClientId);
-        const newTaskRef = push(ref(database, safeTasksPath));
-        const taskId = newTaskRef.key;
-
-        const taskData = {
-            name: QC_TASK_NAME,
-            status: 'Pendiente',
-            assigneeUid: '',
-            createdAt: new Date().toISOString(),
-            taskId,
-            manageId,
-            automation: {
-                template: QC_TASK_TEMPLATE,
-                sourcePath: safeSourcePath,
-                sourceType: String(sourceType || '').trim(),
-                sourceName: String(sourceName || '').trim(),
-                sourceManageId: String(sourceManageId || '').trim(),
-                createdByUid: currentUser?.uid || '',
-                createdAt: new Date().toISOString(),
-            },
-        };
-
-        await set(newTaskRef, taskData);
-        const sourceLabel = getTypeLabel(sourceType);
-        const sourceTitle = String(sourceName || '').trim() || sourceLabel;
-        await logActivity(
-            safeClientId,
-            `Creó tarea automática "${QC_TASK_NAME}" para ${sourceLabel} "${sourceTitle}".`,
-            { action: 'automation_qc', path: safeTasksPath, entityType: 'task', sourcePath: safeSourcePath }
-        );
-
-        return taskData;
-    };
-
-    const maybeCascadeFinalizeProduct = async ({ clientId, projectId, productId }) => {
-        const safeClientId = String(clientId || '').trim();
-        const safeProjectId = String(projectId || '').trim();
-        const safeProductId = String(productId || '').trim();
-        if (!safeClientId || !safeProjectId || !safeProductId) return;
-
-        const productTasksPath = `clients/${safeClientId}/projects/${safeProjectId}/products/${safeProductId}/tasks`;
-        const tasksObject = await fetchTasksObject(productTasksPath);
-        const tasks = Object.values(tasksObject || {}).filter(Boolean);
-        if (!tasks.length) return;
-
-        const allFinalized = tasks.every(t => normalizeStatus(t.status) === 'Finalizado');
-        if (!allFinalized) return;
-
-        const productPath = `clients/${safeClientId}/projects/${safeProjectId}/products/${safeProductId}`;
-        let currentStatus = 'Pendiente';
-        try {
-            const snap = await get(ref(database, productPath));
-            currentStatus = normalizeStatus(snap.val()?.status);
-        } catch (error) {
-            console.warn('No se pudo leer el estado del producto para cierre en cascada:', error);
-            currentStatus = 'Pendiente';
-        }
-        if (currentStatus === 'Finalizado') return;
-
-        await updateStatusAtPath(productPath, 'Finalizado', { source: 'cascade' });
-    };
-
-    const applyStatusChipStyle = (button, labelEl, status) => {
-        const normalized = normalizeStatus(status);
-        if (labelEl) labelEl.textContent = normalized;
-        if (!button) return;
-        const style = STATUS_STYLES[normalized] || STATUS_STYLES.Pendiente;
-        button.className = `inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${style} hover:brightness-110 transition-colors`;
-        button.setAttribute('aria-label', `Estado: ${normalized}`);
-        button.title = normalized;
-    };
-
     const updateStatusAtPath = async (path, nextStatus, options = {}) => {
         if (!currentUser) {
             alert("Debes iniciar sesión para cambiar el estado.");
@@ -755,48 +646,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!skipAutomations) {
-            try {
-                const shouldTriggerFinalization = prevStatus !== 'Finalizado' && normalized === 'Finalizado';
-
-                if (ENABLE_QC_AUTOMATION && shouldTriggerFinalization && parsed?.clientId && parsed.projectId) {
-                    if (parsed.type === 'task') {
-                        if (!isQualityControlTask(itemBefore)) {
-                            const tasksPath = parsed.productId
-                                ? `clients/${parsed.clientId}/projects/${parsed.projectId}/products/${parsed.productId}/tasks`
-                                : `clients/${parsed.clientId}/projects/${parsed.projectId}/tasks`;
-
-                            await ensureQualityControlTask({
-                                clientId: parsed.clientId,
-                                tasksPath,
-                                sourcePath: path,
-                                sourceType: parsed.type,
-                                sourceName: itemBefore?.name || 'Tarea',
-                                sourceManageId: itemBefore?.manageId || ''
-                            });
-                        }
-                    } else if (parsed.type === 'product') {
-                        const tasksPath = `clients/${parsed.clientId}/projects/${parsed.projectId}/tasks`;
-                        await ensureQualityControlTask({
-                            clientId: parsed.clientId,
-                            tasksPath,
-                            sourcePath: path,
-                            sourceType: parsed.type,
-                            sourceName: itemBefore?.name || 'Producto',
-                            sourceManageId: itemBefore?.manageId || ''
-                        });
-                    }
-                }
-
-                if (parsed?.type === 'task' && parsed.clientId && parsed.projectId && parsed.productId && normalized === 'Finalizado') {
-                    await maybeCascadeFinalizeProduct({
-                        clientId: parsed.clientId,
-                        projectId: parsed.projectId,
-                        productId: parsed.productId
-                    });
-                }
-            } catch (error) {
-                console.warn('Error ejecutando automatizaciones de estado:', error);
-            }
+            executeAutomations('activityStatusChanged', {
+                path: path,
+                type: parsed.type,
+                data: itemBefore,
+                oldStatus: prevStatus,
+                newStatus: normalized
+            });
         }
     };
 
@@ -1284,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ManageId helpers (per client prefix + counter)
     const stripDiacritics = (value) => {
         if (typeof value !== 'string') return '';
-        return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return value.normalize('NFD').replace(/[̀-ͯ]/g, '');
     };
 
     const buildManagePrefixFromName = (name) => {
@@ -2642,7 +2498,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert("Debes iniciar sesión para eliminar subtareas.");
                         return;
                     }
-                    const confirmed = confirm(`¿Eliminar la subtarea \"${subtask.name}\"?`);
+                    const confirmed = confirm(`¿Eliminar la subtarea "${subtask.name}"?`);
                     if (!confirmed) return;
 
                     try {
@@ -3402,7 +3258,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert("Debes iniciar sesión para eliminar tareas.");
                         return;
                     }
-                    const confirmed = confirm(`¿Eliminar la tarea \"${task.name}\"?`);
+                    const confirmed = confirm(`¿Eliminar la tarea "${task.name}"?`);
                     if (!confirmed) return;
 
                     const taskPath = productId
@@ -3635,6 +3491,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             await set(newProjectRef, projectData);
+            
+            await executeAutomations('activityCreated', {
+                path: `clients/${selectedClientId}/projects/${newProjectRef.key}`,
+                type: 'project',
+                data: projectData
+            });
+
             closeProjectModal();
             renderClients();
             renderTree();
@@ -3676,6 +3539,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             await set(newProductRef, productData);
+            
+            await executeAutomations('activityCreated', {
+                path: `clients/${selectedClientId}/projects/${selectedProjectId}/products/${newProductRef.key}`,
+                type: 'product',
+                data: productData
+            });
+
             closeProductModal();
             renderClients();
             renderTree();
@@ -3721,6 +3591,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             await set(newTaskRef, taskData);
+            
+            await executeAutomations('activityCreated', {
+                path: taskPath + `/${newTaskRef.key}`,
+                type: 'task',
+                data: taskData
+            });
+
             closeTaskModal();
             renderTasks(selectedClientId, selectedProjectId, selectedProductId);
         } catch (error) {
@@ -3766,6 +3643,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             await set(newSubtaskRef, subtaskData);
+            
+            await executeAutomations('activityCreated', {
+                path: subtaskPath + `/${newSubtaskRef.key}`,
+                type: 'subtask',
+                data: subtaskData
+            });
+
             closeSubtaskModal();
             renderSubtasks(selectedClientId, selectedProjectId, selectedProductId, selectedTaskId);
         } catch (error) {
@@ -3778,6 +3662,136 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
+
+    const executeAutomations = async (eventType, eventData) => {
+        console.log('Executing automations for', eventType, eventData);
+        const automationsRef = ref(database, 'automations');
+        const snapshot = await get(automationsRef);
+        if (!snapshot.exists()) {
+            return;
+        }
+
+        const allAutomations = snapshot.val();
+        for (const automationId in allAutomations) {
+            const automation = { id: automationId, ...allAutomations[automationId] };
+
+            if (!automation.enabled) {
+                continue;
+            }
+
+            const isInScope = isActivityInScope(eventData.path, automation.scope);
+            if (!isInScope) {
+                continue;
+            }
+
+            for (const trigger of automation.triggers) {
+                let triggerMet = false;
+                if (eventType === 'activityCreated' && trigger.triggerType === 'created' && trigger.activityType.toLowerCase() === eventData.type.toLowerCase()) {
+                    triggerMet = true;
+                } else if (eventType === 'activityStatusChanged' && trigger.triggerType === 'statusChange' && trigger.activityType.toLowerCase() === eventData.type.toLowerCase()) {
+                    if (trigger.fromState.toLowerCase() === eventData.oldStatus.toLowerCase() && trigger.toState.toLowerCase() === eventData.newStatus.toLowerCase()) {
+                        triggerMet = true;
+                    }
+                }
+                
+                if (triggerMet) {
+                    console.log('Trigger met for automation', automation.name);
+                    for (const action of automation.actions) {
+                        executeAction(action, eventData, automation);
+                    }
+                    // Stop checking other triggers for this automation
+                    break;
+                }
+            }
+        }
+    };
+
+    const isActivityInScope = (activityPath, scope) => {
+        if (!scope || !scope.client) {
+            return false; // Invalid scope
+        }
+
+        const pathParts = parseClientPath(activityPath);
+        if (!pathParts) {
+            return false;
+        }
+
+        if (scope.client !== 'all' && scope.client !== pathParts.clientId) {
+            return false; // Not in the right client
+        }
+
+        if (scope.projects && scope.projects.length > 0 && !scope.projects.includes(pathParts.projectId)) {
+            return false; // Not in the right project
+        }
+        
+        if (scope.products && scope.products.length > 0) {
+            const productInScope = scope.products.some(p => p.projectId === pathParts.projectId && p.productId === pathParts.productId);
+            if (!productInScope) {
+                return false; // Not in the right product
+            }
+        }
+
+        return true;
+    };
+
+    const executeAction = async (action, eventData, automation) => {
+        console.log('Executing action', action.type, 'for event', eventData);
+        if (action.type.startsWith('createChild_')) {
+            await executeCreateChildAction(action, eventData, automation);
+        } else if (action.type === 'notify') {
+            console.log('Notify action needs to be implemented');
+        }
+    };
+
+    const executeCreateChildAction = async (action, eventData, automation) => {
+        const childType = action.type.split('_')[1]; // e.g., 'Product', 'Task', 'Subtask'
+        const parentPath = eventData.path;
+        const parentData = eventData.data;
+
+        let childName = `New ${childType}`;
+        
+        let childPath;
+        if (childType.toLowerCase() === 'product') {
+            childPath = `${parentPath}/products`;
+        } else if (childType.toLowerCase() === 'task') {
+            childPath = `${parentPath}/tasks`;
+        } else if (childType.toLowerCase() === 'subtask') {
+            childPath = `${parentPath}/subtasks`;
+        } else {
+            console.error('Unknown child type for creation:', childType);
+            return;
+        }
+
+        const pathParts = parseClientPath(parentPath);
+        if (!pathParts) return;
+
+        try {
+            const manageId = await allocateNextManageId(pathParts.clientId);
+            const newChildRef = push(ref(database, childPath));
+            const childData = {
+                name: childName,
+                status: 'Pendiente',
+                createdAt: new Date().toISOString(),
+                manageId,
+            };
+            if (childType.toLowerCase() === 'product') childData.productId = newChildRef.key;
+            if (childType.toLowerCase() === 'task') childData.taskId = newChildRef.key;
+            if (childType.toLowerCase() === 'subtask') childData.subtaskId = newChildRef.key;
+
+            await set(newChildRef, childData);
+            console.log(`Created new ${childType} at ${childPath}`);
+            
+            await logActivity(
+                pathParts.clientId,
+                `Automatización '${automation.name}' creó ${childType.toLowerCase()} "${childName}" para ${pathParts.type} "${parentData.name}".`,
+                { action: 'automation_create_child', path: parentPath, entityType: childType.toLowerCase() }
+            );
+
+        } catch (error) {
+            console.error(`Failed to create child ${childType}:`, error);
+        }
+    };
+
 
     // Attach UI listeners once
     const attachListeners = () => {
