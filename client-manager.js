@@ -159,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderStatusDashboard = () => {
+        try {
         if (
             !statusMetricActiveProjects &&
             !statusRecentProjectsBody &&
@@ -277,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 activityRows.push({
                     clientName: selectionClient?.name || selectionClient?.id || '',
-                    activityName: selectionProduct?.name || selectedProductId || 'Producto',
+                    activityName: String(selectionProduct?.name || selectedProductId || 'Producto'),
                     status,
                     manageId: selectionProduct?.manageId || '',
                     createdAt,
@@ -288,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const clientsToScan = selectionClient ? [selectionClient] : safeClients;
             for (const client of clientsToScan) {
+                if (!client) continue;
                 const clientName = client?.name || client?.id || '';
                 const projects = client?.projects || {};
                 const projectEntries = scopeType === 'project' && selectedProjectId
@@ -305,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     activityRows.push({
                         clientName,
-                        activityName: project?.name || projectId,
+                        activityName: String(project?.name || projectId || ''),
                         status,
                         manageId: project?.manageId || '',
                         createdAt,
@@ -330,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sorted = activityRows
             .slice()
-            .sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt) || a.activityName.localeCompare(b.activityName));
+            .sort((a, b) => parseDate(b.createdAt) - parseDate(a.createdAt) || String(a.activityName || '').localeCompare(String(b.activityName || '')));
 
         statusRecentProjectsBody.innerHTML = '';
 
@@ -405,6 +407,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             statusRecentProjectsBody.appendChild(tr);
+        }
+        } catch (error) {
+            console.error('Error rendering status dashboard:', error);
         }
     };
 
@@ -646,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!skipAutomations) {
-            await executeAutomations('activityStatusChanged', {
+            executeAutomations('activityStatusChanged', {
                 path: path,
                 type: parsed.type,
                 data: itemBefore,
@@ -658,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateAssigneeAtPath = async (path, nextUid) => {
         if (!currentUser) {
-            alert("Debes iniciar sesión para asignar tareas.");
+            alert("Debes iniciar sesi▋ para asignar tareas.");
             return;
         }
         const parsed = parseClientPath(path);
@@ -1432,8 +1437,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             renderMessageCard(noClientsMessage, {
                 icon: 'lock',
-                title: 'Inicia sesión',
-                description: 'Inicia sesión para ver tus clientes.',
+                title: 'Inicia sesi\u00F3n',
+                description: 'Inicia sesi\u00F3n para ver tus clientes.',
             });
             return;
         }
@@ -2347,11 +2352,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             { action: 'delete', path: `clients/${clientId}/projects/${projectId}/products/${prod.id}`, entityType: 'product' }
                         );
                         if (project?.products?.[prod.id]) delete project.products[prod.id];
-                        if (
-                            selectedClientId === clientId &&
-                            selectedProjectId === projectId &&
-                            selectedProductId === prod.id
-                        ) {
+                        if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
                             selectedProductId = null;
                             selectedTaskId = null;
                             selectedSubtaskId = null;
@@ -2574,8 +2575,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             renderTreeState({
                 icon: 'lock',
-                title: 'Inicia sesión',
-                description: 'Inicia sesión para ver tus clientes.',
+                title: 'Inicia sesi\u00F3n',
+                description: 'Inicia sesi\u00F3n para ver tus clientes.',
             });
             updateTreeExpandToggle();
             return;
@@ -3890,6 +3891,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init with user
     const initializeApp = (user) => {
         currentUser = user;
+        if (!database) {
+            console.error("Database not initialized. Check firebase.js exports.");
+            return;
+        }
         clientsRef = query(ref(database, 'clients'));
         subscribeUsers();
         attachListeners();
