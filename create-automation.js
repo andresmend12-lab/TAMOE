@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addActionBtn = document.getElementById('add-action-btn');
     const workflowContainer = document.getElementById('workflow-container');
     const saveBtn = document.getElementById('save-ca-btn');
-    const logoutBtn = document.getElementById('logout-button-ca');
+    const logoutBtn = document.getElementById('logout-button') || document.getElementById('logout-button-ca');
     const automationNameInput = document.getElementById('auto-name');
     
     // Scope elements
@@ -375,11 +375,13 @@ document.addEventListener('DOMContentLoaded', () => {
     addActionBtn.addEventListener('click', addAction);
     saveBtn.addEventListener('click', saveAutomation);
 
-    logoutBtn.addEventListener('click', () => {
-        auth.signOut().then(() => {
-            window.location.href = 'login.html';
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                window.location.href = 'login.html';
+            });
         });
-    });
+    }
 
     // --- Initial Setup ---
     addTrigger();
