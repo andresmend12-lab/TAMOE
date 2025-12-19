@@ -282,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     manageId: selectionProduct?.manageId || '',
                     createdAt,
                     progress: total ? Math.round((done / total) * 100) : 0,
+                    path: `clients/${selectionClient.id}/projects/${selectionProjectId}/products/${selectedProductId}`,
                 });
             }
         } else {
@@ -309,6 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         manageId: project?.manageId || '',
                         createdAt,
                         progress: total ? Math.round((done / total) * 100) : 0,
+                        path: `clients/${client.id}/projects/${projectId}`,
                     });
                 }
             }
@@ -366,8 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 nameWrap.appendChild(idTag);
             }
 
-            const statusStyle = STATUS_STYLES[row.status] || STATUS_STYLES['Pendiente'];
-
             tr.innerHTML = `
                 <td class="p-4"></td>
                 <td class="p-4 text-text-muted text-sm"></td>
@@ -381,13 +381,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </td>
-                <td class="p-4">
-                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${statusStyle}">${row.status}</span>
-                </td>
+                <td class="p-4"></td>
             `;
 
             tr.children[0].appendChild(nameWrap);
             tr.children[1].textContent = row.clientName || '-';
+
+            const statusCell = tr.children[3];
+            if (row.path) {
+                const statusControl = createStatusControl({
+                    status: row.status,
+                    onChange: async (nextStatus) => {
+                        await updateStatusAtPath(row.path, nextStatus);
+                        // Re-render relevant parts of the UI
+                        renderStatusDashboard();
+                        renderTree();
+                    }
+                });
+                statusCell.appendChild(statusControl);
+            } else {
+                const statusStyle = STATUS_STYLES[row.status] || STATUS_STYLES['Pendiente'];
+                statusCell.innerHTML = `<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${statusStyle}">${row.status}</span>`;
+            }
 
             statusRecentProjectsBody.appendChild(tr);
         }
