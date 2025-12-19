@@ -54,8 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const generalActions = [
-        { value: 'notify', label: 'Enviar notificación por correo' },
-        { value: 'move', label: 'Mover a otro proyecto' }
+        { value: 'notify', label: 'Enviar notificación por correo' }
     ];
 
     const actionTemplates = {
@@ -93,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderProjectsForClient(clientId) {
+    function renderScopeTreeForClient(clientId) {
         scopeProjectsList.innerHTML = '';
         if (!clientId || clientId === 'all' || !clientsData) {
             scopeProjectsContainer.classList.add('hidden');
@@ -108,14 +107,37 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             for (const projectId in projects) {
                 const project = projects[projectId];
+                const projectDetails = document.createElement('details');
+                projectDetails.className = 'mb-2';
+                projectDetails.open = true;
+
+                const projectSummary = document.createElement('summary');
+                projectSummary.className = 'flex items-center gap-3 cursor-pointer';
                 const checkboxId = `proj-scope-${projectId}`;
-                const div = document.createElement('div');
-                div.className = 'flex items-center gap-3';
-                div.innerHTML = `
-                    <input id="${checkboxId}" type="checkbox" value="${projectId}" class="h-5 w-5 rounded bg-surface-input border-border-muted text-primary focus:ring-primary">
-                    <label for="${checkboxId}" class="text-white">${project.name || 'Proyecto sin nombre'}</label>
+                projectSummary.innerHTML = `
+                    <input id="${checkboxId}" type="checkbox" value="${projectId}" data-type="project" class="h-5 w-5 rounded bg-surface-input border-border-muted text-primary focus:ring-primary scope-checkbox">
+                    <label for="${checkboxId}" class="text-white font-semibold">${project.name || 'Proyecto sin nombre'}</label>
                 `;
-                scopeProjectsList.appendChild(div);
+                projectDetails.appendChild(projectSummary);
+
+                const products = project?.products;
+                if (products && Object.keys(products).length > 0) {
+                    const productList = document.createElement('div');
+                    productList.className = 'pl-8 pt-2';
+                    for (const productId in products) {
+                        const product = products[productId];
+                        const productCheckboxId = `prod-scope-${productId}`;
+                        const productDiv = document.createElement('div');
+                        productDiv.className = 'flex items-center gap-3 mb-2';
+                        productDiv.innerHTML = `
+                            <input id="${productCheckboxId}" type="checkbox" value="${productId}" data-project-id="${projectId}" data-type="product" class="h-5 w-5 rounded bg-surface-input border-border-muted text-primary focus:ring-primary scope-checkbox">
+                            <label for="${productCheckboxId}" class="text-white">${product.name || 'Producto sin nombre'}</label>
+                        `;
+                        productList.appendChild(productDiv);
+                    }
+                    projectDetails.appendChild(productList);
+                }
+                scopeProjectsList.appendChild(projectDetails);
             }
         }
         scopeProjectsContainer.classList.remove('hidden');
@@ -274,10 +296,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const selectedClientId = scopeClientSelect.value;
-        const selectedProjectIds = [];
+        const selectedProjects = [];
+        const selectedProducts = [];
         if (selectedClientId && selectedClientId !== 'all') {
             document.querySelectorAll('#scope-projects-list input[type="checkbox"]:checked').forEach(checkbox => {
-                selectedProjectIds.push(checkbox.value);
+                if (checkbox.dataset.type === 'project') {
+                    selectedProjects.push(checkbox.value);
+                } else if (checkbox.dataset.type === 'product') {
+                    selectedProducts.push({
+                        projectId: checkbox.dataset.projectId,
+                        productId: checkbox.value
+                    });
+                }
             });
         }
 
@@ -287,8 +317,10 @@ document.addEventListener('DOMContentLoaded', () => {
             actions,
             scope: {
                 client: selectedClientId,
-                projects: selectedProjectIds
+                projects: selectedProjects,
+                products: selectedProducts
             },
+            enabled: true,
             createdByUid: currentUser.uid,
             createdAt: serverTimestamp()
         };
@@ -314,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Delegation & Listeners ---
     
     scopeClientSelect.addEventListener('change', (e) => {
-        renderProjectsForClient(e.target.value);
+        renderScopeTreeForClient(e.target.value);
     });
 
     workflowContainer.addEventListener('change', (e) => {

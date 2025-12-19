@@ -1,8 +1,7 @@
 import { auth, database } from './firebase.js';
-import { ref, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { ref, onValue, remove, update } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
-// Mock data for automations
 let allAutomations = [];
 
 const ICONS_BY_STATUS = {
@@ -25,7 +24,6 @@ let automationsGrid, automationSearchInput, filterButtons, emptyState, paginatio
 // --- State ---
 let currentPage = 1;
 let itemsPerPage = 5;
-let currentFilter = 'all';
 let currentSearch = '';
 
 /**
@@ -34,11 +32,12 @@ let currentSearch = '';
  * @returns {string} - The HTML string for the card.
  */
 function renderAutomationCard(automation) {
-    const { icon, color } = ICONS_BY_STATUS[automation.status] || { icon: 'help', color: 'gray' };
-    const statusLabel = LABELS_BY_STATUS[automation.status] || 'Desconocido';
+    const status = automation.enabled ? 'active' : 'paused';
+    const { icon, color } = ICONS_BY_STATUS[status] || { icon: 'help', color: 'gray' };
+    const statusLabel = LABELS_BY_STATUS[status] || 'Desconocido';
 
     return `
-        <article class="group relative flex flex-col bg-white dark:bg-surface-dark border border-border-dark hover:border-primary/50 rounded-xl p-5 transition-all hover:shadow-xl hover:-translate-y-1">
+        <article data-id="${automation.id}" class="group relative flex flex-col bg-white dark:bg-surface-dark border border-border-dark hover:border-primary/50 rounded-xl p-5 transition-all hover:shadow-xl hover:-translate-y-1">
             <div class="flex justify-between items-start mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg bg-${color}-500/10 flex items-center justify-center text-${color}-500 border border-${color}-500/20">
@@ -52,7 +51,7 @@ function renderAutomationCard(automation) {
                     </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" value="" class="sr-only peer" ${automation.status === 'active' ? 'checked' : ''}>
+                    <input type="checkbox" value="" class="sr-only peer toggle-automation" ${automation.enabled ? 'checked' : ''}>
                     <div class="w-9 h-5 bg-gray-200 dark:bg-surface-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                 </label>
             </div>
@@ -73,26 +72,33 @@ function renderAutomationCard(automation) {
                     <span class="material-symbols-outlined text-[14px]">history</span>
                     ${automation.lastRun}
                 </span>
-                <button class="hover:text-gray-900 dark:hover:text-white transition-colors">
-                    <span class="material-symbols-outlined text-[20px]">more_horiz</span>
-                </button>
+                <div class="relative">
+                    <button class="hover:text-gray-900 dark:hover:text-white transition-colors more-horiz-btn">
+                        <span class="material-symbols-outlined text-[20px]">more_horiz</span>
+                    </button>
+                    <div class="hidden absolute right-0 bottom-full mb-2 w-40 bg-white dark:bg-surface-darker border border-border-dark rounded-lg shadow-xl z-10">
+                        <button class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 edit-automation-btn">
+                            <span class="material-symbols-outlined text-[18px]">edit</span>
+                            Editar
+                        </button>
+                        <button class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 delete-automation-btn">
+                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                            Eliminar
+                        </button>
+                    </div>
+                </div>
             </div>
         </article>
     `;
 }
 
 /**
- * Main function to render automations based on current state (filters, search, pagination).
+ * Main function to render automations based on current state (search, pagination).
  */
 function renderAutomations() {
     if (!automationsGrid) return;
 
     let filteredAutomations = allAutomations;
-
-    // Apply filter
-    if (currentFilter !== 'all') {
-        filteredAutomations = filteredAutomations.filter(a => a.status === currentFilter);
-    }
     
     // Apply search
     if (currentSearch) {
@@ -102,9 +108,9 @@ function renderAutomations() {
     // Handle empty state
     if (filteredAutomations.length === 0) {
         automationsGrid.innerHTML = '';
-        emptyState.classList.remove('hidden');
+        if(emptyState) emptyState.classList.remove('hidden');
     } else {
-        emptyState.classList.add('hidden');
+        if(emptyState) emptyState.classList.add('hidden');
         
         // Apply pagination
         const startIndex = (currentPage - 1) * itemsPerPage;
@@ -122,6 +128,7 @@ function renderAutomations() {
  * @param {number} totalItems - The total number of items after filtering.
  */
 function updatePaginationControls(totalItems) {
+    if (!paginationSummary || !paginationPrev || !paginationNext || !paginationPages) return;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     
     paginationSummary.textContent = `Mostrando ${totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-${Math.min(currentPage * itemsPerPage, totalItems)} de ${totalItems} automatizaciones`;
@@ -153,7 +160,8 @@ function fetchAutomations() {
                 return {
                     id: key,
                     name: automation.name,
-                    status: 'active', // Mock status
+                    enabled: automation.enabled !== false, // default to true
+                    status: automation.enabled !== false ? 'active' : 'paused',
                     lastRun: 'Nunca', // Mock last run
                     trigger: {
                         icon: 'play_arrow', // Mock icon
@@ -173,7 +181,6 @@ function fetchAutomations() {
  * Initializes the automations tab functionality.
  */
 function initAutomations() {
-    // Find elements once the DOM is ready
     automationsGrid = document.getElementById('automations-grid');
     automationSearchInput = document.getElementById('automation-search-input');
     const filterButtonsContainer = document.getElementById('automation-filter-buttons');
@@ -187,29 +194,15 @@ function initAutomations() {
     paginationPrev = document.getElementById('pagination-prev');
     paginationNext = document.getElementById('pagination-next');
     paginationPages = document.getElementById('pagination-pages');
-    
-    // Modal elements
     const createAutomationBtn = document.getElementById('create-automation-btn');
 
     if (!automationsGrid) {
-        // Elements not found, maybe not on the right tab
         return;
     }
     
     // --- Event Listeners ---
     if(filterButtons.length > 0) {
-        filterButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                currentFilter = button.dataset.filter;
-                currentPage = 1;
-                
-                // Update active button style
-                filterButtons.forEach(btn => btn.classList.remove('text-primary', 'border-primary', 'shadow-[0_0_10px_rgba(230,25,161,0.2)]'));
-                button.classList.add('text-primary', 'border-primary', 'shadow-[0_0_10px_rgba(230,25,161,0.2)]');
-                
-                renderAutomations();
-            });
-        });
+        filterButtons.forEach(button => button.style.display = 'none');
     }
 
     if(automationSearchInput) {
@@ -245,6 +238,48 @@ function initAutomations() {
         });
     }
 
+    automationsGrid.addEventListener('click', (e) => {
+        const article = e.target.closest('article');
+        if (!article) return;
+        const automationId = article.dataset.id;
+
+        // Toggle button
+        if (e.target.classList.contains('toggle-automation')) {
+            const isEnabled = e.target.checked;
+            const automationRef = ref(database, `automations/${automationId}`);
+            update(automationRef, { enabled: isEnabled }).catch(err => {
+                console.error("Failed to update automation status:", err);
+                e.target.checked = !isEnabled; // revert on error
+            });
+            return;
+        }
+
+        // More horiz menu
+        if (e.target.closest('.more-horiz-btn')) {
+            const menu = e.target.closest('.relative').querySelector('div');
+            menu.classList.toggle('hidden');
+            return;
+        }
+        
+        // Delete button
+        if (e.target.closest('.delete-automation-btn')) {
+            if (confirm('¿Estás seguro de que quieres eliminar esta automatización?')) {
+                const automationRef = ref(database, `automations/${automationId}`);
+                remove(automationRef).catch(err => {
+                    console.error("Failed to delete automation:", err);
+                    alert('No se pudo eliminar la automatización.');
+                });
+            }
+            return;
+        }
+
+        // Edit button
+        if (e.target.closest('.edit-automation-btn')) {
+            window.location.href = `create-automation.html?id=${automationId}`;
+            return;
+        }
+    });
+
     fetchAutomations();
 }
 
@@ -253,9 +288,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
             initAutomations();
         } else {
-            // Handle user not logged in
             allAutomations = [];
-            renderAutomations();
+            if(automationsGrid) {
+                renderAutomations();
+            }
+        }
+    });
+
+    // Hide menus when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.relative')) {
+            document.querySelectorAll('.more-horiz-btn + div').forEach(menu => {
+                if(menu) menu.classList.add('hidden');
+            });
         }
     });
 });
+
