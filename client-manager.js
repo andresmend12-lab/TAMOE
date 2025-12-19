@@ -504,6 +504,80 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'Pendiente';
     };
 
+    const hasEntityShape = (value) => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+        return (
+            Object.prototype.hasOwnProperty.call(value, 'name') ||
+            Object.prototype.hasOwnProperty.call(value, 'status') ||
+            Object.prototype.hasOwnProperty.call(value, 'createdAt') ||
+            Object.prototype.hasOwnProperty.call(value, 'manageId')
+        );
+    };
+
+    const unwrapEntity = (value) => {
+        if (hasEntityShape(value)) return { id: null, value };
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return { id: null, value };
+
+        const entries = Object.entries(value)
+            .filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v));
+        if (entries.length === 1 && hasEntityShape(entries[0][1])) {
+            return { id: entries[0][0], value: entries[0][1] };
+        }
+        return { id: null, value };
+    };
+
+    const normalizeEntityMap = (map) => {
+        const normalized = {};
+        Object.entries(map || {}).forEach(([id, value]) => {
+            if (!value || typeof value !== 'object') return;
+            const { id: nestedId, value: entity } = unwrapEntity(value);
+            const finalId = nestedId || id;
+            if (!normalized[finalId]) normalized[finalId] = entity;
+        });
+        return normalized;
+    };
+
+    const ensureStatus = (entity) => {
+        if (!entity || typeof entity !== 'object' || Array.isArray(entity)) return;
+        if (!entity.status) entity.status = 'Pendiente';
+    };
+
+    const normalizeTasksMap = (tasks) => {
+        const normalized = normalizeEntityMap(tasks);
+        Object.values(normalized).forEach((task) => {
+            ensureStatus(task);
+            const subtasks = normalizeEntityMap(task.subtasks);
+            Object.values(subtasks).forEach(ensureStatus);
+            task.subtasks = subtasks;
+        });
+        return normalized;
+    };
+
+    const normalizeProductsMap = (products) => {
+        const normalized = normalizeEntityMap(products);
+        Object.values(normalized).forEach((product) => {
+            ensureStatus(product);
+            product.tasks = normalizeTasksMap(product.tasks);
+        });
+        return normalized;
+    };
+
+    const normalizeProjectsMap = (projects) => {
+        const normalized = normalizeEntityMap(projects);
+        Object.values(normalized).forEach((project) => {
+            ensureStatus(project);
+            project.tasks = normalizeTasksMap(project.tasks);
+            project.products = normalizeProductsMap(project.products);
+        });
+        return normalized;
+    };
+
+    const normalizeClientData = (clients) => clients.map((client) => {
+        const next = { ...client };
+        next.projects = normalizeProjectsMap(client.projects);
+        return next;
+    });
+
     const STATUS_OPTIONS = ['Pendiente', 'En proceso', 'Finalizado'];
     const STATUS_STYLES = {
         'Pendiente': 'bg-slate-500/15 text-slate-200 border-slate-500/30',
@@ -3410,6 +3484,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = snapshot.val();
             if (data) {
                 allClients = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                // Normalize nested RTDB maps (extra push levels) before rendering.
+                allClients = normalizeClientData(allClients);
             } else {
                 allClients = [];
             }
