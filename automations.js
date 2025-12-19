@@ -1,5 +1,9 @@
+import { auth, database } from './firebase.js';
+import { ref, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+
 // Mock data for automations
-const allAutomations = [];
+let allAutomations = [];
 
 const ICONS_BY_STATUS = {
     active: { icon: 'play_arrow', color: 'green' },
@@ -138,6 +142,33 @@ function updatePaginationControls(totalItems) {
     }
 }
 
+function fetchAutomations() {
+    const automationsRef = ref(database, 'automations');
+    onValue(automationsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const automationsData = snapshot.val();
+            allAutomations = Object.keys(automationsData).map(key => {
+                const automation = automationsData[key];
+                // Adapt data to what renderAutomationCard expects
+                return {
+                    id: key,
+                    name: automation.name,
+                    status: 'active', // Mock status
+                    lastRun: 'Nunca', // Mock last run
+                    trigger: {
+                        icon: 'play_arrow', // Mock icon
+                        label: automation.triggers.map(t => t.activityType).join(', ')
+                    },
+                    steps: automation.actions.map(a => a.type)
+                };
+            });
+        } else {
+            allAutomations = [];
+        }
+        renderAutomations();
+    });
+}
+
 /**
  * Initializes the automations tab functionality.
  */
@@ -145,7 +176,12 @@ function initAutomations() {
     // Find elements once the DOM is ready
     automationsGrid = document.getElementById('automations-grid');
     automationSearchInput = document.getElementById('automation-search-input');
-    filterButtons = document.getElementById('automation-filter-buttons').querySelectorAll('button');
+    const filterButtonsContainer = document.getElementById('automation-filter-buttons');
+    if (filterButtonsContainer) {
+        filterButtons = filterButtonsContainer.querySelectorAll('button');
+    } else {
+        filterButtons = [];
+    }
     emptyState = document.getElementById('automations-empty-state');
     paginationSummary = document.getElementById('pagination-summary');
     paginationPrev = document.getElementById('pagination-prev');
@@ -154,11 +190,6 @@ function initAutomations() {
     
     // Modal elements
     const createAutomationBtn = document.getElementById('create-automation-btn');
-    const addAutomationModal = document.getElementById('add-automation-modal');
-    const closeAutomationModalBtn = document.getElementById('close-automation-modal-btn');
-    const cancelAddAutomationBtn = document.getElementById('cancel-add-automation');
-    const addAutomationForm = document.getElementById('add-automation-form');
-
 
     if (!automationsGrid) {
         // Elements not found, maybe not on the right tab
@@ -166,76 +197,65 @@ function initAutomations() {
     }
     
     // --- Event Listeners ---
-    filterButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            currentFilter = button.dataset.filter;
+    if(filterButtons.length > 0) {
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                currentFilter = button.dataset.filter;
+                currentPage = 1;
+                
+                // Update active button style
+                filterButtons.forEach(btn => btn.classList.remove('text-primary', 'border-primary', 'shadow-[0_0_10px_rgba(230,25,161,0.2)]'));
+                button.classList.add('text-primary', 'border-primary', 'shadow-[0_0_10px_rgba(230,25,161,0.2)]');
+                
+                renderAutomations();
+            });
+        });
+    }
+
+    if(automationSearchInput) {
+        automationSearchInput.addEventListener('input', (e) => {
+            currentSearch = e.target.value;
             currentPage = 1;
-            
-            // Update active button style
-            filterButtons.forEach(btn => btn.classList.remove('text-primary', 'border-primary', 'shadow-[0_0_10px_rgba(230,25,161,0.2)]'));
-            button.classList.add('text-primary', 'border-primary', 'shadow-[0_0_10px_rgba(230,25,161,0.2)]');
-            
             renderAutomations();
         });
-    });
+    }
 
-    automationSearchInput.addEventListener('input', (e) => {
-        currentSearch = e.target.value;
-        currentPage = 1;
-        renderAutomations();
-    });
+    if(paginationPrev) {
+        paginationPrev.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderAutomations();
+            }
+        });
+    }
 
-    paginationPrev.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            renderAutomations();
-        }
-    });
+    if(paginationNext) {
+        paginationNext.addEventListener('click', () => {
+            const totalPages = Math.ceil(allAutomations.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderAutomations();
+            }
+        });
+    }
+    
+    if(createAutomationBtn) {
+        createAutomationBtn.addEventListener('click', () => {
+            window.location.href = 'create-automation.html';
+        });
+    }
 
-    paginationNext.addEventListener('click', () => {
-        const totalPages = Math.ceil(allAutomations.length / itemsPerPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderAutomations();
-        }
-    });
-
-    // Modal listeners
-    createAutomationBtn.addEventListener('click', () => {
-        window.location.href = 'create-automation.html';
-    });
-
-    // Initial render
-    renderAutomations();
+    fetchAutomations();
 }
 
-// Since the panel is loaded dynamically, we need to be careful.
-// We'll listen for the tab click to initialize.
 document.addEventListener('DOMContentLoaded', () => {
-    const automationsTabButton = document.getElementById('tab-automations');
-    
-    let isInitialized = false;
-
-    // Function to initialize if not already
-    const tryInit = () => {
-        // The panel might still be hidden but present.
-        const panel = document.getElementById('tab-panel-automations');
-        if (panel && !isInitialized) {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
             initAutomations();
-            isInitialized = true;
+        } else {
+            // Handle user not logged in
+            allAutomations = [];
+            renderAutomations();
         }
-    };
-    
-    // Check if the automations tab is already active on load
-    if (automationsTabButton && automationsTabButton.getAttribute('aria-selected') === 'true') {
-        tryInit();
-    }
-
-    // Add click listener to initialize when tab is selected
-    if(automationsTabButton) {
-        automationsTabButton.addEventListener('click', () => {
-            // Use a small timeout to ensure the panel is visible in the DOM
-            setTimeout(tryInit, 50);
-        }, { once: true }); // Only need to run this once
-    }
+    });
 });
