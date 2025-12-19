@@ -646,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!skipAutomations) {
-            executeAutomations('activityStatusChanged', {
+            await executeAutomations('activityStatusChanged', {
                 path: path,
                 type: parsed.type,
                 data: itemBefore,
@@ -658,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateAssigneeAtPath = async (path, nextUid) => {
         if (!currentUser) {
-            alert("Debes iniciar sesi▋ para asignar tareas.");
+            alert("Debes iniciar sesión para asignar tareas.");
             return;
         }
         const parsed = parseClientPath(path);
@@ -1432,8 +1432,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             renderMessageCard(noClientsMessage, {
                 icon: 'lock',
-                title: 'Inicia sesi\u00F3n',
-                description: 'Inicia sesi\u00F3n para ver tus clientes.',
+                title: 'Inicia sesión',
+                description: 'Inicia sesión para ver tus clientes.',
             });
             return;
         }
@@ -2347,7 +2347,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             { action: 'delete', path: `clients/${clientId}/projects/${projectId}/products/${prod.id}`, entityType: 'product' }
                         );
                         if (project?.products?.[prod.id]) delete project.products[prod.id];
-                        if (selectedClientId === clientId && selectedProjectId === projectId && selectedProductId === prod.id) {
+                        if (
+                            selectedClientId === clientId &&
+                            selectedProjectId === projectId &&
+                            selectedProductId === prod.id
+                        ) {
                             selectedProductId = null;
                             selectedTaskId = null;
                             selectedSubtaskId = null;
@@ -2570,8 +2574,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             renderTreeState({
                 icon: 'lock',
-                title: 'Inicia sesi\u00F3n',
-                description: 'Inicia sesi\u00F3n para ver tus clientes.',
+                title: 'Inicia sesión',
+                description: 'Inicia sesión para ver tus clientes.',
             });
             updateTreeExpandToggle();
             return;
