@@ -360,7 +360,36 @@
                         <span class="material-symbols-outlined text-primary">calendar_month</span>
                         <h2 class="text-gray-900 dark:text-white text-xl font-bold">Calendario</h2>
                     </div>
-                    <p class="text-text-muted text-sm">Próximamente.</p>
+                    <div class="mt-4 rounded-xl border border-border-dark bg-white/70 dark:bg-surface-dark/70 p-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                            <div>
+                                <p class="text-[11px] uppercase tracking-[0.2em] text-text-muted">Mes</p>
+                                <h3 id="calendar-month" class="text-lg font-bold text-gray-900 dark:text-white">Mes</h3>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="calendar-prev" type="button" class="size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Mes anterior">
+                                    <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                                </button>
+                                <button id="calendar-today" type="button" class="h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-xs font-semibold text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                                    Hoy
+                                </button>
+                                <button id="calendar-next" type="button" class="size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Mes siguiente">
+                                    <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-widest text-text-muted mb-2">
+                            <span class="text-center">Lun</span>
+                            <span class="text-center">Mar</span>
+                            <span class="text-center">Mié</span>
+                            <span class="text-center">Jue</span>
+                            <span class="text-center">Vie</span>
+                            <span class="text-center">Sáb</span>
+                            <span class="text-center">Dom</span>
+                        </div>
+                        <div id="calendar-days" class="grid grid-cols-7 gap-2 text-sm"></div>
+                    </div>
                 </section>
 
                 <section id="tab-panel-automations" data-tab-panel="automations" role="tabpanel" aria-labelledby="tab-automations" class="hidden">
@@ -613,6 +642,76 @@
 
 <script src="automations.js" type="module"></script>
 <script src="notifications.js" type="module"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const monthLabel = document.getElementById("calendar-month");
+        const daysGrid = document.getElementById("calendar-days");
+        const prevBtn = document.getElementById("calendar-prev");
+        const nextBtn = document.getElementById("calendar-next");
+        const todayBtn = document.getElementById("calendar-today");
+
+        if (!monthLabel || !daysGrid || !prevBtn || !nextBtn || !todayBtn) {
+            return;
+        }
+
+        const state = { date: new Date() };
+        const today = new Date();
+
+        const formatter = new Intl.DateTimeFormat("es-ES", {
+            month: "long",
+            year: "numeric",
+        });
+
+        const buildCalendar = () => {
+            daysGrid.innerHTML = "";
+            const viewDate = new Date(state.date.getFullYear(), state.date.getMonth(), 1);
+            const label = formatter.format(viewDate);
+            monthLabel.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+
+            const startDay = (viewDate.getDay() + 6) % 7; // Monday = 0
+            const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+            const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
+
+            for (let i = 0; i < totalCells; i += 1) {
+                const cell = document.createElement("div");
+                const dayNumber = i - startDay + 1;
+                if (dayNumber > 0 && dayNumber <= daysInMonth) {
+                    cell.textContent = String(dayNumber);
+                    cell.className = "h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-center flex items-center justify-center text-gray-900 dark:text-white font-semibold";
+
+                    const isToday =
+                        dayNumber === today.getDate() &&
+                        viewDate.getMonth() === today.getMonth() &&
+                        viewDate.getFullYear() === today.getFullYear();
+
+                    if (isToday) {
+                        cell.className += " ring-2 ring-primary/70 border-primary/50 text-primary dark:text-primary";
+                    }
+                } else {
+                    cell.className = "h-10 rounded-lg border border-transparent";
+                }
+                daysGrid.appendChild(cell);
+            }
+        };
+
+        prevBtn.addEventListener("click", () => {
+            state.date = new Date(state.date.getFullYear(), state.date.getMonth() - 1, 1);
+            buildCalendar();
+        });
+
+        nextBtn.addEventListener("click", () => {
+            state.date = new Date(state.date.getFullYear(), state.date.getMonth() + 1, 1);
+            buildCalendar();
+        });
+
+        todayBtn.addEventListener("click", () => {
+            state.date = new Date(today.getFullYear(), today.getMonth(), 1);
+            buildCalendar();
+        });
+
+        buildCalendar();
+    });
+</script>
 </body>
 </body>
 </html>
