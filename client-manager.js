@@ -2790,8 +2790,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const makeTaskItem = (task, { taskPath, onStatusChange = null, onAssigneeChange = null, depth = 0 } = {}) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex flex-col rounded-md border border-border-dark bg-white dark:bg-surface-dark px-3 py-2 text-gray-900 dark:text-white';
+
             const row = document.createElement('div');
-            row.className = `${treeGrid} px-3 py-1 rounded-md bg-white dark:bg-surface-dark border border-border-dark text-gray-900 dark:text-white`;
+            row.className = `${treeGrid} cursor-pointer`;
 
             const nameCell = document.createElement('div');
             nameCell.className = 'flex items-center gap-2 min-w-0';
@@ -2842,7 +2845,145 @@ document.addEventListener('DOMContentLoaded', () => {
             const progressCell = document.createElement('div');
             progressCell.className = 'min-w-0';
             row.append(nameCell, statusControl, progressCell, assigneeControl);
-            return row;
+
+            const panel = document.createElement('div');
+            panel.className = 'hidden mt-2 pl-6';
+
+            const list = document.createElement('div');
+            list.className = 'flex flex-col gap-2 text-sm';
+
+            const renderSubtasks = () => {
+                list.innerHTML = '';
+                const subtasks = Object.entries(task?.subtasks || {}).filter(([, sub]) => sub);
+                if (!subtasks.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'text-text-muted text-sm';
+                    empty.textContent = 'No hay elementos.';
+                    list.appendChild(empty);
+                    return;
+                }
+                subtasks.forEach(([subId, sub]) => {
+                    const rowEl = document.createElement('div');
+                    rowEl.className = 'flex flex-col gap-2 rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 py-2';
+
+                    const top = document.createElement('div');
+                    top.className = 'flex items-center justify-between gap-3';
+
+                    const left = document.createElement('div');
+                    left.className = 'flex items-center gap-2 min-w-0';
+                    const icon = document.createElement('span');
+                    icon.className = 'material-symbols-outlined text-[16px] text-text-muted';
+                    icon.textContent = 'subdirectory_arrow_right';
+                    const labelWrap = document.createElement('span');
+                    labelWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
+                    const label = document.createElement('span');
+                    label.className = 'text-sm text-gray-900 dark:text-white truncate';
+                    label.textContent = sub?.name || 'Elemento';
+                    labelWrap.appendChild(label);
+                    if (sub?.manageId) {
+                        const chip = createIdChip(sub.manageId);
+                        chip.classList.add('text-[11px]');
+                        labelWrap.appendChild(chip);
+                    }
+                    left.append(icon, labelWrap);
+
+                    const controls = document.createElement('div');
+                    controls.className = 'flex items-center gap-2';
+
+                    const subPath = `${taskPath}/subtasks/${subId}`;
+                    const statusControl = createStatusControl({
+                        status: sub?.status,
+                        onChange: async (nextStatus) => {
+                            await updateStatusAtPath(subPath, nextStatus);
+                            sub.status = nextStatus;
+                        }
+                    });
+
+                    const assigneeControl = createAssigneeControl({
+                        assigneeUid: sub?.assigneeUid,
+                        onChange: async (nextUid) => {
+                            await updateAssigneeAtPath(subPath, nextUid);
+                            sub.assigneeUid = nextUid;
+                        }
+                    });
+
+                    controls.append(statusControl, assigneeControl);
+                    top.append(left, controls);
+                    rowEl.appendChild(top);
+                    list.appendChild(rowEl);
+                });
+            };
+
+            renderSubtasks();
+
+            const inputWrap = document.createElement('div');
+            inputWrap.className = 'mt-3 flex flex-col sm:flex-row gap-2';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Nuevo elemento...';
+            input.className = 'flex-1 h-9 rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 text-sm text-gray-900 dark:text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/60';
+
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.className = 'h-9 px-3 rounded-md bg-primary hover:bg-primary-hover text-white text-sm font-semibold transition-colors';
+            addBtn.textContent = 'Añadir';
+
+            const addSubtaskInline = async () => {
+                if (!currentUser) {
+                    alert('Debes iniciar sesión para añadir subtareas.');
+                    return;
+                }
+                const name = String(input.value || '').trim();
+                if (!name || !taskPath) return;
+                const parsed = parseClientPath(taskPath);
+                const clientId = parsed?.clientId || selectedClientId;
+                if (!clientId) {
+                    alert('No se pudo identificar el cliente para esta subtarea.');
+                    return;
+                }
+                addBtn.disabled = true;
+                addBtn.textContent = 'Guardando...';
+                try {
+                    const manageId = await allocateNextManageId(clientId);
+                    const subtaskRef = push(ref(database, `${taskPath}/subtasks`));
+                    const subtaskData = {
+                        name,
+                        status: 'Pendiente',
+                        assigneeUid: '',
+                        createdAt: new Date().toISOString(),
+                        subtaskId: subtaskRef.key,
+                        manageId
+                    };
+                    await set(subtaskRef, subtaskData);
+                    input.value = '';
+                } catch (error) {
+                    console.error('Error adding subtask:', error);
+                    alert(`No se pudo guardar la subtarea: ${error.message}`);
+                } finally {
+                    addBtn.disabled = false;
+                    addBtn.textContent = 'Añadir';
+                }
+            };
+
+            addBtn.addEventListener('click', addSubtaskInline);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addSubtaskInline();
+                }
+            });
+
+            inputWrap.append(input, addBtn);
+            panel.append(list, inputWrap);
+
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('button, input, textarea, select, .action-menu')) return;
+                panel.classList.toggle('hidden');
+            });
+
+            wrapper.append(row, panel);
+            return wrapper;
         };
 
         clientsToRender.forEach(client => {
@@ -2893,7 +3034,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ));
 
                     const projContent = document.createElement('div');
-                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2 border-l-2 border-border-dark/60 ml-4 pl-4';
+                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2 ml-4 pl-4';
 
                     // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
@@ -2928,84 +3069,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 }
                             }));
-                            const subtasks = t.subtasks || {};
-                            const subArray = Object.keys(subtasks).map(id => ({ id, ...subtasks[id] }));
-                            subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                            if (subArray.length) {
-                                const subList = document.createElement('div');
-                                subList.className = 'flex flex-col gap-1';
-                                subArray.forEach(sub => {
-                                    const row = document.createElement('div');
-                                    row.className = `${treeGrid} px-3 py-1 rounded-md bg-white dark:bg-surface-darker border border-border-dark text-gray-900 dark:text-white`;
-
-                                    const nameCell = document.createElement('div');
-                                    nameCell.className = 'flex items-center gap-2 min-w-0';
-                                    const indent = document.createElement('span');
-                                    indent.className = 'shrink-0';
-                                    indent.style.width = `${3 * 16}px`;
-
-                                    const ic = document.createElement('span');
-                                    ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
-                                    ic.textContent = 'subdirectory_arrow_right';
-
-                                    const nameWrap = document.createElement('span');
-                                    nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
-
-                                    const name = document.createElement('span');
-                                    name.className = 'text-sm truncate flex-1 min-w-0';
-                                    name.textContent = sub.name || 'Subtarea';
-                                    nameWrap.appendChild(name);
-
-                                    if (sub.manageId) {
-                                        const chip = createIdChip(sub.manageId);
-                                        chip.classList.add('text-[11px]', 'shrink-0');
-                                        nameWrap.appendChild(chip);
-                                    }
-
-                                    nameCell.append(indent, ic, nameWrap);
-
-                                    const subPath = `${taskPath}/subtasks/${sub.id}`;
-                                    const statusControl = createStatusControl({
-                                        status: sub.status,
-                                        onChange: async (nextStatus) => {
-                                            await updateStatusAtPath(subPath, nextStatus);
-                                            sub.status = nextStatus;
-                                            if (subtasks?.[sub.id]) subtasks[sub.id].status = nextStatus;
-                                            if (
-                                                selectedClientId === client.id &&
-                                                selectedProjectId === proj.id &&
-                                                !selectedProductId &&
-                                                selectedTaskId === t.id
-                                            ) {
-                                                renderSubtasks(client.id, proj.id, null, t.id);
-                                            }
-                                        }
-                                    });
-
-                                    const assigneeControl = createAssigneeControl({
-                                        assigneeUid: sub.assigneeUid,
-                                        onChange: async (nextUid) => {
-                                            await updateAssigneeAtPath(subPath, nextUid);
-                                            sub.assigneeUid = nextUid;
-                                            if (subtasks?.[sub.id]) subtasks[sub.id].assigneeUid = nextUid;
-                                            if (
-                                                selectedClientId === client.id &&
-                                                selectedProjectId === proj.id &&
-                                                !selectedProductId &&
-                                                selectedTaskId === t.id
-                                            ) {
-                                                renderSubtasks(client.id, proj.id, null, t.id);
-                                            }
-                                        }
-                                    });
-
-                                    const progressCell = document.createElement('div');
-                                    progressCell.className = 'min-w-0';
-                                    row.append(nameCell, statusControl, progressCell, assigneeControl);
-                                    subList.appendChild(row);
-                                });
-                                taskBlock.appendChild(subList);
-                            }
                             projContent.appendChild(taskBlock);
                         });
                     }
@@ -3053,7 +3116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ));
 
                             const prodContent = document.createElement('div');
-                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1 border-l-2 border-border-dark/50 ml-4 pl-4';
+                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1 ml-4 pl-4';
 
                             const prodTasks = prod.tasks || {};
                             const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
@@ -3097,84 +3160,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                             }
                                         }
                                     }));
-                                    const subtasks = t.subtasks || {};
-                                    const subArray = Object.keys(subtasks).map(id => ({ id, ...subtasks[id] }));
-                                    subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                                    if (subArray.length) {
-                                        const subList = document.createElement('div');
-                                        subList.className = 'flex flex-col gap-1';
-                                        subArray.forEach(sub => {
-                                            const row = document.createElement('div');
-                                            row.className = `${treeGrid} px-3 py-1 rounded-md bg-white dark:bg-surface-darker border border-border-dark text-gray-900 dark:text-white`;
-
-                                            const nameCell = document.createElement('div');
-                                            nameCell.className = 'flex items-center gap-2 min-w-0';
-                                            const indent = document.createElement('span');
-                                            indent.className = 'shrink-0';
-                                            indent.style.width = `${4 * 16}px`;
-
-                                            const ic = document.createElement('span');
-                                            ic.className = 'material-symbols-outlined text-text-muted text-[16px]';
-                                            ic.textContent = 'subdirectory_arrow_right';
-
-                                            const nameWrap = document.createElement('span');
-                                            nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
-
-                                            const name = document.createElement('span');
-                                            name.className = 'text-sm truncate flex-1 min-w-0';
-                                            name.textContent = sub.name || 'Subtarea';
-                                            nameWrap.appendChild(name);
-
-                                            if (sub.manageId) {
-                                                const chip = createIdChip(sub.manageId);
-                                                chip.classList.add('text-[11px]', 'shrink-0');
-                                                nameWrap.appendChild(chip);
-                                            }
-
-                                            nameCell.append(indent, ic, nameWrap);
-
-                                            const subPath = `${taskPath}/subtasks/${sub.id}`;
-                                            const statusControl = createStatusControl({
-                                                status: sub.status,
-                                                onChange: async (nextStatus) => {
-                                                    await updateStatusAtPath(subPath, nextStatus);
-                                                    sub.status = nextStatus;
-                                                    if (subtasks?.[sub.id]) subtasks[sub.id].status = nextStatus;
-                                                    if (
-                                                        selectedClientId === client.id &&
-                                                        selectedProjectId === proj.id &&
-                                                        selectedProductId === prod.id &&
-                                                        selectedTaskId === t.id
-                                                    ) {
-                                                        renderSubtasks(client.id, proj.id, prod.id, t.id);
-                                                    }
-                                                }
-                                            });
-
-                                            const assigneeControl = createAssigneeControl({
-                                                assigneeUid: sub.assigneeUid,
-                                                onChange: async (nextUid) => {
-                                                    await updateAssigneeAtPath(subPath, nextUid);
-                                                    sub.assigneeUid = nextUid;
-                                                    if (subtasks?.[sub.id]) subtasks[sub.id].assigneeUid = nextUid;
-                                                    if (
-                                                        selectedClientId === client.id &&
-                                                        selectedProjectId === proj.id &&
-                                                        selectedProductId === prod.id &&
-                                                        selectedTaskId === t.id
-                                                    ) {
-                                                        renderSubtasks(client.id, proj.id, prod.id, t.id);
-                                                    }
-                                                }
-                                            });
-
-                                            const progressCell = document.createElement('div');
-                                            progressCell.className = 'min-w-0';
-                                            row.append(nameCell, statusControl, progressCell, assigneeControl);
-                                            subList.appendChild(row);
-                                        });
-                                        taskBlock.appendChild(subList);
-                                    }
                                     prodContent.appendChild(taskBlock);
                                 });
                             }
