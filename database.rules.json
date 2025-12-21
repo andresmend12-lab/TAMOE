@@ -1,25 +1,6 @@
 {
   "rules": {
-    "users": {
-      ".read": true,
-      "$uid": {
-        ".write": "$uid === auth.uid",
-        ".read": true
-      }
-    },
-    "clients": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "automations": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "notifications": {
-      "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "auth != null"
-      }
-    }
+    ".read": true,
+    ".write": true
   }
 }

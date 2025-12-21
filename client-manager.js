@@ -585,6 +585,14 @@ document.addEventListener('DOMContentLoaded', () => {
         'Finalizado': 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
     };
 
+    const applyStatusChipStyle = (button, label, statusValue) => {
+        if (!button || !label) return;
+        const normalized = normalizeStatus(statusValue);
+        const style = STATUS_STYLES[normalized] || STATUS_STYLES['Pendiente'];
+        label.textContent = normalized;
+        button.className = `inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-bold border ${style}`;
+    };
+
     const parseClientPath = (pathValue) => {
         const path = String(pathValue || '').trim();
         if (!path) return null;
@@ -2846,7 +2854,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
 
             const clientContent = document.createElement('div');
-            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2 border-l-2 border-border-dark/70 ml-4 pl-4';
+            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2 ml-4 pl-4';
 
             const projects = client.projects || {};
             const rawProjectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
