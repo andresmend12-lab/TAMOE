@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html class="dark" lang="es">
+<html lang="es">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -36,11 +36,50 @@
             },
         }
     </script>
+    <script>
+        (function () {
+            const applyTheme = () => {
+                const stored = localStorage.getItem("theme");
+                if (stored === "dark") {
+                    document.documentElement.classList.add("dark");
+                    return;
+                }
+                document.documentElement.classList.remove("dark");
+            };
+
+            try {
+                if (window.parent && window.parent.document) {
+                    if (window.parent.document.documentElement.classList.contains("dark")) {
+                        document.documentElement.classList.add("dark");
+                    }
+                }
+            } catch (e) {
+                // Ignore cross-frame access errors.
+            }
+
+            applyTheme();
+            window.addEventListener("storage", (event) => {
+                if (event.key === "theme") {
+                    applyTheme();
+                }
+            });
+        })();
+    </script>
     <style>
+        :root {
+            --scroll-track: #f1f1f1;
+            --scroll-thumb: #d1d5db;
+            --scroll-thumb-hover: #e619a1;
+        }
+        .dark {
+            --scroll-track: #21111c;
+            --scroll-thumb: #47243b;
+            --scroll-thumb-hover: #e619a1;
+        }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #21111c; }
-        ::-webkit-scrollbar-thumb { background: #47243b; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #e619a1; }
+        ::-webkit-scrollbar-track { background: var(--scroll-track); }
+        ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-display overflow-hidden flex flex-col h-screen">
