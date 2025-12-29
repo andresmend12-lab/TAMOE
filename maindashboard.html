@@ -16,12 +16,12 @@
                     colors: {
                         "primary": "#e619a1",
                         "primary-hover": "#c9168d",
-                        "background-light": "#ffffff",
-                        "background-dark": "#21111c",
-                        "surface-dark": "#2f1a28",
-                        "surface-darker": "#1a0d15",
-                        "border-dark": "#47243b",
-                        "text-muted": "#c893b6",
+                        "background-light": "#f7f3f5",
+                        "background-dark": "#3a2a34",
+                        "surface-dark": "#4a3242",
+                        "surface-darker": "#402a3a",
+                        "border-dark": "#7a4666",
+                        "text-muted": "#e0b9d2",
                     },
                     fontFamily: { "display": ["Manrope", "sans-serif"] },
                     borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
@@ -33,6 +33,28 @@
         summary::-webkit-details-marker { display: none; }
         summary::marker { content: ""; }
         summary { list-style: none; }
+        body:not(.dark) .text-text-muted { color: #6a3f59; }
+        body:not(.dark) .placeholder\:text-text-muted::placeholder { color: #6a3f59; }
+        .dark main :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select),
+        .dark aside :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select) {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        html.dark .material-symbols-outlined,
+        body.dark .material-symbols-outlined,
+        .dark aside .material-symbols-outlined,
+        .dark main .material-symbols-outlined {
+            color: #f4b6d2 !important;
+            font-weight: 400 !important;
+        }
+        .dark .status-chip,
+        .dark .status-chip :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label) {
+            font-weight: 400 !important;
+        }
+        .dark .subtask-row,
+        .dark .subtask-row :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label) {
+            font-weight: 400 !important;
+        }
     </style>
     <script src="auth-guard.js" type="module"></script>
 </head>
@@ -231,7 +253,7 @@
                              <span id="tree-expand-label">Expandir todo</span>
                          </button>
                      </div>
-                     <div class="grid grid-cols-[minmax(0,1fr)_140px_260px_220px] items-center gap-1 px-3 pb-2 text-[11px] text-text-muted uppercase tracking-wide">
+                     <div class="grid grid-cols-[minmax(0,1fr)_140px_260px_220px] items-center gap-1 px-3 pb-2 text-[11px] text-white font-bold uppercase tracking-wide">
                          <span class="truncate">Nombre</span>
                          <span>Estado</span>
                          <span>Progreso</span>

@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="flex justify-between text-xs">
                             <span class="text-gray-900 dark:text-white font-medium">${row.progress}%</span>
                         </div>
-                        <div class="h-1.5 w-full bg-white dark:bg-background-dark rounded-full overflow-hidden">
+                        <div class="h-1.5 w-full bg-gray-200 dark:bg-background-dark rounded-full overflow-hidden">
                             <div class="h-full bg-primary rounded-full" style="width: ${row.progress}%"></div>
                         </div>
                     </div>
@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusCell.appendChild(statusControl);
             } else {
                 const statusStyle = STATUS_STYLES[row.status] || STATUS_STYLES['Pendiente'];
-                statusCell.innerHTML = `<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${statusStyle}">${row.status}</span>`;
+                statusCell.innerHTML = `<span class="status-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-normal border ${statusStyle}">${row.status}</span>`;
             }
 
             statusRecentProjectsBody.appendChild(tr);
@@ -580,9 +580,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const STATUS_OPTIONS = ['Pendiente', 'En proceso', 'Finalizado'];
     const STATUS_STYLES = {
-        'Pendiente': 'bg-slate-500/15 text-slate-200 border-slate-500/30',
-        'En proceso': 'bg-blue-500/15 text-blue-200 border-blue-500/30',
-        'Finalizado': 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
+        'Pendiente': 'bg-slate-200/80 text-slate-800 border-slate-300 dark:bg-slate-500/15 dark:text-slate-200 dark:border-slate-500/30',
+        'En proceso': 'bg-blue-200/80 text-blue-900 border-blue-300 dark:bg-blue-500/15 dark:text-blue-200 dark:border-blue-500/30',
+        'Finalizado': 'bg-emerald-200/80 text-emerald-900 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-500/30',
     };
 
     const applyStatusChipStyle = (button, label, statusValue) => {
@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const normalized = normalizeStatus(statusValue);
         const style = STATUS_STYLES[normalized] || STATUS_STYLES['Pendiente'];
         label.textContent = normalized;
-        button.className = `inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-bold border whitespace-nowrap ${style}`;
+        button.className = `status-chip inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-normal border whitespace-nowrap ${style}`;
     };
 
     const parseClientPath = (pathValue) => {
@@ -1552,14 +1552,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeChevron = (isOpen) => {
             const chevron = document.createElement('span');
-            chevron.className = 'material-symbols-outlined text-[18px] text-text-muted';
+            chevron.className = 'material-symbols-outlined text-[18px] text-text-muted dark:text-white';
             chevron.textContent = isOpen ? 'expand_more' : 'chevron_right';
             return chevron;
         };
 
         const makeSidebarRow = ({ icon, label, manageId, active = false, indentClass = '', chevron = null }) => {
             const row = document.createElement('div');
-            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
+            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
             if (active) row.classList.add('bg-gray-100', 'text-gray-900', 'dark:bg-white/5', 'dark:text-white');
 
             const left = document.createElement('div');
@@ -1567,14 +1567,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (chevron) left.appendChild(chevron);
 
             const iconEl = document.createElement('span');
-            iconEl.className = 'material-symbols-outlined';
+            iconEl.className = 'material-symbols-outlined dark:text-white';
             iconEl.textContent = icon;
 
             const nameWrap = document.createElement('div');
             nameWrap.className = 'flex items-center gap-2 min-w-0 flex-1';
 
             const name = document.createElement('span');
-            name.className = 'text-sm font-medium truncate';
+            name.className = 'text-sm font-semibold dark:text-white truncate';
             name.textContent = label || '';
 
             nameWrap.appendChild(name);
@@ -1592,10 +1592,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const makeAddRow = ({ label, onClick, indentClass = '' }) => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = `flex items-center gap-2 w-full px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
+            button.className = `flex items-center gap-2 w-full px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
             button.innerHTML = '<span class="material-symbols-outlined text-[18px]">add</span>';
             const text = document.createElement('span');
-            text.className = 'text-sm font-semibold truncate';
+            text.className = 'text-sm font-semibold dark:text-white truncate';
             text.textContent = label;
             button.appendChild(text);
             button.addEventListener('click', (e) => {
@@ -2243,7 +2243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         projectArray.sort((a, b) => a.name.localeCompare(b.name));
         projectArray.forEach(proj => {
             const row = document.createElement('div');
-            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
             row.dataset.projectId = proj.id;
 
             const selectButton = document.createElement('button');
@@ -2356,7 +2356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         productArray.sort((a, b) => a.name.localeCompare(b.name));
         productArray.forEach(prod => {
             const row = document.createElement('div');
-            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
+            row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
             row.dataset.productId = prod.id;
 
             const selectButton = document.createElement('button');
@@ -2764,7 +2764,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return progress;
         };
 
-        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null, depth = 0) => {
+        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null, depth = 0, kind = '') => {
             const summary = document.createElement('summary');
             summary.className = `${treeGrid} cursor-pointer select-none px-3 py-2 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg list-none`;
 
@@ -2780,7 +2780,13 @@ document.addEventListener('DOMContentLoaded', () => {
             nameWrap.className = 'inline-flex items-baseline gap-1 min-w-0';
 
             const title = document.createElement('span');
-            title.className = 'text-sm font-semibold truncate flex-1 min-w-0';
+            const titleClassByKind = {
+                client: 'text-base font-bold',
+                project: 'text-sm font-bold',
+                product: 'text-sm font-normal',
+            };
+            const titleClasses = titleClassByKind[kind] || 'text-sm font-semibold';
+            title.className = `${titleClasses} truncate flex-1 min-w-0`;
             title.textContent = name;
             nameWrap.appendChild(title);
 
@@ -2818,7 +2824,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 wrap.title = total > 0 ? `Progreso: ${done}/${total} finalizadas` : 'Sin tareas';
 
                 const barOuter = document.createElement('div');
-                barOuter.className = 'flex-1 h-2 rounded-full bg-white/10 overflow-hidden';
+                barOuter.className = 'flex-1 h-2 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden';
 
                 const barInner = document.createElement('div');
                 barInner.className = `h-full ${percent === 100 ? 'bg-emerald-400' : 'bg-primary'}`;
@@ -2992,7 +2998,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 subtasks.forEach(([subId, sub]) => {
                     const rowEl = document.createElement('div');
-                    rowEl.className = `${treeGrid} items-center rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 py-2`;
+                    rowEl.className = `${treeGrid} items-center rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 py-2 subtask-row`;
 
                     const nameCell = document.createElement('div');
                     nameCell.className = 'flex items-center gap-2 min-w-0';
@@ -3186,7 +3192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientManage = client.manageId || '';
             clientDetails.dataset.manageId = client.manageId || `client:${client.id}`;
             if (selectionClientId && client.id === selectionClientId) clientDetails.open = true;
-            clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
+            clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage, null, null, null, 0, 'client'));
 
             const clientContent = document.createElement('div');
             clientContent.className = 'pr-3 pb-3 flex flex-col gap-2';
@@ -3224,7 +3230,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         },
                         projProgress,
-                        1
+                        1,
+                        'project'
                     ));
 
                     const projContent = document.createElement('div');
@@ -3307,7 +3314,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 },
                                 prodProgress,
-                                2
+                                2,
+                                'product'
                             ));
 
                             const prodContent = document.createElement('div');
