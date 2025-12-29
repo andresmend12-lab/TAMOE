@@ -55,6 +55,44 @@
         .dark .subtask-row :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label) {
             font-weight: 400 !important;
         }
+        .dark #tree-view details {
+            background-color: #4a3242 !important;
+            border-color: #9a5a82 !important;
+            box-shadow: 0 0 0 1px rgba(244, 182, 210, 0.15);
+        }
+        .dark #tree-view details details {
+            background-color: #3e2a38 !important;
+            border-color: #8a5175 !important;
+        }
+        #tree-view .tree-level-1 {
+            margin-left: 12px;
+        }
+        #tree-view .tree-level-2 {
+            margin-left: 24px;
+        }
+        #tree-view .tree-level-3 {
+            margin-left: 36px;
+        }
+        #client-list-nav details.sidebar-tree-box {
+            margin-bottom: 8px;
+        }
+        #client-list-nav details.sidebar-tree-box > summary {
+            margin-bottom: 6px;
+        }
+        #client-list-nav details.sidebar-tree-box details.sidebar-tree-box {
+            margin-top: 6px;
+            padding: 6px;
+        }
+        #client-list-nav details.sidebar-tree-box details.sidebar-tree-box > summary {
+            margin-bottom: 6px;
+        }
+        #client-list-nav .sidebar-tree-box {
+            box-sizing: border-box;
+        }
+        #client-list-nav .sidebar-tree-box .sidebar-tree-box {
+            margin-left: 0;
+            width: 100%;
+        }
     </style>
     <script src="auth-guard.js" type="module"></script>
 </head>

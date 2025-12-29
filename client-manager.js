@@ -1559,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeSidebarRow = ({ icon, label, manageId, active = false, indentClass = '', chevron = null }) => {
             const row = document.createElement('div');
-            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
+            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border-dark/60 bg-white/70 dark:bg-surface-dark/70 text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
             if (active) row.classList.add('bg-gray-100', 'text-gray-900', 'dark:bg-white/5', 'dark:text-white');
 
             const left = document.createElement('div');
@@ -1610,6 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientKey = `client:${client.id}`;
             const clientDetails = document.createElement('details');
             clientDetails.dataset.treeKey = clientKey;
+            clientDetails.className = 'sidebar-tree-box border border-border-dark/70 rounded-lg bg-white/80 dark:bg-surface-dark/70 p-1';
             clientDetails.open = sidebarOpenKeys.has(clientKey) || sidebarAutoOpenKeys.has(clientKey);
 
             const clientSummary = document.createElement('summary');
@@ -1693,7 +1694,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientDetails.appendChild(clientSummary);
 
             const clientChildren = document.createElement('div');
-            clientChildren.className = 'ml-4 mt-1 flex flex-col gap-1';
+            clientChildren.className = 'pl-3 pt-2 flex flex-col gap-2';
 
             const projects = client?.projects || {};
             const projectArray = Object.keys(projects || {}).map(id => ({ id, ...projects[id] }));
@@ -1709,6 +1710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const projectKey = `project:${client.id}:${proj.id}`;
                     const projectDetails = document.createElement('details');
                     projectDetails.dataset.treeKey = projectKey;
+                    projectDetails.className = 'sidebar-tree-box border border-border-dark/60 rounded-lg bg-white/70 dark:bg-surface-dark/60 p-1';
                     projectDetails.open = sidebarOpenKeys.has(projectKey) || sidebarAutoOpenKeys.has(projectKey);
 
                     const projectSummary = document.createElement('summary');
@@ -1800,7 +1802,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     projectDetails.appendChild(projectSummary);
 
                     const projectChildren = document.createElement('div');
-                    projectChildren.className = 'ml-4 mt-1 flex flex-col gap-1';
+                    projectChildren.className = 'pl-3 pt-2 flex flex-col gap-2';
 
                     const products = proj?.products || {};
                     const productArray = Object.keys(products || {}).map(id => ({ id, ...products[id] }));
@@ -2850,7 +2852,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeTaskItem = (task, { taskPath, onStatusChange = null, onAssigneeChange = null, depth = 0 } = {}) => {
             const wrapper = document.createElement('div');
-            wrapper.className = 'flex flex-col rounded-md border border-border-dark bg-white dark:bg-surface-dark px-3 py-2 text-gray-900 dark:text-white';
+            wrapper.className = 'tree-level-3 flex flex-col rounded-md border border-border-dark bg-white dark:bg-surface-dark px-3 py-2 text-gray-900 dark:text-white';
 
             const row = document.createElement('div');
             row.className = `${treeGrid} cursor-pointer`;
@@ -3188,14 +3190,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clientsToRender.forEach(client => {
             const clientDetails = document.createElement('details');
-            clientDetails.className = 'bg-white dark:bg-surface-dark border border-border-dark rounded-lg';
+            clientDetails.className = 'tree-level-0 bg-white dark:bg-surface-dark border border-border-dark rounded-lg';
             const clientManage = client.manageId || '';
             clientDetails.dataset.manageId = client.manageId || `client:${client.id}`;
             if (selectionClientId && client.id === selectionClientId) clientDetails.open = true;
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage, null, null, null, 0, 'client'));
 
             const clientContent = document.createElement('div');
-            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2';
+            clientContent.className = 'pt-2 pr-3 pb-3 flex flex-col gap-2';
 
             const projects = client.projects || {};
             const rawProjectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
@@ -3212,7 +3214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 projectArray.forEach(proj => {
                     const projDetails = document.createElement('details');
-                    projDetails.className = 'border border-border-dark/70 rounded-lg';
+                    projDetails.className = 'tree-level-1 border border-border-dark/70 rounded-lg';
                     projDetails.dataset.manageId = proj.manageId || `project:${client.id}:${proj.id}`;
                     if (selectionProjectId && proj.id === selectionProjectId) projDetails.open = true;
                     const projProgress = computeProjectProgress(proj);
@@ -3235,7 +3237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ));
 
                     const projContent = document.createElement('div');
-                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2';
+                    projContent.className = 'pt-2 pr-2 pb-2 flex flex-col gap-2';
 
                     // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
@@ -3292,7 +3294,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         productArray.forEach(prod => {
                             const productBasePath = `clients/${client.id}/projects/${proj.id}/products/${prod.id}`;
                             const prodDetails = document.createElement('details');
-                            prodDetails.className = 'border border-border-dark/60 rounded-lg';
+                            prodDetails.className = 'tree-level-2 border border-border-dark/60 rounded-lg';
                             prodDetails.dataset.manageId = prod.manageId || `product:${client.id}:${proj.id}:${prod.id}`;
                             if (selectionProductId && prod.id === selectionProductId) prodDetails.open = true;
                             const prodProgress = computeTasksProgress(prod.tasks);
@@ -3319,7 +3321,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ));
 
                             const prodContent = document.createElement('div');
-                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1';
+                            prodContent.className = 'pt-2 pr-2 pb-2 flex flex-col gap-1';
 
                             const prodTasks = prod.tasks || {};
                             const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
