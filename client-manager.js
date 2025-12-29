@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const normalized = normalizeStatus(statusValue);
         const style = STATUS_STYLES[normalized] || STATUS_STYLES['Pendiente'];
         label.textContent = normalized;
-        button.className = `inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-bold border ${style}`;
+        button.className = `inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-bold border whitespace-nowrap ${style}`;
     };
 
     const parseClientPath = (pathValue) => {
@@ -1912,15 +1912,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
-                    projectChildren.appendChild(makeAddRow({
-                        label: 'Crear producto',
-                        indentClass: 'pl-4',
-                        onClick: () => {
-                            showProductView(client.id, proj.id);
-                            openProductModal();
-                        }
-                    }));
-
                     projectDetails.appendChild(projectChildren);
                     clientChildren.appendChild(projectDetails);
                 });
@@ -2108,7 +2099,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (projectDetail) projectDetail.classList.remove('hidden');
         if (projectDetailName) projectDetailName.textContent = project.name;
-        if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+        const hasProducts = !!Object.keys(project.products || {}).length;
+        if (projectDetailSub) {
+            projectDetailSub.textContent = hasProducts
+                ? 'Selecciona un producto para ver tareas.'
+                : 'Tareas del proyecto (sin producto).';
+        }
         renderTasks(clientId, projectId, null);
 
         showEl(treeView);
@@ -2198,6 +2194,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const openTaskModal = () => {
         if (!selectedClientId || !selectedProjectId) {
             alert('Selecciona un proyecto primero.');
+            return;
+        }
+        const client = allClients.find(c => c.id === selectedClientId);
+        const project = client?.projects?.[selectedProjectId];
+        const hasProducts = !!(project && Object.keys(project.products || {}).length);
+        if (hasProducts && !selectedProductId) {
+            alert('Selecciona un producto para crear tareas.');
             return;
         }
         addTaskModal.classList.remove('hidden');
@@ -2619,6 +2622,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map(el => el.dataset.manageId)
                 .filter(Boolean)
         );
+        const openTaskPanels = new Set(
+            Array.from(treeBody.querySelectorAll('[data-task-panel-id]'))
+                .filter(panel => !panel.classList.contains('hidden'))
+                .map(panel => panel.dataset.taskPanelId)
+                .filter(Boolean)
+        );
         treeBody.innerHTML = '';
 
         if (clientsLoading) {
@@ -2694,6 +2703,47 @@ document.addEventListener('DOMContentLoaded', () => {
         const clientsToRender = [...baseClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
         const treeGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_220px] items-center gap-1';
+
+        const applyDepthPadding = (el, depth = 0) => {
+            if (!el) return;
+            const amount = Math.max(0, Number(depth) || 0) * 16;
+            el.style.paddingLeft = `${amount}px`;
+        };
+
+        const makeTreeActionRow = (actions, depth = 0) => {
+            const row = document.createElement('div');
+            row.className = `${treeGrid} items-center`;
+
+            const cell = document.createElement('div');
+            cell.className = 'col-span-4 flex flex-wrap items-center gap-2 px-3 py-2';
+
+            const indent = document.createElement('span');
+            indent.className = 'shrink-0';
+            indent.style.width = `${Math.max(0, Number(depth) || 0) * 16}px`;
+            cell.appendChild(indent);
+
+            (actions || []).forEach((action) => {
+                if (!action) return;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'inline-flex items-center gap-2 h-8 px-3 rounded-md border border-dashed border-border-dark/70 text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-xs font-semibold';
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined text-[16px]';
+                icon.textContent = action.icon || 'add';
+                const label = document.createElement('span');
+                label.textContent = action.label || '';
+                button.append(icon, label);
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    action.onClick?.();
+                });
+                cell.appendChild(button);
+            });
+
+            row.appendChild(cell);
+            return row;
+        };
 
         const computeTasksProgress = (tasksObject) => {
             const tasks = Object.values(tasksObject || {}).filter(Boolean);
@@ -2785,6 +2835,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const assigneeCell = document.createElement('div');
             assigneeCell.className = 'min-w-0';
+            applyDepthPadding(statusCell, depth);
+            applyDepthPadding(metaCell, depth);
+            applyDepthPadding(assigneeCell, depth);
             summary.append(nameCell, statusCell, metaCell, assigneeCell);
             return summary;
         };
@@ -2844,15 +2897,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const progressCell = document.createElement('div');
             progressCell.className = 'min-w-0';
-            row.append(nameCell, statusControl, progressCell, assigneeControl);
+
+            const assigneeCell = document.createElement('div');
+            assigneeCell.className = 'flex items-center justify-end gap-2 min-w-0';
+
+            const taskActions = createActionMenu({
+                onRename: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesion para editar tareas.");
+                        return;
+                    }
+                    const nextNameRaw = prompt('Nuevo nombre de la tarea', task.name || '');
+                    if (nextNameRaw === null) return;
+                    const nextName = nextNameRaw.trim();
+                    if (!nextName || nextName === task.name) return;
+
+                    try {
+                        const previousName = task.name || 'Tarea';
+                        await update(ref(database, taskPath), { name: nextName });
+                        const parsed = parseClientPath(taskPath);
+                        if (parsed?.clientId) {
+                            await logActivity(
+                                parsed.clientId,
+                                `Renombro tarea "${previousName}" a "${nextName}".`,
+                                { action: 'rename', path: taskPath, entityType: 'task' }
+                            );
+                        }
+                        task.name = nextName;
+                        name.textContent = nextName;
+                    } catch (error) {
+                        console.error('Error renaming task:', error);
+                        alert(`No se pudo renombrar la tarea: ${error.message}`);
+                    }
+                },
+                onDelete: async () => {
+                    if (!currentUser) {
+                        alert("Debes iniciar sesion para eliminar tareas.");
+                        return;
+                    }
+                    const confirmed = confirm(`Eliminar la tarea "${task.name || 'Tarea'}"?`);
+                    if (!confirmed) return;
+
+                    try {
+                        await remove(ref(database, taskPath));
+                        const parsed = parseClientPath(taskPath);
+                        if (parsed?.clientId) {
+                            await logActivity(
+                                parsed.clientId,
+                                `Elimino tarea "${task.name || 'Tarea'}".`,
+                                { action: 'delete', path: taskPath, entityType: 'task' }
+                            );
+                        }
+                        if (selectedTaskId === task.id) {
+                            selectedTaskId = null;
+                            selectedSubtaskId = null;
+                        }
+                        wrapper.remove();
+                        if (parsed?.clientId && parsed?.projectId) {
+                            renderTasks(parsed.clientId, parsed.projectId, parsed.productId || null);
+                        }
+                        renderTree();
+                    } catch (error) {
+                        console.error('Error deleting task:', error);
+                        alert(`No se pudo eliminar la tarea: ${error.message}`);
+                    }
+                },
+            });
+
+            applyDepthPadding(statusControl, depth);
+            applyDepthPadding(progressCell, depth);
+            applyDepthPadding(assigneeCell, depth);
+            assigneeCell.append(assigneeControl, taskActions);
+            row.append(nameCell, statusControl, progressCell, assigneeCell);
 
             const panel = document.createElement('div');
-            panel.className = 'hidden mt-2 pl-6';
+            panel.className = 'hidden mt-2';
+            panel.dataset.taskPanelId = taskPath || '';
+            if (taskPath && openTaskPanels.has(taskPath)) {
+                panel.classList.remove('hidden');
+            }
 
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-2 text-sm';
 
-            const renderSubtasks = () => {
+            const renderInlineSubtasks = () => {
                 list.innerHTML = '';
                 const subtasks = Object.entries(task?.subtasks || {}).filter(([, sub]) => sub);
                 if (!subtasks.length) {
@@ -2864,13 +2992,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 subtasks.forEach(([subId, sub]) => {
                     const rowEl = document.createElement('div');
-                    rowEl.className = 'flex flex-col gap-2 rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 py-2';
+                    rowEl.className = `${treeGrid} items-center rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 py-2`;
 
-                    const top = document.createElement('div');
-                    top.className = 'flex items-center justify-between gap-3';
-
-                    const left = document.createElement('div');
-                    left.className = 'flex items-center gap-2 min-w-0';
+                    const nameCell = document.createElement('div');
+                    nameCell.className = 'flex items-center gap-2 min-w-0';
+                    const indent = document.createElement('span');
+                    indent.className = 'shrink-0';
+                    indent.style.width = `${(Math.max(0, Number(depth) || 0) + 1) * 16}px`;
                     const icon = document.createElement('span');
                     icon.className = 'material-symbols-outlined text-[16px] text-text-muted';
                     icon.textContent = 'subdirectory_arrow_right';
@@ -2885,10 +3013,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         chip.classList.add('text-[11px]');
                         labelWrap.appendChild(chip);
                     }
-                    left.append(icon, labelWrap);
-
-                    const controls = document.createElement('div');
-                    controls.className = 'flex items-center gap-2';
+                    nameCell.append(indent, icon, labelWrap);
 
                     const subPath = `${taskPath}/subtasks/${subId}`;
                     const statusControl = createStatusControl({
@@ -2907,21 +3032,90 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                    controls.append(statusControl, assigneeControl);
-                    top.append(left, controls);
-                    rowEl.appendChild(top);
+                    const progressCell = document.createElement('div');
+                    progressCell.className = 'min-w-0';
+
+                    const subtaskActions = createActionMenu({
+                        onRename: async () => {
+                            if (!currentUser) {
+                                alert("Debes iniciar sesion para editar subtareas.");
+                                return;
+                            }
+                            const nextNameRaw = prompt('Nuevo nombre de la subtarea', sub?.name || '');
+                            if (nextNameRaw === null) return;
+                            const nextName = nextNameRaw.trim();
+                            if (!nextName || nextName === sub?.name) return;
+
+                            try {
+                                const previousName = sub?.name || 'Subtarea';
+                                await update(ref(database, subPath), { name: nextName });
+                                const parsed = parseClientPath(subPath);
+                                if (parsed?.clientId) {
+                                    await logActivity(
+                                        parsed.clientId,
+                                        `Renombro subtarea "${previousName}" a "${nextName}".`,
+                                        { action: 'rename', path: subPath, entityType: 'subtask' }
+                                    );
+                                }
+                                sub.name = nextName;
+                                renderInlineSubtasks();
+                            } catch (error) {
+                                console.error('Error renaming subtask:', error);
+                                alert(`No se pudo renombrar la subtarea: ${error.message}`);
+                            }
+                        },
+                        onDelete: async () => {
+                            if (!currentUser) {
+                                alert("Debes iniciar sesion para eliminar subtareas.");
+                                return;
+                            }
+                            const confirmed = confirm(`Eliminar la subtarea "${sub?.name || 'Subtarea'}"?`);
+                            if (!confirmed) return;
+
+                            try {
+                                await remove(ref(database, subPath));
+                                const parsed = parseClientPath(subPath);
+                                if (parsed?.clientId) {
+                                    await logActivity(
+                                        parsed.clientId,
+                                        `Elimino subtarea "${sub?.name || 'Subtarea'}".`,
+                                        { action: 'delete', path: subPath, entityType: 'subtask' }
+                                    );
+                                }
+                                if (task?.subtasks?.[subId]) delete task.subtasks[subId];
+                                renderInlineSubtasks();
+                                if (parsed?.clientId && parsed?.projectId && parsed?.taskId) {
+                                    renderSubtasks(parsed.clientId, parsed.projectId, parsed.productId || null, parsed.taskId);
+                                }
+                                renderTree();
+                            } catch (error) {
+                                console.error('Error deleting subtask:', error);
+                                alert(`No se pudo eliminar la subtarea: ${error.message}`);
+                            }
+                        },
+                    });
+
+                    const assigneeCell = document.createElement('div');
+                    assigneeCell.className = 'flex items-center justify-end gap-2 min-w-0';
+                    assigneeCell.append(assigneeControl, subtaskActions);
+
+                    const subDepth = (Math.max(0, Number(depth) || 0) + 1);
+                    applyDepthPadding(statusControl, subDepth);
+                    applyDepthPadding(progressCell, subDepth);
+                    applyDepthPadding(assigneeCell, subDepth);
+                    rowEl.append(nameCell, statusControl, progressCell, assigneeCell);
                     list.appendChild(rowEl);
                 });
             };
 
-            renderSubtasks();
+            renderInlineSubtasks();
 
             const inputWrap = document.createElement('div');
             inputWrap.className = 'mt-3 flex flex-col sm:flex-row gap-2';
 
             const input = document.createElement('input');
             input.type = 'text';
-            input.placeholder = 'Nuevo elemento...';
+            input.placeholder = 'Nueva subtarea...';
             input.className = 'flex-1 h-9 rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 text-sm text-gray-900 dark:text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/60';
 
             const addBtn = document.createElement('button');
@@ -2995,7 +3189,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientDetails.appendChild(makeSummary('folder_open', client.name || 'Cliente', clientManage));
 
             const clientContent = document.createElement('div');
-            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2 ml-4 pl-4';
+            clientContent.className = 'pr-3 pb-3 flex flex-col gap-2';
 
             const projects = client.projects || {};
             const rawProjectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
@@ -3034,7 +3228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ));
 
                     const projContent = document.createElement('div');
-                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2 ml-4 pl-4';
+                    projContent.className = 'pr-2 pb-2 flex flex-col gap-2';
 
                     // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
@@ -3076,6 +3270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Productos
                     const products = proj.products || {};
                     const rawProductArray = Object.keys(products).map(id => ({ id, ...products[id] }));
+                    const hasProducts = rawProductArray.length > 0;
                     const productArray = selectionProductId
                         ? rawProductArray.filter(p => p.id === selectionProductId)
                         : rawProductArray;
@@ -3116,7 +3311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ));
 
                             const prodContent = document.createElement('div');
-                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1 ml-4 pl-4';
+                            prodContent.className = 'pr-2 pb-2 flex flex-col gap-1';
 
                             const prodTasks = prod.tasks || {};
                             const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
@@ -3164,10 +3359,43 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                             }
 
+                            prodContent.appendChild(makeTreeActionRow([
+                                {
+                                    label: 'Crear tarea',
+                                    icon: 'check_circle',
+                                    onClick: () => {
+                                        selectSidebarProduct(client.id, proj.id, prod.id);
+                                        openTaskModal();
+                                    }
+                                }
+                            ], 3));
+
                             prodDetails.appendChild(prodContent);
                             projContent.appendChild(prodDetails);
                         });
                     }
+
+                    const projectActions = [
+                        {
+                            label: 'Crear producto',
+                            icon: 'add_box',
+                            onClick: () => {
+                                showProductView(client.id, proj.id);
+                                openProductModal();
+                            }
+                        }
+                    ];
+                    if (!hasProducts) {
+                        projectActions.push({
+                            label: 'Crear tarea',
+                            icon: 'check_circle',
+                            onClick: () => {
+                                showProductView(client.id, proj.id);
+                                openTaskModal();
+                            }
+                        });
+                    }
+                    projContent.appendChild(makeTreeActionRow(projectActions, 2));
 
                     projDetails.appendChild(projContent);
                     clientContent.appendChild(projDetails);
