@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Configuraci&oacute;n | Tamoe</title>
+    <link rel="icon" href="imagotipo_tamoe.png" type="image/png"/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#e619a1",
+                        "primary-hover": "#c9168d",
+                        "background-light": "#f7f3f5",
+                        "background-dark": "#3a2a34",
+                        "surface-dark": "#4a3242",
+                        "surface-darker": "#402a3a",
+                        "border-dark": "#7a4666",
+                        "text-muted": "#e0b9d2",
+                    },
+                    fontFamily: { "display": ["Manrope", "sans-serif"] },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f7f3f5; }
+        ::-webkit-scrollbar-thumb { background: #7a4666; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c9168d; }
+        .dark ::-webkit-scrollbar-track { background: #3a2a34; }
+    </style>
+    <script src="auth-guard.js" type="module"></script>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-display min-h-screen">
+    <div class="min-h-screen flex flex-col">
+        <header class="border-b border-border-dark bg-white/80 dark:bg-surface-darker/80 backdrop-blur-md">
+            <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <a href="maindashboard.html" class="size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center" aria-label="Volver al dashboard">
+                        <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                    </a>
+                    <div>
+                        <p class="text-[11px] uppercase tracking-[0.2em] text-text-muted">Ajustes</p>
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Configuraci&oacute;n</h1>
+                    </div>
+                </div>
+                <button id="settings-theme-toggle" type="button" class="size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Cambiar tema">
+                    <span class="material-symbols-outlined text-[20px]">brightness_4</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1">
+            <div class="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-6">
+                <section class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/10">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="material-symbols-outlined text-primary">mail</span>
+                        <h2 class="text-lg font-bold text-gray-900 dark:text-white">Invitar por correo</h2>
+                    </div>
+                    <p class="text-sm text-text-muted mb-4">Introduce un correo y se enviar&aacute; una invitaci&oacute;n desde el servidor con el enlace de registro.</p>
+                    <form id="invite-form" class="flex flex-col sm:flex-row gap-3">
+                        <label class="flex-1">
+                            <span class="sr-only">Correo electr&oacute;nico</span>
+                            <input id="invite-email" type="email" class="w-full h-11 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-gray-900 dark:text-white px-4 text-sm focus:ring-1 focus:ring-primary focus:border-primary/50" placeholder="correo@empresa.com" required/>
+                        </label>
+                        <button id="invite-submit" type="submit" class="h-11 px-5 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
+                            Enviar invitaci&oacute;n
+                        </button>
+                    </form>
+                    <p id="invite-status" class="text-xs text-text-muted mt-3"></p>
+                </section>
+
+                <section class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/10">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-primary">tune</span>
+                        <h2 class="text-lg font-bold text-gray-900 dark:text-white">Otras opciones</h2>
+                    </div>
+                    <p class="text-sm text-text-muted">M&aacute;s ajustes disponibles pr&oacute;ximamente.</p>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { sendSignInLinkToEmail } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { auth } from "./firebase.js";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const applyTheme = () => {
+                const stored = localStorage.getItem('theme');
+                if (stored === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            };
+
+            const themeToggle = document.getElementById('settings-theme-toggle');
+            const themeIcon = themeToggle ? themeToggle.querySelector('span') : null;
+            const updateThemeIcon = () => {
+                if (!themeIcon) return;
+                themeIcon.textContent = document.documentElement.classList.contains('dark') ? 'light_mode' : 'brightness_4';
+            };
+
+            applyTheme();
+            updateThemeIcon();
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'theme') {
+                    applyTheme();
+                    updateThemeIcon();
+                }
+            });
+
+            themeToggle?.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+                updateThemeIcon();
+            });
+
+            const form = document.getElementById('invite-form');
+            const emailInput = document.getElementById('invite-email');
+            const statusEl = document.getElementById('invite-status');
+            const submitButton = document.getElementById('invite-submit');
+
+            const buildRegisterUrl = () => {
+                try {
+                    return new URL('register.html', window.location.href).href;
+                } catch (error) {
+                    return 'register.html';
+                }
+            };
+
+            const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+
+            const setStatus = (message, isError = false) => {
+                if (!statusEl) return;
+                statusEl.textContent = message;
+                statusEl.classList.toggle('text-red-400', Boolean(isError));
+            };
+
+            const setLoading = (isLoading) => {
+                if (!submitButton) return;
+                submitButton.disabled = Boolean(isLoading);
+                submitButton.classList.toggle('opacity-70', Boolean(isLoading));
+                submitButton.classList.toggle('cursor-not-allowed', Boolean(isLoading));
+            };
+
+            form?.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                if (!emailInput) return;
+                const email = String(emailInput.value || '').trim();
+                if (!isValidEmail(email)) {
+                    setStatus('Introduce un correo v\u00E1lido.', true);
+                    return;
+                }
+
+                setStatus('Enviando invitaci\u00F3n...', false);
+                setLoading(true);
+
+                try {
+                    const registerUrl = buildRegisterUrl();
+                    const actionCodeSettings = {
+                        url: registerUrl,
+                        handleCodeInApp: true,
+                    };
+                    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+                    localStorage.setItem('emailForSignIn', email);
+                    emailInput.value = '';
+                    setStatus('Invitaci\u00F3n enviada. Revisa el correo.', false);
+                } catch (error) {
+                    let message = 'No se pudo enviar la invitaci\u00F3n.';
+                    if (error?.code === 'auth/unauthorized-domain') {
+                        message = 'Agrega este dominio en Firebase Auth (Dominios autorizados).';
+                    } else if (error?.code === 'auth/invalid-email') {
+                        message = 'El correo no es v\u00E1lido.';
+                    } else if (error?.code === 'auth/operation-not-allowed') {
+                        message = 'Activa el acceso con enlace por correo en Firebase Auth.';
+                    }
+                    setStatus(message, true);
+                } finally {
+                    setLoading(false);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

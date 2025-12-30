@@ -39,8 +39,9 @@ const writeUserData = (userId, name, email) => {
 // --- Registration Page Logic ---
 const registerForm = document.getElementById('register-form');
 const googleRegisterButton = document.getElementById('google-register-button');
+const isEmailLinkInvite = new URLSearchParams(window.location.search).get('mode') === 'signIn';
 
-if (registerForm) {
+if (registerForm && !isEmailLinkInvite) {
     registerForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const name = document.getElementById('register-name').value;
