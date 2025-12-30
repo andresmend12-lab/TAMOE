@@ -75,24 +75,7 @@
             margin-left: 36px;
         }
         #client-list-nav details.sidebar-tree-box {
-            margin-bottom: 8px;
-        }
-        #client-list-nav details.sidebar-tree-box > summary {
-            margin-bottom: 6px;
-        }
-        #client-list-nav details.sidebar-tree-box details.sidebar-tree-box {
-            margin-top: 6px;
-            padding: 6px;
-        }
-        #client-list-nav details.sidebar-tree-box details.sidebar-tree-box > summary {
-            margin-bottom: 6px;
-        }
-        #client-list-nav .sidebar-tree-box {
-            box-sizing: border-box;
-        }
-        #client-list-nav .sidebar-tree-box .sidebar-tree-box {
-            margin-left: 0;
-            width: 100%;
+            margin-bottom: 4px;
         }
     </style>
     <script src="auth-guard.js" type="module"></script>
@@ -104,7 +87,7 @@
     <aside class="w-64 h-full flex flex-col bg-white dark:bg-surface-darker border-r border-border-dark flex-shrink-0 z-20">
         
         <!-- Client View -->
-        <div id="client-view" class="flex flex-col h-full">
+        <div id="client-view" class="flex flex-col h-full min-h-0">
             <!-- App Header -->
             <div class="p-4 flex items-center justify-between gap-3 relative">
                 <div class="flex items-center gap-2">
@@ -128,7 +111,7 @@
                     </button>
                 </div>
             </div>
-            <div id="client-list-section" class="flex flex-col flex-1">
+            <div id="client-list-section" class="flex flex-col flex-1 min-h-0">
                 <!-- Create Client Button -->
                 <div class="px-4 py-2">
                     <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
@@ -137,7 +120,7 @@
                     </button>
                 </div>
                 <!-- Navigation / Client List -->
-                <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+                <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto max-h-full">
                     <!-- Client links will be dynamically injected here -->
                 </nav>
                 <div class="px-2 py-2">
@@ -150,7 +133,7 @@
                 </div>
             </div>
 
-            <div id="project-list-section" class="hidden flex flex-col flex-1">
+            <div id="project-list-section" class="hidden flex flex-col flex-1 min-h-0">
                 <div class="px-4 py-2 flex items-center gap-2">
                     <button id="back-to-clients-btn" class="flex items-center justify-center text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors" type="button" aria-label="Volver a clientes">
                         <span class="material-symbols-outlined">arrow_back</span>
@@ -172,7 +155,7 @@
                 </nav>
             </div>
 
-            <div id="product-list-section" class="hidden flex flex-col flex-1">
+            <div id="product-list-section" class="hidden flex flex-col flex-1 min-h-0">
                 <div class="px-4 py-2 flex items-center gap-2">
                     <span class="material-symbols-outlined text-text-muted">folder_open</span>
                     <h2 id="product-client-name-header" class="text-gray-900 dark:text-white text-lg font-bold">Nombre del Cliente</h2>

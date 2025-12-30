@@ -99,7 +99,7 @@
         <main class="flex-1 flex flex-col overflow-y-auto relative">
             <div class="px-6 py-6 flex flex-col gap-6 max-w-none mx-auto w-full">
                 <!-- Breadcrumb -->
-                <div id="breadcrumb" class="flex flex-wrap gap-2 items-center text-sm text-text-muted"></div>
+                <div id="breadcrumb" class="hidden flex flex-wrap gap-2 items-center text-sm text-text-muted"></div>
 
                 <!-- Title block -->
                 <div class="flex flex-wrap justify-between items-start gap-4">
@@ -1194,6 +1194,58 @@
             return badge;
         };
 
+        const makeActivityActionButton = ({ label, icon = 'add', onClick }) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'inline-flex items-center gap-2 h-8 px-3 rounded-md border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-xs font-semibold';
+            const iconEl = document.createElement('span');
+            iconEl.className = 'material-symbols-outlined text-[16px]';
+            iconEl.textContent = icon;
+            const text = document.createElement('span');
+            text.textContent = label;
+            button.append(iconEl, text);
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClick?.();
+            });
+            return button;
+        };
+
+        const createChildActivity = async ({ label, path, type }) => {
+            if (!currentUser) {
+                alert('Debes iniciar sesión para crear actividades.');
+                return;
+            }
+            const nameRaw = prompt(`Nombre de ${label}`);
+            if (nameRaw === null) return;
+            const name = nameRaw.trim();
+            if (!name) return;
+            const safePath = String(path || '').trim();
+            if (!safePath) return;
+            try {
+                const manageIdValue = await allocateNextManageId(currentResult?.ids?.clientId || '');
+                const newRef = push(ref(database, safePath));
+                const now = new Date().toISOString();
+                const idField = `${type}Id`;
+                const data = {
+                    name,
+                    status: 'Pendiente',
+                    createdAt: now,
+                    manageId: manageIdValue,
+                    [idField]: newRef.key
+                };
+                if (type === 'task' || type === 'subtask') {
+                    data.assigneeUid = '';
+                }
+                await update(newRef, data);
+                await loadData();
+            } catch (err) {
+                console.error('Error creando actividad:', err);
+                alert(`No se pudo crear la actividad: ${err.message || err}`);
+            }
+        };
+
         const applyStatusChipStyle = (button, labelEl, status) => {
             const normalized = normalizeStatus(status);
             if (labelEl) labelEl.textContent = normalized;
@@ -1910,11 +1962,33 @@
             }
 
             const clientId = String(ids?.clientId || '').trim();
+            const projectId = String(ids?.projectId || '').trim();
+            const productId = String(ids?.productId || '').trim();
+            const taskId = String(ids?.taskId || '').trim();
             const clientRoot = clientId
                 ? loadedClients.find(c => c.id === clientId)
                 : null;
 
+            const actionRow = document.createElement('div');
+            actionRow.className = 'flex flex-wrap items-center gap-2 mb-3';
+            const addActions = () => {
+                if (!actionRow.children.length) return;
+                activitiesList.appendChild(actionRow);
+            };
+
             if (type === 'client') {
+                if (clientId) {
+                    actionRow.appendChild(makeActivityActionButton({
+                        label: 'Crear proyecto',
+                        icon: 'add_box',
+                        onClick: () => createChildActivity({
+                            label: 'proyecto',
+                            type: 'project',
+                            path: `clients/${clientId}/projects`
+                        })
+                    }));
+                }
+                addActions();
                 const clientItem = clientRoot || item;
                 const projects = clientItem?.projects || {};
                 const projectArray = Object.entries(projects || {}).filter(([, proj]) => proj);
@@ -2029,9 +2103,29 @@
             }
 
             if (type === 'project') {
-                const projectId = String(ids?.projectId || item.id || '').trim();
                 const projectItem = clientRoot?.projects?.[projectId] || item;
                 const projPath = clientId && projectId ? `clients/${clientId}/projects/${projectId}` : '';
+                if (clientId && projectId) {
+                    actionRow.appendChild(makeActivityActionButton({
+                        label: 'Crear producto',
+                        icon: 'category',
+                        onClick: () => createChildActivity({
+                            label: 'producto',
+                            type: 'product',
+                            path: `${projPath}/products`
+                        })
+                    }));
+                    actionRow.appendChild(makeActivityActionButton({
+                        label: 'Crear tarea',
+                        icon: 'check_circle',
+                        onClick: () => createChildActivity({
+                            label: 'tarea',
+                            type: 'task',
+                            path: `${projPath}/tasks`
+                        })
+                    }));
+                }
+                addActions();
 
                 const projTasks = projectItem?.tasks || {};
                 const projTaskArray = Object.entries(projTasks || {}).filter(([, t]) => t);
@@ -2105,11 +2199,21 @@
             }
 
             if (type === 'product') {
-                const projectId = String(ids?.projectId || '').trim();
-                const productId = String(ids?.productId || item.id || '').trim();
                 const prodPath = clientId && projectId && productId
                     ? `clients/${clientId}/projects/${projectId}/products/${productId}`
                     : '';
+                if (clientId && projectId && productId) {
+                    actionRow.appendChild(makeActivityActionButton({
+                        label: 'Crear tarea',
+                        icon: 'check_circle',
+                        onClick: () => createChildActivity({
+                            label: 'tarea',
+                            type: 'task',
+                            path: `${prodPath}/tasks`
+                        })
+                    }));
+                }
+                addActions();
 
                 const productItem = clientRoot?.projects?.[projectId]?.products?.[productId] || item;
                 const tasks = productItem?.tasks || {};
@@ -2128,13 +2232,22 @@
 
             if (type === 'task') {
                 const taskPath = currentItemPath || buildItemPath(ids, 'task') || '';
-                const projectId = String(ids?.projectId || '').trim();
-                const productId = String(ids?.productId || '').trim();
-                const taskId = String(ids?.taskId || item.id || '').trim();
                 const taskItem = productId
                     ? clientRoot?.projects?.[projectId]?.products?.[productId]?.tasks?.[taskId]
                     : clientRoot?.projects?.[projectId]?.tasks?.[taskId];
                 const subtasks = (taskItem || item)?.subtasks || {};
+                if (taskPath) {
+                    actionRow.appendChild(makeActivityActionButton({
+                        label: 'Crear subtarea',
+                        icon: 'subdirectory_arrow_right',
+                        onClick: () => createChildActivity({
+                            label: 'subtarea',
+                            type: 'subtask',
+                            path: `${taskPath}/subtasks`
+                        })
+                    }));
+                }
+                addActions();
                 const subArray = Object.entries(subtasks || {}).filter(([, s]) => s);
                 subArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (!subArray.length) {

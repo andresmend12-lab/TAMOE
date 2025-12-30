@@ -1559,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeSidebarRow = ({ icon, label, manageId, active = false, indentClass = '', chevron = null }) => {
             const row = document.createElement('div');
-            row.className = `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border-dark/60 bg-white/70 dark:bg-surface-dark/70 text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
+            row.className = `group flex items-center justify-between gap-2 px-3 py-2 text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
             if (active) row.classList.add('bg-gray-100', 'text-gray-900', 'dark:bg-white/5', 'dark:text-white');
 
             const left = document.createElement('div');
@@ -1610,7 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientKey = `client:${client.id}`;
             const clientDetails = document.createElement('details');
             clientDetails.dataset.treeKey = clientKey;
-            clientDetails.className = 'sidebar-tree-box border border-border-dark/70 rounded-lg bg-white/80 dark:bg-surface-dark/70 p-1';
+            clientDetails.className = 'sidebar-tree-box';
             clientDetails.open = sidebarOpenKeys.has(clientKey) || sidebarAutoOpenKeys.has(clientKey);
 
             const clientSummary = document.createElement('summary');
@@ -1710,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const projectKey = `project:${client.id}:${proj.id}`;
                     const projectDetails = document.createElement('details');
                     projectDetails.dataset.treeKey = projectKey;
-                    projectDetails.className = 'sidebar-tree-box border border-border-dark/60 rounded-lg bg-white/70 dark:bg-surface-dark/60 p-1';
+                    projectDetails.className = 'sidebar-tree-box';
                     projectDetails.open = sidebarOpenKeys.has(projectKey) || sidebarAutoOpenKeys.has(projectKey);
 
                     const projectSummary = document.createElement('summary');
