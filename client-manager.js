@@ -1610,7 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const makeAddRow = ({ label, onClick, indentClass = '' }) => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = `sidebar-row flex items-center gap-2 w-full px-3 py-1 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
+            button.className = `sidebar-row sidebar-add-row flex items-center gap-2 w-full px-3 py-1 text-primary/80 dark:text-primary/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-primary dark:hover:text-primary transition-colors ${indentClass}`;
             button.innerHTML = '<span class="material-symbols-outlined text-[18px]">add</span>';
             const text = document.createElement('span');
             text.className = 'text-sm font-semibold dark:text-white truncate';
