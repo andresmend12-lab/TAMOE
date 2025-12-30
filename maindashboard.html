@@ -215,9 +215,13 @@
                     <img src="logotipo_tamoe.png" alt="Tamoe" class="h-9 w-auto"/>
                 </button>
                 <!-- Search Bar -->
-                <div class="hidden md:flex items-center w-64 h-9 bg-gray-100 dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-border-dark focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                <div id="search-root" class="hidden md:flex relative items-center w-64 h-9 bg-gray-100 dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-border-dark focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
                     <span class="material-symbols-outlined text-gray-500 dark:text-text-muted px-3 text-[20px]">search</span>
                     <input id="client-search-input" class="bg-transparent border-none text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-text-muted focus:ring-0 w-full h-full p-0 pr-3" placeholder="Buscar..." type="text" autocomplete="off" aria-label="Buscar"/>
+                    <div id="search-results" class="hidden absolute left-0 right-0 top-full mt-2 rounded-xl border border-border-dark bg-white dark:bg-surface-darker shadow-2xl z-[60] overflow-hidden">
+                        <div id="search-results-list" class="max-h-80 overflow-y-auto"></div>
+                        <p id="search-results-empty" class="hidden px-4 py-3 text-sm text-text-muted">Sin resultados</p>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center gap-3">

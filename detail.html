@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8"/>
@@ -162,7 +162,7 @@
                         <div class="flex items-center justify-between gap-2 mb-3">
                             <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">person</span>
-                                Asignación
+                                Asignaci&#xF3;n
                             </h3>
                             <span id="assignee-save" class="text-xs text-text-muted"></span>
                         </div>
@@ -191,15 +191,15 @@
                         <div class="flex items-center justify-between gap-2 mb-2">
                             <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">article</span>
-                                Descripción
+                                Descripci&#xF3;n
                             </h3>
                         </div>
                         <div id="description-view" class="w-full px-0 py-1 text-gray-900 dark:text-white whitespace-pre-line"></div>
-                        <textarea id="description-input" class="hidden w-full bg-transparent text-gray-900 dark:text-white px-0 py-1 border-0 focus:ring-0 focus:border-transparent placeholder:text-text-muted resize-y min-h-[80px] max-h-[200px] overflow-y-auto" placeholder="Escribe una descripción..."></textarea>
+                        <textarea id="description-input" class="hidden w-full bg-transparent text-gray-900 dark:text-white px-0 py-1 border-0 focus:ring-0 focus:border-transparent placeholder:text-text-muted resize-y min-h-[80px] max-h-[200px] overflow-y-auto" placeholder="Escribe una descripci&#xF3;n..."></textarea>
                         <div class="mt-3 flex items-center justify-between gap-2">
                             <span id="description-status" class="text-xs text-text-muted"></span>
                             <div class="flex items-center gap-2">
-                                <button id="edit-description" class="size-8 rounded-md border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Editar descripción">
+                                <button id="edit-description" class="size-8 rounded-md border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Editar descripci&#xF3;n">
                                     <span class="material-symbols-outlined text-[18px]">edit</span>
                                 </button>
                                 <button id="save-description" class="hidden h-8 px-3 rounded-md bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-colors">
@@ -231,10 +231,10 @@
                         <div id="comments-list" class="flex flex-col gap-3 text-sm max-h-[520px] overflow-y-auto pr-1"></div>
 
                         <div class="mt-4 flex flex-col gap-2">
-                            <label class="text-xs font-bold uppercase tracking-wide text-text-muted">Añadir comentario</label>
+                            <label class="text-xs font-bold uppercase tracking-wide text-text-muted">A&#xF1;adir comentario</label>
                             <textarea id="comment-input" class="w-full bg-white dark:bg-background-dark text-gray-900 dark:text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[100px]" placeholder="Escribe tu comentario..."></textarea>
                             <div class="flex items-center justify-between gap-3">
-                                <span id="comment-helper" class="text-xs text-text-muted">Inicia sesión para comentar.</span>
+                                <span id="comment-helper" class="text-xs text-text-muted">Inicia sesi&#xF3;n para comentar.</span>
                                 <button id="comment-submit" class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-lg shadow-primary/20 transition-colors">
                                     <span class="material-symbols-outlined text-[18px]">send</span>
                                     Publicar
@@ -422,7 +422,7 @@
         };
 
         const QC_TASK_TEMPLATE = 'qc_review';
-        const QC_TASK_NAME = '? Revisión de Control de Calidad';
+        const QC_TASK_NAME = '? Revisi\u00F3n de Control de Calidad';
 
         const isQualityControlTask = (task) => task?.automation?.template === QC_TASK_TEMPLATE;
 
@@ -433,7 +433,7 @@
                 const snap = await get(ref(database, tasksPath));
                 return snap.val() || {};
             } catch (e) {
-                console.warn('No se pudo leer tareas para automatización:', e);
+                console.warn('No se pudo leer tareas para automatizaci\u00F3n:', e);
                 return {};
             }
         };
@@ -487,7 +487,7 @@
                 await push(ref(database, `clients/${safeClientId}/activity_logs`), {
                     actorUid: currentUser.uid,
                     actorName: getCurrentDisplayName(),
-                    description: `Creó tarea automática \"${QC_TASK_NAME}\" para ${sourceLabel} \"${sourceTitle}\".`,
+                    description: `Cre\u00F3 tarea autom\u00E1tica \"${QC_TASK_NAME}\" para ${sourceLabel} \"${sourceTitle}\".`,
                     timestamp: serverTimestamp(),
                     action: 'automation_qc',
                     path: `${safeTasksPath}/${taskId}`,
@@ -573,7 +573,7 @@
                 descriptionView.textContent = text;
                 descriptionView.classList.remove('text-text-muted');
             } else {
-                descriptionView.textContent = 'Sin descripción.';
+                descriptionView.textContent = 'Sin descripci\u00F3n';
                 descriptionView.classList.add('text-text-muted');
             }
         };
@@ -678,7 +678,7 @@
         const stripWrappingQuotes = (value) => {
             let text = String(value ?? '').trim();
             if (!text) return '';
-            const pairs = { '"': '"', "'": "'", '“': '”', '‘': '’', '«': '»' };
+            const pairs = { '"': '"', "'": "'", '\u201C': '\u201D', '\u2018': '\u2019', '\u00AB': '\u00BB' };
             while (text.length >= 2) {
                 const first = text[0];
                 const last = text[text.length - 1];
@@ -816,7 +816,7 @@
         const saveStatus = async (nextStatus) => {
             if (!STATUS_TYPES.has(currentItemType)) return;
             if (!currentUser) {
-                alert('Debes iniciar sesión para cambiar el estado.');
+                alert('Debes iniciar sesi\u00F3n para cambiar el estado.');
                 return;
             }
             if (!currentItemPath) return;
@@ -872,7 +872,7 @@
                 if (assigneeDept) assigneeDept.textContent = '';
                 if (assigneeAvatar) {
                     assigneeAvatar.style.backgroundImage = '';
-                    assigneeAvatar.textContent = '—';
+                    assigneeAvatar.textContent = '\u2014';
                     assigneeAvatar.setAttribute('aria-label', 'Sin asignar');
                 }
                 return;
@@ -935,7 +935,7 @@
             const noneAvatar = noneOpt.querySelector('.w-8');
             if (noneAvatar) {
                 noneAvatar.className = 'w-8 h-8 rounded-full bg-white/10 text-text-muted border border-border-dark flex items-center justify-center text-xs font-bold shrink-0';
-                noneAvatar.textContent = '—';
+                noneAvatar.textContent = '\u2014';
             }
             assigneeMenu.appendChild(noneOpt);
 
@@ -1024,7 +1024,7 @@
         const saveAssignee = async (nextUid) => {
             if (!ASSIGNEE_TYPES.has(currentItemType)) return;
             if (!currentUser) {
-                alert('Debes iniciar sesi? para asignar.');
+                alert('Debes iniciar sesi\u00F3n para asignar.');
                 return;
             }
             if (!currentItemPath) return;
@@ -1217,7 +1217,7 @@
 
         const createChildActivity = async ({ label, path, type }) => {
             if (!currentUser) {
-                alert('Debes iniciar sesión para crear actividades.');
+                alert('Debes iniciar sesi\u00F3n para crear actividades.');
                 return;
             }
             const nameRaw = prompt(`Nombre de ${label}`);
@@ -1284,7 +1284,7 @@
                     await push(ref(database, `clients/${parsed.clientId}/activity_logs`), {
                         actorUid: currentUser.uid,
                         actorName: getCurrentDisplayName(),
-                        description: `Actualizó estado de ${label} \"${itemName}\" de \"${prevStatus}\" a \"${status}\".`,
+                        description: `Actualiz\u00F3 estado de ${label} \"${itemName}\" de \"${prevStatus}\" a \"${status}\".`,
                         timestamp: serverTimestamp(),
                         action: 'status_update',
                         path,
@@ -1341,7 +1341,7 @@
 
         const updateAssigneeAtPath = async (path, nextUid) => {
             if (!currentUser) {
-                alert('Debes iniciar sesión para asignar.');
+                alert('Debes iniciar sesi\u00F3n para asignar.');
                 throw new Error('AUTH_REQUIRED');
             }
             const parsed = parseClientPath(path);
@@ -1365,7 +1365,7 @@
                     await push(ref(database, `clients/${parsed.clientId}/activity_logs`), {
                         actorUid: currentUser.uid,
                         actorName: getCurrentDisplayName(),
-                        description: `Asignó ${label} \"${itemName}\" a ${toName}.`,
+                        description: `Asign\u00F3 ${label} \"${itemName}\" a ${toName}.`,
                         timestamp: serverTimestamp(),
                         action: 'assignee_update',
                         path,
@@ -1393,7 +1393,7 @@
                         createdAt: serverTimestamp(),
                     });
                 } catch (e) {
-                    console.warn('No se pudo enviar la notificación:', e);
+                    console.warn('No se pudo enviar la notificaci\u00F3n:', e);
                 }
             }
             return uid;
@@ -2003,7 +2003,7 @@
                 projectArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
 
                 if (!projectArray.length) {
-                    empty('No hay proyectos.');
+                    empty('No hay proyectos');
                     return;
                 }
 
@@ -2310,7 +2310,7 @@
             if (!entries.length) {
                 const empty = document.createElement('p');
                 empty.className = 'text-text-muted text-sm';
-                empty.textContent = 'Todavía no hay comentarios.';
+                empty.textContent = 'Todav\u00EDa no hay comentarios';
                 commentsList.appendChild(empty);
                 return;
             }
@@ -2383,7 +2383,7 @@
             const canEdit = Boolean(currentUser);
             const helperText = canEdit
                 ? `Comentando como ${getCurrentDisplayName()}`
-                : 'Inicia sesión para comentar.';
+                : 'Inicia sesi\u00F3n para comentar.';
             if (commentHelper) commentHelper.textContent = helperText;
 
             [descriptionInput, saveDescriptionButton, editDescriptionButton, commentInput, commentButton].forEach(el => {
@@ -2407,7 +2407,7 @@
                 } else if (statusSaving) {
                     statusHelper.textContent = 'Actualizando estado...';
                 } else {
-                    statusHelper.textContent = canEdit ? 'Haz clic en un estado para cambiarlo.' : 'Inicia sesión para cambiar el estado.';
+                    statusHelper.textContent = canEdit ? 'Haz clic en un estado para cambiarlo.' : 'Inicia sesi\u00F3n para cambiar el estado.';
                 }
             }
 
@@ -2455,7 +2455,7 @@
 
         const loadData = async () => {
             if (!manageId) {
-                showError('No se encontró un manageId válido en la URL.');
+                showError('No se encontr\u00F3 un manageId v\u00E1lido en la URL.');
                 return;
             }
             try {
@@ -2464,7 +2464,7 @@
                 loadedClients = Object.keys(data).map(key => ({ id: key, ...data[key] }));
                 const found = findByManageId(loadedClients, manageId);
                 if (!found) {
-                    showError(`No se encontró información para ${manageId}.`);
+                    showError(`No se encontr\u00F3 informaci\u00F3n para ${manageId}.`);
                     return;
                 }
                 currentResult = found;
@@ -2479,7 +2479,7 @@
 
         const saveDescription = async () => {
             if (!currentUser) {
-                alert('Debes iniciar sesión para actualizar la descripción.');
+                alert('Debes iniciar sesi\u00F3n para actualizar la descripci\u00F3n.');
                 return;
             }
             if (!currentItemPath) return;
@@ -2495,7 +2495,7 @@
                         await push(ref(database, `clients/${parsed.clientId}/activity_logs`), {
                             actorUid: currentUser.uid,
                             actorName: getCurrentDisplayName(),
-                            description: `Actualizó descripción de ${label} \"${itemName}\".`,
+                            description: `Actualiz\u00F3 descripci\u00F3n de ${label} \"${itemName}\".`,
                             timestamp: serverTimestamp(),
                             action: 'description_update',
                             path: currentItemPath,
@@ -2508,19 +2508,19 @@
                 setDescriptionView(text);
                 setDescriptionEditing(false);
                 if (descriptionStatus) {
-                    descriptionStatus.textContent = 'Descripción guardada';
+                    descriptionStatus.textContent = 'Descripci\u00F3n guardada';
                     setTimeout(() => { descriptionStatus.textContent = ''; }, 2000);
                 }
             } catch (err) {
                 console.error(err);
                 if (descriptionStatus) descriptionStatus.textContent = 'No se pudo guardar';
-                showError(err.message || 'Error guardando la descripción.');
+                showError(err.message || 'Error guardando la descripci\u00F3n.');
             }
         };
 
         const submitComment = async () => {
             if (!currentUser) {
-                alert('Debes iniciar sesión para comentar.');
+                alert('Debes iniciar sesi\u00F3n para comentar.');
                 return;
             }
             if (!currentItemPath) return;
@@ -2569,20 +2569,20 @@
         editDescriptionButton?.addEventListener('click', (e) => {
             e.preventDefault();
             if (!currentUser) {
-                alert('Debes iniciar sesión para editar la descripción.');
+                alert('Debes iniciar sesi\u00F3n para editar la descripci\u00F3n.');
                 return;
             }
             if (descriptionEditing) {
                 const viewText = descriptionView?.textContent || '';
                 if (descriptionInput) {
-                    descriptionInput.value = viewText === 'Sin descripción.' ? '' : viewText;
+                    descriptionInput.value = viewText === 'Sin descripci\u00F3n' ? '' : viewText;
                 }
                 setDescriptionEditing(false);
                 return;
             }
             setDescriptionEditing(true);
             const viewText = descriptionView?.textContent || '';
-            if (descriptionInput && viewText === 'Sin descripción.') {
+            if (descriptionInput && viewText === 'Sin descripci\u00F3n') {
                 descriptionInput.value = '';
             }
         });
@@ -2628,5 +2628,6 @@
     </script>
 </body>
 </html>
+
 
 

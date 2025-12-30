@@ -37,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const treeExpandLabel = document.getElementById('tree-expand-label');
     const treeView = document.getElementById('tree-view');
     const clientSearchInput = document.getElementById('client-search-input');
+    const searchRoot = document.getElementById('search-root');
+    const searchResultsPanel = document.getElementById('search-results');
+    const searchResultsList = document.getElementById('search-results-list');
+    const searchResultsEmpty = document.getElementById('search-results-empty');
     const tamoeHomeButton = document.getElementById('tamoe-home');
     const activityPathEls = Array.from(document.querySelectorAll('[data-activity-path]'));
     const statusMetricActiveProjects = document.getElementById('status-metric-active-projects');
@@ -483,6 +487,42 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!manageId) return;
         const url = `${window.location.origin}/${encodeURIComponent(manageId)}`;
         window.open(url, '_blank', 'noopener');
+    };
+
+    const openDetailViewForManageId = (manageIdValue) => {
+        const manageId = String(manageIdValue || '').trim();
+        if (!manageId) return false;
+
+        const detailView = document.getElementById('detail-view');
+        const detailFrame = document.getElementById('detail-frame');
+        if (detailView && detailFrame) {
+            document.getElementById('tab-projects')?.click();
+            detailView.classList.remove('hidden');
+            detailFrame.src = `detail.html?mid=${encodeURIComponent(manageId)}`;
+            document.getElementById('tree-view')?.classList.add('hidden');
+            document.getElementById('project-detail')?.classList.add('hidden');
+            document.getElementById('dashboard-tabs')?.classList.add('hidden');
+            if (window.location.protocol !== 'file:') {
+                const targetPath = `/${encodeURIComponent(manageId)}`;
+                if (window.location.pathname !== targetPath) {
+                    try {
+                        window.history.pushState({}, '', targetPath);
+                    } catch (error) {
+                        // Ignore history update failures.
+                    }
+                }
+            }
+            document.title = `Detalle ${manageId} | Tamoe`;
+            return true;
+        }
+
+        const encoded = encodeURIComponent(manageId);
+        const origin = window.location.origin;
+        const target = origin && origin !== 'null'
+            ? `${origin}/${encoded}`
+            : `maindashboard.html?mid=${encoded}`;
+        window.location.assign(target);
+        return true;
     };
 
     const createIdChip = (manageId) => {
@@ -1647,6 +1687,237 @@ document.addEventListener('DOMContentLoaded', () => {
         const queryNorm = getClientSearchQueryNormalized();
         if (!queryNorm) return allClients;
         return allClients.filter(client => clientMatchesQuery(client, queryNorm));
+    };
+
+    const getSearchQuery = () => String(clientSearchInput?.value || clientSearchQuery || '').trim();
+
+    const hideSearchResults = () => {
+        if (searchResultsPanel) searchResultsPanel.classList.add('hidden');
+    };
+
+    const showSearchResults = () => {
+        if (searchResultsPanel) searchResultsPanel.classList.remove('hidden');
+    };
+
+    const buildActivitySearchResults = (queryRaw) => {
+        const queryNorm = normalizeSearchText(queryRaw).trim();
+        if (!queryNorm) return [];
+
+        const results = [];
+        const includes = (value) => normalizeSearchText(value).includes(queryNorm);
+        const getName = (value, fallback) => {
+            const text = String(value || '').trim();
+            return text || fallback;
+        };
+        const makePath = (parts) => parts.filter(Boolean).join(' / ');
+        const pushResult = (result) => results.push(result);
+
+        const clients = Array.isArray(allClients) ? allClients : [];
+        clients.forEach((client) => {
+            if (!client) return;
+            const clientId = client.id;
+            const clientName = getName(client.name, 'Cliente');
+            if (includes(clientName)) {
+                pushResult({
+                    type: 'client',
+                    name: clientName,
+                    manageId: client.manageId || '',
+                    path: '',
+                    clientId
+                });
+            }
+
+            const projects = client.projects || {};
+            Object.entries(projects).forEach(([projectId, project]) => {
+                if (!project) return;
+                const projectName = getName(project.name, 'Proyecto');
+                const projectPath = makePath([clientName]);
+                if (includes(projectName)) {
+                    pushResult({
+                        type: 'project',
+                        name: projectName,
+                        manageId: project.manageId || '',
+                        path: projectPath,
+                        clientId,
+                        projectId
+                    });
+                }
+
+                const projectTasks = project.tasks || {};
+                Object.entries(projectTasks).forEach(([taskId, task]) => {
+                    if (!task) return;
+                    const taskName = getName(task.name, 'Tarea');
+                    if (includes(taskName)) {
+                        pushResult({
+                            type: 'task',
+                            name: taskName,
+                            manageId: task.manageId || '',
+                            path: makePath([clientName, projectName]),
+                            clientId,
+                            projectId,
+                            taskId
+                        });
+                    }
+
+                    const subtasks = task.subtasks || {};
+                    Object.entries(subtasks).forEach(([subtaskId, subtask]) => {
+                        if (!subtask) return;
+                        const subtaskName = getName(subtask.name, 'Subtarea');
+                        if (includes(subtaskName)) {
+                            pushResult({
+                                type: 'subtask',
+                                name: subtaskName,
+                                manageId: subtask.manageId || '',
+                                path: makePath([clientName, projectName, taskName]),
+                                clientId,
+                                projectId,
+                                taskId,
+                                subtaskId
+                            });
+                        }
+                    });
+                });
+
+                const products = project.products || {};
+                Object.entries(products).forEach(([productId, product]) => {
+                    if (!product) return;
+                    const productName = getName(product.name, 'Producto');
+                    if (includes(productName)) {
+                        pushResult({
+                            type: 'product',
+                            name: productName,
+                            manageId: product.manageId || '',
+                            path: makePath([clientName, projectName]),
+                            clientId,
+                            projectId,
+                            productId
+                        });
+                    }
+
+                    const productTasks = product.tasks || {};
+                    Object.entries(productTasks).forEach(([taskId, task]) => {
+                        if (!task) return;
+                        const taskName = getName(task.name, 'Tarea');
+                        if (includes(taskName)) {
+                            pushResult({
+                                type: 'task',
+                                name: taskName,
+                                manageId: task.manageId || '',
+                                path: makePath([clientName, projectName, productName]),
+                                clientId,
+                                projectId,
+                                productId,
+                                taskId
+                            });
+                        }
+
+                        const subtasks = task.subtasks || {};
+                        Object.entries(subtasks).forEach(([subtaskId, subtask]) => {
+                            if (!subtask) return;
+                            const subtaskName = getName(subtask.name, 'Subtarea');
+                            if (includes(subtaskName)) {
+                                pushResult({
+                                    type: 'subtask',
+                                    name: subtaskName,
+                                    manageId: subtask.manageId || '',
+                                    path: makePath([clientName, projectName, productName, taskName]),
+                                    clientId,
+                                    projectId,
+                                    productId,
+                                    taskId,
+                                    subtaskId
+                                });
+                            }
+                        });
+                    });
+                });
+            });
+        });
+
+        return results.sort((a, b) => {
+            const typeCompare = (a.type || '').localeCompare(b.type || '');
+            if (typeCompare !== 0) return typeCompare;
+            return (a.name || '').localeCompare(b.name || '');
+        });
+    };
+
+    const focusSearchResult = (result) => {
+        if (!result) return;
+        const manageId = String(result.manageId || '').trim();
+        if (!manageId) {
+            alert('No se encontro un ID para abrir el detalle.');
+            hideSearchResults();
+            return;
+        }
+        openDetailViewForManageId(manageId);
+        hideSearchResults();
+    };
+
+    const renderSearchResults = () => {
+        if (!searchResultsPanel || !searchResultsList || !searchResultsEmpty) return;
+
+        const query = getSearchQuery();
+        if (!query) {
+            hideSearchResults();
+            return;
+        }
+
+        searchResultsList.innerHTML = '';
+        searchResultsEmpty.classList.add('hidden');
+
+        const results = buildActivitySearchResults(query);
+        if (!results.length) {
+            searchResultsEmpty.classList.remove('hidden');
+            showSearchResults();
+            return;
+        }
+
+        const iconByType = {
+            client: 'folder',
+            project: 'folder_open',
+            product: 'category',
+            task: 'check_circle',
+            subtask: 'subdirectory_arrow_right'
+        };
+        const labelByType = {
+            client: 'Cliente',
+            project: 'Proyecto',
+            product: 'Producto',
+            task: 'Tarea',
+            subtask: 'Subtarea'
+        };
+
+        results.forEach((result) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined text-text-muted';
+            icon.textContent = iconByType[result.type] || 'search';
+
+            const textWrap = document.createElement('div');
+            textWrap.className = 'min-w-0 flex-1';
+
+            const title = document.createElement('p');
+            title.className = 'text-sm font-semibold text-gray-900 dark:text-white truncate';
+            title.textContent = result.name || '';
+
+            const meta = document.createElement('p');
+            meta.className = 'text-xs text-text-muted truncate';
+            const metaParts = [labelByType[result.type] || 'Actividad'];
+            if (result.path) metaParts.push(result.path);
+            if (result.manageId) metaParts.push(result.manageId);
+            meta.textContent = metaParts.join(' - ');
+
+            textWrap.append(title, meta);
+            button.append(icon, textWrap);
+            button.addEventListener('click', () => focusSearchResult(result));
+
+            searchResultsList.appendChild(button);
+        });
+
+        showSearchResults();
     };
 
     const renderMessageCard = (container, { icon, title, description }) => {
@@ -3942,6 +4213,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTree();
             renderStatusDashboard();
             renderMyTasks();
+            renderSearchResults();
         }, (error) => {
             console.error("Error fetching clients: ", error);
             clientsLoading = false;
@@ -4354,10 +4626,21 @@ document.addEventListener('DOMContentLoaded', () => {
         addTaskBtn?.addEventListener('click', openTaskModal);
         addSubtaskBtn?.addEventListener('click', openSubtaskModal);
 
-        clientSearchInput?.addEventListener('input', (event) => {
-            clientSearchQuery = String(event?.target?.value || '');
-            renderClients();
-            renderTree();
+        clientSearchInput?.addEventListener('input', () => {
+            renderSearchResults();
+        });
+        clientSearchInput?.addEventListener('focus', () => {
+            renderSearchResults();
+        });
+        clientSearchInput?.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                hideSearchResults();
+                clientSearchInput.blur();
+            }
+        });
+        document.addEventListener('click', (event) => {
+            if (!searchRoot) return;
+            if (!searchRoot.contains(event.target)) hideSearchResults();
         });
 
         addClientForm?.addEventListener('submit', handleAddClientSubmit);
