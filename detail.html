@@ -114,80 +114,9 @@
                     <div class="flex gap-2"></div>
                 </div>
 
-                <div class="flex flex-col gap-6 max-w-none mx-auto w-full">
-                    <section id="status-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                        <div class="flex items-center justify-between gap-2 mb-4">
-                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary">timeline</span>
-                                Estado
-                            </h3>
-                            <div class="flex items-center gap-2">
-                                <span id="status-save" class="text-xs text-text-muted"></span>
-                                <span id="status-chip" class="text-xs font-bold px-2.5 py-1 rounded-md border uppercase tracking-wide">-</span>
-                            </div>
-                        </div>
-
-                        <div class="w-full overflow-x-auto pb-2">
-                            <div class="min-w-[520px] flex items-center justify-between relative px-2">
-                                <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-surface-dark -z-10 rounded-full transform -translate-y-1/2"></div>
-                                <div id="status-progress" class="absolute top-1/2 left-0 h-1 -z-0 rounded-full transform -translate-y-1/2"></div>
-
-                                <button type="button" class="flex flex-col items-center gap-2 group cursor-pointer" data-status-step="Pendiente">
-                                    <div data-status-circle class="size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
-                                        <span data-status-icon class="material-symbols-outlined text-sm">schedule</span>
-                                    </div>
-                                    <span data-status-label class="text-text-muted text-xs font-bold uppercase tracking-wider">Pendiente</span>
-                                </button>
-
-                                <button type="button" class="flex flex-col items-center gap-2 group cursor-pointer" data-status-step="En proceso">
-                                    <div data-status-circle class="size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
-                                        <span data-status-icon class="material-symbols-outlined text-sm">autorenew</span>
-                                    </div>
-                                    <span data-status-label class="text-text-muted text-xs font-bold uppercase tracking-wider">En proceso</span>
-                                </button>
-
-                                <button type="button" class="flex flex-col items-center gap-2 group cursor-pointer" data-status-step="Finalizado">
-                                    <div data-status-circle class="size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
-                                        <span data-status-icon class="material-symbols-outlined text-sm">check_circle</span>
-                                    </div>
-                                    <span data-status-label class="text-text-muted text-xs font-bold uppercase tracking-wider">Finalizado</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <p id="status-helper" class="text-xs text-text-muted mt-2"></p>
-                    </section>
-
-                    <section id="assignee-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                        <div class="flex items-center justify-between gap-2 mb-3">
-                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary">person</span>
-                                Asignaci&#xF3;n
-                            </h3>
-                            <span id="assignee-save" class="text-xs text-text-muted"></span>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <div id="assignee-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
-                                <div class="min-w-0">
-                                    <p class="text-xs font-bold uppercase tracking-wide text-text-muted">Asignado a</p>
-                                    <p id="assignee-name" class="text-gray-900 dark:text-white font-semibold truncate">Sin asignar</p>
-                                    <p id="assignee-dept" class="text-text-muted text-xs truncate"></p>
-                                </div>
-                            </div>
-
-                            <div class="relative flex-shrink-0">
-                                <button id="assignee-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
-                                    <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
-                                    Cambiar
-                                </button>
-                                <div id="assignee-menu" class="action-menu hidden absolute right-0 top-full mt-2 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-y-auto max-h-80 z-50"></div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                <div class="grid gap-6 max-w-none mx-auto w-full lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div class="flex flex-col gap-6 min-w-0">
+                        <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between gap-2 mb-2">
                             <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">article</span>
@@ -207,9 +136,9 @@
                                 </button>
                             </div>
                         </div>
-                    </section>
+                        </section>
 
-                    <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                        <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2 mb-3">
                             <span class="material-symbols-outlined text-primary">account_tree</span>
                             Actividades
@@ -217,9 +146,9 @@
                         <div id="activities-list" class="flex flex-col gap-2 text-sm text-text-muted">
                             <p class="text-text-muted text-sm">No hay elementos.</p>
                         </div>
-                    </section>
+                        </section>
 
-                    <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                        <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                         <div class="flex items-center justify-between mb-3">
                             <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">forum</span>
@@ -241,7 +170,100 @@
                                 </button>
                             </div>
                         </div>
-                    </section>
+                        </section>
+                    </div>
+
+                    <aside id="detail-side-panel" class="flex flex-col gap-6">
+                        <section id="assignee-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">person</span>
+                                    Asignaci&#xF3;n
+                                </h3>
+                                <span id="assignee-save" class="text-xs text-text-muted"></span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div id="assignee-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
+                                    <div class="min-w-0">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-text-muted">Asignado a</p>
+                                        <p id="assignee-name" class="text-gray-900 dark:text-white font-semibold truncate">Sin asignar</p>
+                                        <p id="assignee-dept" class="text-text-muted text-xs truncate"></p>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex-shrink-0">
+                                    <button id="assignee-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                                        <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+                                        Cambiar
+                                    </button>
+                                    <div id="assignee-menu" class="action-menu hidden absolute right-0 top-full mt-2 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-y-auto max-h-80 z-50"></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="status-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <div class="flex items-center justify-between gap-2 mb-4">
+                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">timeline</span>
+                                    Estado
+                                </h3>
+                                <div class="flex items-center gap-2">
+                                    <span id="status-save" class="text-xs text-text-muted"></span>
+                                    <span id="status-chip" class="text-xs font-bold px-2.5 py-1 rounded-md border uppercase tracking-wide">-</span>
+                                </div>
+                            </div>
+
+                            <div class="w-full overflow-x-auto pb-1">
+                                <div class="min-w-[260px] flex items-center justify-between gap-2 relative px-1">
+                                    <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-surface-dark -z-10 rounded-full transform -translate-y-1/2"></div>
+                                    <div id="status-progress" class="absolute top-1/2 left-0 h-1 -z-0 rounded-full transform -translate-y-1/2"></div>
+
+                                    <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="Pendiente">
+                                        <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                            <span data-status-icon class="material-symbols-outlined text-[11px]">schedule</span>
+                                        </div>
+                                        <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">Pendiente</span>
+                                    </button>
+
+                                    <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="En proceso">
+                                        <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                            <span data-status-icon class="material-symbols-outlined text-[11px]">autorenew</span>
+                                        </div>
+                                        <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">En proceso</span>
+                                    </button>
+
+                                    <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="Finalizado">
+                                        <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                            <span data-status-icon class="material-symbols-outlined text-[11px]">check_circle</span>
+                                        </div>
+                                        <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">Finalizado</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p id="status-helper" class="text-xs text-text-muted mt-2"></p>
+                        </section>
+
+                        <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2 mb-4">
+                                <span class="material-symbols-outlined text-primary">tune</span>
+                                Detalles
+                            </h3>
+                            <div class="flex flex-col gap-4">
+                                <label class="flex flex-col gap-2 text-sm">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted">Tiempo empleado</span>
+                                    <input id="time-spent-input" type="text" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-background-dark text-gray-900 dark:text-white px-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary/50" placeholder="Ej: 2h 30m"/>
+                                </label>
+                                <label class="flex flex-col gap-2 text-sm">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted">Fecha</span>
+                                    <input id="work-date-input" type="date" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-background-dark text-gray-900 dark:text-white px-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary/50"/>
+                                </label>
+                                <span id="detail-fields-status" class="text-xs text-text-muted"></span>
+                            </div>
+                        </section>
+                    </aside>
                 </div>
 
                 <div id="error-box" class="hidden rounded-lg border border-red-400 bg-red-500/10 text-red-100 px-4 py-3 text-sm"></div>
@@ -563,6 +585,9 @@
         const assigneeDept = qs('assignee-dept');
         const assigneeToggle = qs('assignee-toggle');
         const assigneeMenu = qs('assignee-menu');
+        const timeSpentInput = qs('time-spent-input');
+        const workDateInput = qs('work-date-input');
+        const detailFieldsStatus = qs('detail-fields-status');
 
         let descriptionEditing = false;
 
@@ -630,6 +655,8 @@
         let assigneeSaving = false;
         let usersByUid = {};
         let usersUnsubscribe = null;
+        let detailFieldsSaving = false;
+        let detailFieldsSnapshot = { timeSpent: '', workDate: '' };
 
         const getManageIdFromUrl = () => {
             const params = new URLSearchParams(window.location.search);
@@ -795,19 +822,19 @@
 
                 if (circle) {
                     if (isActive) {
-                        circle.className = `size-10 rounded-full ${style.fill} text-white flex items-center justify-center z-10 ring-4 ${style.ring} shadow-lg transition-all`;
+                        circle.className = `size-8 rounded-full ${style.fill} text-white flex items-center justify-center z-10 ring-2 ${style.ring} shadow-lg transition-all`;
                     } else if (isCompleted) {
-                        circle.className = `size-8 rounded-full bg-white dark:bg-surface-dark border-2 ${style.border} ${style.label} flex items-center justify-center z-10 transition-all`;
+                        circle.className = `size-7 rounded-full bg-white dark:bg-surface-dark border-2 ${style.border} ${style.label} flex items-center justify-center z-10 transition-all`;
                     } else {
-                        circle.className = 'size-8 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10 opacity-60 transition-all';
+                        circle.className = 'size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10 opacity-60 transition-all';
                     }
                 }
 
                 if (label) {
                     if (isActive || isCompleted) {
-                        label.className = `${style.label} text-xs font-bold uppercase tracking-wider`;
+                        label.className = `${style.label} text-[10px] font-bold uppercase tracking-wider`;
                     } else {
-                        label.className = 'text-text-muted text-xs font-bold uppercase tracking-wider opacity-60';
+                        label.className = 'text-text-muted text-[10px] font-bold uppercase tracking-wider opacity-60';
                     }
                 }
             });
@@ -884,6 +911,56 @@
             if (assigneeName) assigneeName.textContent = name;
             if (assigneeDept) assigneeDept.textContent = dept || '';
             renderAvatar(assigneeAvatar, name, photo);
+        };
+
+        const setDetailFields = (item = {}) => {
+            const timeSpent = String(item.timeSpent || '').trim();
+            const workDate = String(item.workDate || '').trim();
+            if (timeSpentInput) timeSpentInput.value = timeSpent;
+            if (workDateInput) workDateInput.value = workDate;
+            detailFieldsSnapshot = { timeSpent, workDate };
+            if (detailFieldsStatus) detailFieldsStatus.textContent = '';
+        };
+
+        const saveDetailFields = async () => {
+            if (!currentUser) {
+                alert('Debes iniciar sesi\u00F3n para guardar estos datos.');
+                return;
+            }
+            if (!currentItemPath) return;
+
+            const timeSpent = String(timeSpentInput?.value || '').trim();
+            const workDate = String(workDateInput?.value || '').trim();
+
+            const updates = {};
+            if (timeSpent !== detailFieldsSnapshot.timeSpent) updates.timeSpent = timeSpent;
+            if (workDate !== detailFieldsSnapshot.workDate) updates.workDate = workDate;
+            if (!Object.keys(updates).length) return;
+
+            detailFieldsSaving = true;
+            if (detailFieldsStatus) detailFieldsStatus.textContent = 'Guardando...';
+            updateAuthUI();
+
+            try {
+                await update(ref(database, currentItemPath), updates);
+                detailFieldsSnapshot = {
+                    timeSpent: updates.timeSpent ?? detailFieldsSnapshot.timeSpent,
+                    workDate: updates.workDate ?? detailFieldsSnapshot.workDate
+                };
+                if (detailFieldsStatus) {
+                    detailFieldsStatus.textContent = 'Guardado';
+                    setTimeout(() => {
+                        if (detailFieldsStatus) detailFieldsStatus.textContent = '';
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error(err);
+                if (detailFieldsStatus) detailFieldsStatus.textContent = 'No se pudo guardar';
+                showError(err.message || 'No se pudieron guardar los datos.');
+            } finally {
+                detailFieldsSaving = false;
+                updateAuthUI();
+            }
         };
 
         const buildAssigneeMenu = () => {
@@ -2395,6 +2472,13 @@
                 setDescriptionEditing(false);
             }
 
+            const canEditDetails = canEdit && !detailFieldsSaving;
+            [timeSpentInput, workDateInput].forEach(el => {
+                if (!el) return;
+                el.disabled = !canEditDetails;
+                el.classList.toggle('opacity-60', !canEditDetails);
+            });
+
             const canEditStatus = canEdit && STATUS_TYPES.has(currentItemType) && !statusSaving;
             statusStepButtons.forEach(btn => {
                 btn.disabled = !canEditStatus;
@@ -2438,6 +2522,7 @@
             if (descriptionInput) descriptionInput.value = descText;
             setDescriptionView(descText);
             setDescriptionEditing(false);
+            setDetailFields(item);
 
             currentItemType = type;
             currentItemStatus = normalizeStatus(item.status);
@@ -2587,6 +2672,8 @@
             }
         });
         saveDescriptionButton?.addEventListener('click', saveDescription);
+        timeSpentInput?.addEventListener('change', saveDetailFields);
+        workDateInput?.addEventListener('change', saveDetailFields);
         commentButton?.addEventListener('click', submitComment);
         qs('open-dashboard')?.addEventListener('click', () => {
             const target = `maindashboard.html?r=${Date.now()}`;
