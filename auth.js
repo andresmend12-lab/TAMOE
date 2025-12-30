@@ -1,6 +1,6 @@
 import { auth, database } from './firebase.js';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-import { ref, set, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, isSignInWithEmailLink, signInWithEmailLink, sendEmailVerification, updatePassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { ref, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('register-form');
@@ -14,19 +14,54 @@ document.addEventListener('DOMContentLoaded', () => {
         const registerDepartmentInput = document.getElementById('register-department');
         const submitLabel = registerForm.querySelector('button[type="submit"] span');
         const isEmailLink = isSignInWithEmailLink(auth, window.location.href);
+        const departmentField = document.getElementById('department-field');
+        const departmentToggle = document.getElementById('department-toggle');
+        const departmentMenu = document.getElementById('department-menu');
+        const departmentValue = document.getElementById('department-value');
+        const pendingProfileKey = 'pendingInviteProfile';
 
-        const disablePasswordFields = () => {
-            [registerPasswordInput, registerConfirmPasswordInput].forEach((input) => {
-                if (!input) return;
-                input.value = '';
-                input.required = false;
-                input.disabled = true;
-                const wrapper = input.closest('label');
-                if (wrapper) {
-                    wrapper.classList.add('hidden');
+        const closeDepartmentMenu = () => {
+            if (!departmentMenu) return;
+            departmentMenu.classList.add('hidden');
+            departmentToggle?.setAttribute('aria-expanded', 'false');
+        };
+
+        if (departmentToggle && departmentMenu && registerDepartmentInput) {
+            const options = Array.from(departmentMenu.querySelectorAll('.department-option'));
+            departmentToggle.addEventListener('click', (event) => {
+                event.preventDefault();
+                const isHidden = departmentMenu.classList.contains('hidden');
+                if (isHidden) {
+                    departmentMenu.classList.remove('hidden');
+                    departmentToggle.setAttribute('aria-expanded', 'true');
+                } else {
+                    closeDepartmentMenu();
                 }
             });
-        };
+
+            options.forEach((option) => {
+                option.addEventListener('click', () => {
+                    const value = option.getAttribute('data-value') || '';
+                    registerDepartmentInput.value = value;
+                    if (departmentValue) {
+                        departmentValue.textContent = option.textContent.trim();
+                        departmentValue.classList.remove('text-text-muted-light', 'dark:text-text-muted-dark');
+                    }
+                    closeDepartmentMenu();
+                });
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!departmentField || departmentField.contains(event.target)) return;
+                closeDepartmentMenu();
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeDepartmentMenu();
+                }
+            });
+        }
 
         const getEmailFromStorage = () => {
             try {
@@ -36,10 +71,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        const savePendingProfile = (profile) => {
+            try {
+                localStorage.setItem(pendingProfileKey, JSON.stringify(profile));
+            } catch (error) {
+                console.warn('No se pudo guardar el registro pendiente:', error);
+            }
+        };
+
+        const buildVerifyUrl = (profile = null) => {
+            try {
+                const url = new URL('verify-email.html', window.location.href);
+                if (profile) {
+                    const params = new URLSearchParams();
+                    params.set('invite', '1');
+                    if (profile.username) {
+                        params.set('name', profile.username);
+                    }
+                    if (profile.email) {
+                        params.set('email', profile.email);
+                    }
+                    if (profile.department) {
+                        params.set('department', profile.department);
+                    }
+                    url.search = params.toString();
+                }
+                return url.href;
+            } catch (error) {
+                return 'verify-email.html';
+            }
+        };
+
         if (isEmailLink) {
-            disablePasswordFields();
             if (submitLabel) {
-                submitLabel.textContent = 'Aceptar invitaci\u00F3n';
+                submitLabel.textContent = 'Unirme al equipo';
             }
             const storedEmail = getEmailFromStorage();
             if (registerEmailInput && storedEmail) {
@@ -50,10 +115,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const name = registerNameInput?.value.trim() || '';
                 const email = registerEmailInput?.value.trim() || '';
+                const password = registerPasswordInput?.value || '';
+                const confirmPassword = registerConfirmPasswordInput?.value || '';
                 const department = registerDepartmentInput?.value || '';
 
                 if (!email) {
                     alert('Introduce tu correo para aceptar la invitaci\u00F3n.');
+                    return;
+                }
+
+                if (password.length < 8) {
+                    alert('La contrase\u00F1a debe tener al menos 8 caracteres.');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    alert('Las contrase\u00F1as no coinciden.');
                     return;
                 }
 
@@ -66,24 +143,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     const result = await signInWithEmailLink(auth, email, window.location.href);
                     localStorage.removeItem('emailForSignIn');
                     const user = result.user;
-                    const userRef = ref(database, 'users/' + user.uid);
-                    const snapshot = await get(userRef);
-                    if (!snapshot.exists()) {
-                        await set(userRef, {
-                            username: name || user.displayName || email,
-                            email: user.email || email,
-                            department: department,
-                            profile_picture: ''
-                        });
+                    if (!user) {
+                        throw new Error('No se pudo completar la invitaci\u00F3n.');
                     }
-                    window.location.href = 'maindashboard.html';
+                    await updatePassword(user, password);
+                    const pendingProfile = {
+                        username: name || user.displayName || email,
+                        email: user.email || email,
+                        department: department,
+                        profile_picture: ''
+                    };
+                    savePendingProfile(pendingProfile);
+                    try {
+                        auth.languageCode = 'es';
+                        await sendEmailVerification(user, { url: buildVerifyUrl(pendingProfile) });
+                    } catch (error) {
+                        console.warn('No se pudo enviar la verificaci\u00F3n de correo:', error);
+                        alert('No se pudo enviar la verificaci\u00F3n de correo.');
+                        return;
+                    }
+                    window.location.href = 'verify-email.html?sent=1';
                 } catch (error) {
                     console.error("Email link sign-in error: ", error);
                     alert(`Error al aceptar la invitaci\u00F3n: ${error.message}`);
                 }
             });
         } else {
-            registerForm.addEventListener('submit', (e) => {
+            registerForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 const name = registerNameInput?.value || '';
@@ -102,30 +188,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                createUserWithEmailAndPassword(auth, email, password)
-                    .then((userCredential) => {
-                        // Signed in 
-                        const user = userCredential.user;
-                        
-                        // Save user data to Realtime Database
-                        set(ref(database, 'users/' + user.uid), {
-                            username: name,
-                            email: email,
-                            department: department,
-                            profile_picture: '' // Initialize with empty profile picture
-                        }).then(() => {
-                            window.location.href = 'maindashboard.html';
-                        }).catch((error) => {
-                            console.error("Error saving user data: ", error);
-                            alert("Error al guardar los datos del usuario.");
-                        });
-                    })
-                    .catch((error) => {
-                        const errorCode = error.code;
-                        const errorMessage = error.message;
-                        console.error("Registration error: ", errorCode, errorMessage);
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    const pendingProfile = {
+                        username: name || user.displayName || email,
+                        email: user.email || email,
+                        department: department,
+                        profile_picture: ''
+                    };
+                    savePendingProfile(pendingProfile);
+                    try {
+                        auth.languageCode = 'es';
+                        await sendEmailVerification(user, { url: buildVerifyUrl(pendingProfile) });
+                    } catch (error) {
+                        console.warn('No se pudo enviar la verificaci\u00F3n de correo:', error);
+                    }
+                    window.location.href = 'verify-email.html?sent=1';
+                } catch (error) {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error("Registration error: ", errorCode, errorMessage);
+                    if (errorCode === 'auth/email-already-in-use') {
+                        alert('Este correo ya est\u00E1 registrado.');
+                    } else {
                         alert(`Error de registro: ${errorMessage}`);
-                    });
+                    }
+                }
             });
         }
     }
