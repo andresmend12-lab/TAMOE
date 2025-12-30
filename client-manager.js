@@ -106,6 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedTaskId = null;
     let selectedSubtaskId = null;
     let sidebarAutoOpenKeys = new Set();
+    let taskCreationContext = null;
+    let productCreationContext = null;
+    const projectChildSort = new Map();
     let clientSearchQuery = '';
     let clientsLoading = false;
 
@@ -1458,6 +1461,70 @@ document.addEventListener('DOMContentLoaded', () => {
         return wrapper;
     };
 
+    const createSortMenu = ({ value, onChange }) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative flex items-center justify-end';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'p-1 rounded-md text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors';
+        button.setAttribute('aria-label', 'Ordenar actividades');
+        button.innerHTML = '<span class="material-symbols-outlined text-[18px]">sort</span>';
+
+        const menu = document.createElement('div');
+        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-56 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-40 text-gray-900 dark:text-white';
+
+        const options = [
+            { key: 'alpha', label: 'Orden alfabético', icon: 'sort_by_alpha' },
+            { key: 'created', label: 'Fecha de creación', icon: 'schedule' },
+        ];
+
+        const updateChecks = () => {
+            Array.from(menu.querySelectorAll('button')).forEach((btn) => {
+                const isActive = btn.dataset.sort === value;
+                const check = btn.querySelector('.material-symbols-outlined.check');
+                if (check) check.classList.toggle('opacity-0', !isActive);
+            });
+        };
+
+        options.forEach((option) => {
+            const optBtn = document.createElement('button');
+            optBtn.type = 'button';
+            optBtn.dataset.sort = option.key;
+            optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
+            optBtn.innerHTML = `
+                <span class="inline-flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px]">${option.icon}</span>
+                    ${option.label}
+                </span>
+                <span class="material-symbols-outlined check text-[18px] text-text-muted opacity-0">check</span>
+            `;
+            optBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                menu.classList.add('hidden');
+                value = option.key;
+                onChange?.(option.key);
+                updateChecks();
+            });
+            menu.appendChild(optBtn);
+        });
+
+        menu.addEventListener('click', event => event.stopPropagation());
+
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            userMenu?.classList.add('hidden');
+            closeAllActionMenus(menu);
+            updateChecks();
+            menu.classList.toggle('hidden');
+        });
+
+        wrapper.append(button, menu);
+        return wrapper;
+    };
+
     // ManageId helpers (per client prefix + counter)
     const stripDiacritics = (value) => {
         if (typeof value !== 'string') return '';
@@ -2385,7 +2452,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             selectedSubtaskId = null;
                                             if (projectDetail) projectDetail.classList.remove('hidden');
                                             if (projectDetailName) projectDetailName.textContent = proj?.name || 'Selecciona un proyecto';
-                                            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+                                            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto.';
                                             renderTasks(client.id, proj.id, null);
                                         }
                                         renderClients();
@@ -2593,7 +2660,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (projectDetailSub) {
             projectDetailSub.textContent = hasProducts
                 ? 'Selecciona un producto para ver tareas.'
-                : 'Tareas del proyecto (sin producto).';
+                : 'Tareas del proyecto.';
         }
         renderTasks(clientId, projectId, null);
 
@@ -2607,6 +2674,16 @@ document.addEventListener('DOMContentLoaded', () => {
         updateActivityPath();
         renderTree();
         renderStatusDashboard();
+    };
+
+    const setTaskCreationContext = (clientId, projectId, productId = null) => {
+        taskCreationContext = { clientId, projectId, productId };
+        ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
+    };
+
+    const setProductCreationContext = (clientId, projectId) => {
+        productCreationContext = { clientId, projectId };
+        ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
     };
 
     const selectSidebarProduct = (clientId, projectId, productId) => {
@@ -2668,7 +2745,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const openProductModal = () => {
-        if (!selectedClientId || !selectedProjectId) {
+        const target = productCreationContext || { clientId: selectedClientId, projectId: selectedProjectId };
+        if (!target.clientId || !target.projectId) {
             alert('Selecciona un proyecto primero.');
             return;
         }
@@ -2679,17 +2757,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeProductModal = () => {
         addProductModal.classList.add('hidden');
         addProductForm?.reset();
+        productCreationContext = null;
     };
 
     const openTaskModal = () => {
-        if (!selectedClientId || !selectedProjectId) {
+        const target = taskCreationContext || { clientId: selectedClientId, projectId: selectedProjectId, productId: selectedProductId };
+        if (!target.clientId || !target.projectId) {
             alert('Selecciona un proyecto primero.');
             return;
         }
-        const client = allClients.find(c => c.id === selectedClientId);
-        const project = client?.projects?.[selectedProjectId];
+        const client = allClients.find(c => c.id === target.clientId);
+        const project = client?.projects?.[target.projectId];
         const hasProducts = !!(project && Object.keys(project.products || {}).length);
-        if (hasProducts && !selectedProductId) {
+        if (hasProducts && !target.productId) {
             alert('Selecciona un producto para crear tareas.');
             return;
         }
@@ -2700,6 +2780,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeTaskModal = () => {
         addTaskModal.classList.add('hidden');
         addTaskForm?.reset();
+        taskCreationContext = null;
     };
 
     const openSubtaskModal = () => {
@@ -2933,7 +3014,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             selectedSubtaskId = null;
                             if (projectDetail) projectDetail.classList.remove('hidden');
                             if (projectDetailName) projectDetailName.textContent = project?.name || 'Selecciona un proyecto';
-                            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+                            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto.';
                             renderTasks(clientId, projectId, null);
                         }
                         renderClients();
@@ -3254,7 +3335,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return progress;
         };
 
-        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null, depth = 0, kind = '') => {
+        const getProjectSortMode = (clientId, projectId) => {
+            const key = `${clientId}:${projectId}`;
+            return projectChildSort.get(key) || 'alpha';
+        };
+
+        const setProjectSortMode = (clientId, projectId, mode) => {
+            const key = `${clientId}:${projectId}`;
+            projectChildSort.set(key, mode);
+        };
+
+        const compareBySortMode = (a, b, mode) => {
+            const nameCompare = String(a?.name || '').localeCompare(String(b?.name || ''));
+            if (mode !== 'created') return nameCompare;
+            const timeA = Date.parse(String(a?.createdAt || ''));
+            const timeB = Date.parse(String(b?.createdAt || ''));
+            const dateA = Number.isFinite(timeA) ? timeA : 0;
+            const dateB = Number.isFinite(timeB) ? timeB : 0;
+            return dateA - dateB || nameCompare;
+        };
+
+        const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null, depth = 0, kind = '', options = {}) => {
             const summary = document.createElement('summary');
             summary.className = `${treeGrid} cursor-pointer select-none px-3 py-2 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg list-none`;
 
@@ -3331,6 +3432,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const assigneeCell = document.createElement('div');
             assigneeCell.className = 'min-w-0';
+            if (kind === 'project' && options.sortControl) {
+                const sortMenu = createSortMenu({
+                    value: options.sortControl.value,
+                    onChange: options.sortControl.onChange,
+                });
+                assigneeCell.className = 'flex items-center justify-end';
+                assigneeCell.appendChild(sortMenu);
+            }
             applyDepthPadding(statusCell, depth);
             applyDepthPadding(metaCell, depth);
             applyDepthPadding(assigneeCell, depth);
@@ -3706,6 +3815,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     projDetails.dataset.manageId = proj.manageId || `project:${client.id}:${proj.id}`;
                     if (selectionProjectId && proj.id === selectionProjectId) projDetails.open = true;
                     const projProgress = computeProjectProgress(proj);
+                    const projectSortMode = getProjectSortMode(client.id, proj.id);
                     projDetails.appendChild(makeSummary(
                         'layers',
                         proj.name || 'Proyecto',
@@ -3721,7 +3831,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         },
                         projProgress,
                         1,
-                        'project'
+                        'project',
+                        {
+                            sortControl: {
+                                value: projectSortMode,
+                                onChange: (nextMode) => {
+                                    setProjectSortMode(client.id, proj.id, nextMode);
+                                    renderTree();
+                                }
+                            }
+                        }
                     ));
 
                     const projContent = document.createElement('div');
@@ -3730,12 +3849,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
                     const projTaskArray = Object.keys(projTasks).map(id => ({ id, ...projTasks[id] }));
-                    projTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    projTaskArray.sort((a, b) => compareBySortMode(a, b, projectSortMode));
                     if (!selectionProductId && projTaskArray.length) {
-                        const taskLabel = document.createElement('p');
-                        taskLabel.className = 'text-text-muted text-xs px-1';
-                        taskLabel.textContent = 'Tareas (sin producto)';
-                        projContent.appendChild(taskLabel);
                         projTaskArray.forEach(t => {
                             const taskPath = `clients/${client.id}/projects/${proj.id}/tasks/${t.id}`;
                             const taskBlock = document.createElement('div');
@@ -3771,7 +3886,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const productArray = selectionProductId
                         ? rawProductArray.filter(p => p.id === selectionProductId)
                         : rawProductArray;
-                    productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    productArray.sort((a, b) => compareBySortMode(a, b, projectSortMode));
 
                     if (productArray.length === 0 && (!projTaskArray.length || selectionProductId)) {
                         const emptyP = document.createElement('p');
@@ -3813,7 +3928,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             const prodTasks = prod.tasks || {};
                             const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
-                            prodTaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                            prodTaskArray.sort((a, b) => compareBySortMode(a, b, projectSortMode));
 
                             if (prodTaskArray.length === 0) {
                                 const emptyT = document.createElement('p');
@@ -3862,7 +3977,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     label: 'Crear tarea',
                                     icon: 'check_circle',
                                     onClick: () => {
-                                        selectSidebarProduct(client.id, proj.id, prod.id);
+                                        setTaskCreationContext(client.id, proj.id, prod.id);
                                         openTaskModal();
                                     }
                                 }
@@ -3878,7 +3993,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             label: 'Crear producto',
                             icon: 'add_box',
                             onClick: () => {
-                                showProductView(client.id, proj.id);
+                                setProductCreationContext(client.id, proj.id);
                                 openProductModal();
                             }
                         }
@@ -3888,7 +4003,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             label: 'Crear tarea',
                             icon: 'check_circle',
                             onClick: () => {
-                                showProductView(client.id, proj.id);
+                                setTaskCreationContext(client.id, proj.id);
                                 openTaskModal();
                             }
                         });
@@ -4155,10 +4270,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedProductId) {
             const product = project.products?.[selectedProductId];
             if (projectDetailName) projectDetailName.textContent = product?.name || project.name;
-            if (projectDetailSub) projectDetailSub.textContent = product ? 'Tareas del producto.' : 'Tareas del proyecto (sin producto).';
+            if (projectDetailSub) projectDetailSub.textContent = product ? 'Tareas del producto.' : 'Tareas del proyecto.';
         } else {
             if (projectDetailName) projectDetailName.textContent = project.name;
-            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto (sin producto).';
+            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto.';
         }
 
         showEl(treeView);
@@ -4325,7 +4440,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const productName = productNameInput.value.trim();
         if (!productName) return;
-        if (!currentUser || !selectedClientId || !selectedProjectId) {
+        const target = productCreationContext || { clientId: selectedClientId, projectId: selectedProjectId };
+        if (!currentUser || !target.clientId || !target.projectId) {
             alert("Selecciona un proyecto e inicia sesión para añadir productos.");
             return;
         }
@@ -4336,8 +4452,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveProductBtn.textContent = "Guardando...";
             }
 
-            const manageId = await allocateNextManageId(selectedClientId);
-            const newProductRef = push(ref(database, `clients/${selectedClientId}/projects/${selectedProjectId}/products`));
+            const manageId = await allocateNextManageId(target.clientId);
+            const newProductRef = push(ref(database, `clients/${target.clientId}/projects/${target.projectId}/products`));
             const productData = {
                 name: productName,
                 status: 'Pendiente',
@@ -4349,7 +4465,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await set(newProductRef, productData);
             
             await executeAutomations('activityCreated', {
-                path: `clients/${selectedClientId}/projects/${selectedProjectId}/products/${newProductRef.key}`,
+                path: `clients/${target.clientId}/projects/${target.projectId}/products/${newProductRef.key}`,
                 type: 'product',
                 data: productData
             });
@@ -4373,7 +4489,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const taskName = taskNameInput.value.trim();
         if (!taskName) return;
-        if (!currentUser || !selectedClientId || !selectedProjectId) {
+        const target = taskCreationContext || { clientId: selectedClientId, projectId: selectedProjectId, productId: selectedProductId };
+        if (!currentUser || !target.clientId || !target.projectId) {
             alert("Selecciona un proyecto e inicia sesión para añadir tareas.");
             return;
         }
@@ -4384,10 +4501,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveTaskBtn.textContent = "Guardando...";
             }
 
-            const manageId = await allocateNextManageId(selectedClientId);
-            const taskPath = selectedProductId
-                ? `clients/${selectedClientId}/projects/${selectedProjectId}/products/${selectedProductId}/tasks`
-                : `clients/${selectedClientId}/projects/${selectedProjectId}/tasks`;
+            const manageId = await allocateNextManageId(target.clientId);
+            const taskPath = target.productId
+                ? `clients/${target.clientId}/projects/${target.projectId}/products/${target.productId}/tasks`
+                : `clients/${target.clientId}/projects/${target.projectId}/tasks`;
             const newTaskRef = push(ref(database, taskPath));
             const taskData = {
                 name: taskName,
