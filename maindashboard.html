@@ -193,7 +193,7 @@
     <!-- Main Content -->
     <main class="flex flex-col flex-1 h-full min-w-0 bg-background-light dark:bg-background-dark relative">
         <!-- Top Navigation -->
-        <header class="h-16 flex items-center justify-between px-8 border-b border-gray-200 dark:border-border-dark bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-10">
+        <header class="h-16 flex items-center justify-between px-8 border-b border-gray-200 dark:border-border-dark bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
             <div class="flex items-center gap-3">
                 <button id="tamoe-home" type="button" class="shrink-0 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60" aria-label="Ir al inicio">
                     <img src="logotipo_tamoe.png" alt="Tamoe" class="h-9 w-auto"/>
@@ -211,12 +211,12 @@
                 <button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
                     <span class="material-symbols-outlined text-[20px]">brightness_4</span>
                 </button>
-                <div class="relative">
+                <div class="relative z-[999]">
                     <button id="notification-toggle-btn" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
                         <span class="material-symbols-outlined">notifications</span>
-                        <div id="notification-badge" class="hidden absolute top-0 right-0 size-2.5 rounded-full bg-primary border-2 border-background-light dark:border-background-dark"></div>
+                        <div id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center border-2 border-background-light dark:border-background-dark"></div>
                     </button>
-                    <div id="notification-panel" class="hidden absolute top-12 right-0 w-80 bg-white dark:bg-surface-darker border border-border-dark rounded-xl shadow-2xl z-50">
+                    <div id="notification-panel" class="hidden absolute top-12 right-0 w-80 bg-white dark:bg-surface-darker border border-border-dark rounded-xl shadow-2xl z-[999]">
                         <div class="p-4 border-b border-border-dark">
                             <h3 class="text-lg font-bold text-gray-900 dark:text-white">Notificaciones</h3>
                         </div>

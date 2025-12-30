@@ -165,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!notifications) {
             noNotificationsMsg.classList.remove('hidden');
             notificationBadge.classList.add('hidden');
+            notificationBadge.textContent = '';
             return;
         }
 
@@ -207,8 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (unreadCount > 0) {
             notificationBadge.classList.remove('hidden');
+            notificationBadge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
         } else {
             notificationBadge.classList.add('hidden');
+            notificationBadge.textContent = '';
         }
     }
 });
