@@ -97,6 +97,13 @@
         .dark #client-list-nav .sidebar-add-row:hover span {
             color: #ffffff !important;
         }
+        #sidebar-resizer {
+            touch-action: none;
+        }
+        body.sidebar-resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
     </style>
     <script src="auth-guard.js" type="module"></script>
 </head>
@@ -104,7 +111,7 @@
 
 <div class="flex h-full w-full">
     <!-- Sidebar -->
-    <aside class="w-64 h-full flex flex-col bg-white dark:bg-surface-darker border-r border-border-dark flex-shrink-0 z-20">
+    <aside id="sidebar" class="w-64 h-full flex flex-col bg-white dark:bg-surface-darker border-r border-border-dark flex-shrink-0 z-20">
         
         <!-- Client View -->
         <div id="client-view" class="flex flex-col h-full min-h-0">
@@ -197,6 +204,7 @@
                 </nav>
             </div>
         </div></aside>
+    <div id="sidebar-resizer" class="w-1.5 cursor-col-resize bg-border-dark/60 hover:bg-primary/60 transition-colors" aria-hidden="true"></div>
 
     <!-- Main Content -->
     <main class="flex flex-col flex-1 h-full min-w-0 bg-background-light dark:bg-background-dark relative">
@@ -708,6 +716,35 @@
 <script src="notifications.js" type="module"></script>
 <script>
     document.addEventListener("DOMContentLoaded", () => {
+        const sidebar = document.getElementById("sidebar");
+        const resizer = document.getElementById("sidebar-resizer");
+        if (sidebar && resizer) {
+            const minWidth = 220;
+            const maxWidth = 420;
+            let startX = 0;
+            let startWidth = 0;
+
+            const onMove = (event) => {
+                const delta = event.clientX - startX;
+                const next = Math.min(maxWidth, Math.max(minWidth, startWidth + delta));
+                sidebar.style.width = `${next}px`;
+            };
+
+            const onUp = () => {
+                document.body.classList.remove("sidebar-resizing");
+                window.removeEventListener("pointermove", onMove);
+                window.removeEventListener("pointerup", onUp);
+            };
+
+            resizer.addEventListener("pointerdown", (event) => {
+                startX = event.clientX;
+                startWidth = sidebar.getBoundingClientRect().width;
+                document.body.classList.add("sidebar-resizing");
+                window.addEventListener("pointermove", onMove);
+                window.addEventListener("pointerup", onUp);
+            });
+        }
+
         const monthLabel = document.getElementById("calendar-month");
         const daysGrid = document.getElementById("calendar-days");
         const prevBtn = document.getElementById("calendar-prev");
