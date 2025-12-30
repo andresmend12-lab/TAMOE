@@ -1250,22 +1250,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const buildManagePrefixFromName = (name) => {
         const cleaned = stripDiacritics(String(name || '')).trim();
-        if (!cleaned) return 'XX';
+        if (!cleaned) return 'XXX';
 
         const words = cleaned.split(/\s+/).filter(Boolean);
-        const pickFirstAlnum = (word) => {
-            const match = String(word).match(/[A-Za-z0-9]/);
-            return match ? match[0].toUpperCase() : '';
-        };
+        const wordChars = words
+            .map(word => (String(word).match(/[A-Za-z0-9]/g) || []).map(char => char.toUpperCase()))
+            .filter(chars => chars.length > 0);
 
-        if (words.length >= 2) {
-            const initials = words.map(pickFirstAlnum).filter(Boolean).join('');
-            return initials || 'XX';
+        if (wordChars.length === 0) return 'XXX';
+
+        if (wordChars.length === 1) {
+            const prefix = wordChars[0].join('').slice(0, 3);
+            return prefix.padEnd(3, 'X');
         }
 
-        const chars = (words[0].match(/[A-Za-z0-9]/g) || []).join('');
-        const prefix = chars.slice(0, 2).toUpperCase();
-        return (prefix || 'XX').padEnd(2, 'X');
+        if (wordChars.length === 2) {
+            const [first, second] = wordChars;
+            const prefixChars = [];
+            if (first.length >= 2) {
+                prefixChars.push(first[0], first[1], second[0] || '');
+            } else {
+                prefixChars.push(first[0] || '', second[0] || '', second[1] || '');
+            }
+            return prefixChars.join('').padEnd(3, 'X');
+        }
+
+        const prefix = wordChars.slice(0, 3).map(chars => chars[0]).join('');
+        return prefix.padEnd(3, 'X');
     };
 
     const formatManageId = (prefix, number) => {
@@ -1280,6 +1291,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!match) return null;
         const num = Number.parseInt(match[1], 10);
         return Number.isFinite(num) ? num : null;
+    };
+
+    const getNextClientManageNumber = (prefix) => {
+        const safePrefix = String(prefix || 'XXX').toUpperCase();
+        let maxNumber = 0;
+        for (const client of allClients) {
+            const manageId = client?.manageId;
+            if (!manageId || !manageId.startsWith(`${safePrefix}-`)) continue;
+            const parsed = parseManageNumber(manageId);
+            if (parsed && parsed > maxNumber) maxNumber = parsed;
+        }
+        return maxNumber + 1;
     };
 
     const countEntitiesForClient = (client) => {
@@ -3770,7 +3793,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const managePrefix = buildManagePrefixFromName(companyName);
-            const manageId = formatManageId(managePrefix, 1);
+            const existingIds = new Set(allClients.map(client => client?.manageId).filter(Boolean));
+            let nextNumber = getNextClientManageNumber(managePrefix);
+            let manageId = formatManageId(managePrefix, nextNumber);
+            while (existingIds.has(manageId)) {
+                nextNumber += 1;
+                manageId = formatManageId(managePrefix, nextNumber);
+            }
             const newClientRef = push(ref(database, 'clients'));
             const clientData = {
                 name: companyName,
