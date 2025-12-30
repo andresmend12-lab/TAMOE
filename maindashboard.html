@@ -75,7 +75,19 @@
             margin-left: 36px;
         }
         #client-list-nav details.sidebar-tree-box {
-            margin-bottom: 4px;
+            margin-bottom: 0;
+        }
+        #client-list-nav .sidebar-row {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        #client-list-nav .sidebar-row:last-child {
+            border-bottom: 0;
+        }
+        #client-list-nav .sidebar-row + .sidebar-row {
+            margin-top: 0;
+        }
+        #client-list-nav > details + details {
+            margin-top: 0;
         }
     </style>
     <script src="auth-guard.js" type="module"></script>
@@ -120,7 +132,7 @@
                     </button>
                 </div>
                 <!-- Navigation / Client List -->
-                <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto max-h-full">
+                <nav id="client-list-nav" class="flex-1 flex flex-col gap-2 px-2 py-4 overflow-y-auto max-h-full">
                     <!-- Client links will be dynamically injected here -->
                 </nav>
                 <div class="px-2 py-2">

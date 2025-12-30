@@ -1559,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const makeSidebarRow = ({ icon, label, manageId, active = false, indentClass = '', chevron = null }) => {
             const row = document.createElement('div');
-            row.className = `group flex items-center justify-between gap-2 px-3 py-2 text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
+            row.className = `sidebar-row group flex items-center justify-between gap-2 px-3 py-1 text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors ${indentClass}`;
             if (active) row.classList.add('bg-gray-100', 'text-gray-900', 'dark:bg-white/5', 'dark:text-white');
 
             const left = document.createElement('div');
@@ -1592,7 +1592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const makeAddRow = ({ label, onClick, indentClass = '' }) => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = `flex items-center gap-2 w-full px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
+            button.className = `sidebar-row flex items-center gap-2 w-full px-3 py-1 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors border border-dashed border-border-dark/70 ${indentClass}`;
             button.innerHTML = '<span class="material-symbols-outlined text-[18px]">add</span>';
             const text = document.createElement('span');
             text.className = 'text-sm font-semibold dark:text-white truncate';
@@ -1694,7 +1694,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientDetails.appendChild(clientSummary);
 
             const clientChildren = document.createElement('div');
-            clientChildren.className = 'pl-3 pt-2 flex flex-col gap-2';
+            clientChildren.className = 'pl-3 mt-2 flex flex-col gap-2';
 
             const projects = client?.projects || {};
             const projectArray = Object.keys(projects || {}).map(id => ({ id, ...projects[id] }));
@@ -1802,7 +1802,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     projectDetails.appendChild(projectSummary);
 
                     const projectChildren = document.createElement('div');
-                    projectChildren.className = 'pl-3 pt-2 flex flex-col gap-2';
+                    projectChildren.className = 'pl-3 mt-2 flex flex-col gap-2';
 
                     const products = proj?.products || {};
                     const productArray = Object.keys(products || {}).map(id => ({ id, ...products[id] }));
