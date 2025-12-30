@@ -1,7 +1,7 @@
 ﻿import { auth, database, storage } from './firebase.js';
 import { onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { ref as dbRef, get, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
 
 const profileForm = document.getElementById('profile-form');
 const profileNameInput = document.getElementById('profile-name');
@@ -12,6 +12,7 @@ const avatarCircle = document.getElementById('avatar-circle');
 const avatarInitials = document.getElementById('avatar-initials');
 const nameDisplay = document.getElementById('profile-name-display');
 const departmentDisplay = document.getElementById('profile-department-display');
+const removePhotoButton = document.getElementById('remove-photo-button');
 const closeButton = document.getElementById('close-profile');
 const cancelButton = document.getElementById('cancel-profile');
 const currentPasswordInput = document.getElementById('current-password');
@@ -22,6 +23,9 @@ const submitButton = profileForm ? profileForm.querySelector('button[type="submi
 let currentUser;
 let cachedUserData = null;
 let selectedPhotoFile = null;
+let currentPhotoUrl = '';
+let removePhotoRequested = false;
+let photoToDeleteUrl = '';
 
 const redirectToDashboard = () => {
     window.location.href = 'maindashboard.html';
@@ -47,6 +51,15 @@ const setAvatar = (photoURL, name, email) => {
     }
 };
 
+const syncRemovePhotoButton = () => {
+    if (!removePhotoButton) return;
+    const hasPhoto = Boolean(currentPhotoUrl) || Boolean(selectedPhotoFile);
+    removePhotoButton.classList.toggle('hidden', !hasPhoto);
+    removePhotoButton.disabled = !hasPhoto;
+    removePhotoButton.classList.toggle('opacity-50', !hasPhoto);
+    removePhotoButton.classList.toggle('cursor-not-allowed', !hasPhoto);
+};
+
 const uploadProfilePhoto = async (file, uid) => {
     if (!file || !uid) return '';
     const fileName = String(file.name || 'profile').trim() || 'profile';
@@ -57,6 +70,20 @@ const uploadProfilePhoto = async (file, uid) => {
     const snapshot = await uploadBytes(pictureRef, file, metadata);
     return getDownloadURL(snapshot.ref);
 };
+
+const deleteProfilePhoto = async (photoUrl) => {
+    const url = String(photoUrl || '').trim();
+    if (!url) return;
+    try {
+        await deleteObject(storageRef(storage, url));
+    } catch (error) {
+        console.warn('No se pudo borrar la foto anterior:', error);
+    }
+};
+
+const getSelectedPhotoFile = () => (
+    selectedPhotoFile || profilePictureInput?.files?.[0] || null
+);
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -71,17 +98,25 @@ onAuthStateChanged(auth, (user) => {
                 const name = cachedUserData.username || user.displayName || '';
                 const department = cachedUserData.department || '';
                 const photoURL = cachedUserData.profile_picture || user.photoURL || '';
+                currentPhotoUrl = photoURL;
+                removePhotoRequested = false;
+                photoToDeleteUrl = '';
 
                 if (profileNameInput) profileNameInput.value = name;
                 if (profileDepartmentInput) profileDepartmentInput.value = department;
                 if (nameDisplay) nameDisplay.textContent = name || 'Sin nombre';
                 if (departmentDisplay) departmentDisplay.textContent = department || '--';
                 setAvatar(photoURL, name, user.email);
+                syncRemovePhotoButton();
             } else {
                 cachedUserData = {};
+                currentPhotoUrl = user.photoURL || '';
+                removePhotoRequested = false;
+                photoToDeleteUrl = '';
                 if (nameDisplay) nameDisplay.textContent = user.displayName || 'Sin nombre';
                 if (departmentDisplay) departmentDisplay.textContent = '--';
                 setAvatar(user.photoURL, user.displayName, user.email);
+                syncRemovePhotoButton();
             }
         });
     } else {
@@ -99,8 +134,22 @@ profilePictureInput?.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     selectedPhotoFile = file;
+    removePhotoRequested = false;
+    photoToDeleteUrl = '';
     const previewURL = URL.createObjectURL(file);
     setAvatar(previewURL, profileNameInput?.value, profileEmailInput?.value);
+    syncRemovePhotoButton();
+});
+
+removePhotoButton?.addEventListener('click', () => {
+    if (!currentPhotoUrl && !selectedPhotoFile) return;
+    removePhotoRequested = true;
+    photoToDeleteUrl = currentPhotoUrl;
+    currentPhotoUrl = '';
+    selectedPhotoFile = null;
+    if (profilePictureInput) profilePictureInput.value = '';
+    setAvatar('', profileNameInput?.value, profileEmailInput?.value);
+    syncRemovePhotoButton();
 });
 
 closeButton?.addEventListener('click', redirectToDashboard);
@@ -119,6 +168,12 @@ if (profileForm) {
         const newPassword = newPasswordInput?.value || '';
         const confirmPassword = confirmPasswordInput?.value || '';
         const currentPassword = currentPasswordInput?.value || '';
+        const photoFile = getSelectedPhotoFile();
+
+        if (photoFile && !String(photoFile.type || '').startsWith('image/')) {
+            alert('La foto debe ser una imagen valida.');
+            return;
+        }
 
         if (newPassword || confirmPassword || currentPassword) {
             if (!newPassword || !confirmPassword) {
@@ -157,8 +212,14 @@ if (profileForm) {
                 updates.department = department;
             }
 
-            if (selectedPhotoFile) {
-                const downloadURL = await uploadProfilePhoto(selectedPhotoFile, currentUser.uid);
+            if (removePhotoRequested) {
+                updates.profile_picture = '';
+                tasks.push(updateProfile(currentUser, { photoURL: '' }));
+                if (photoToDeleteUrl) {
+                    tasks.push(deleteProfilePhoto(photoToDeleteUrl));
+                }
+            } else if (photoFile) {
+                const downloadURL = await uploadProfilePhoto(photoFile, currentUser.uid);
                 if (downloadURL) {
                     updates.profile_picture = downloadURL;
                     tasks.push(updateProfile(currentUser, { photoURL: downloadURL }));
@@ -177,6 +238,7 @@ if (profileForm) {
 
             await Promise.all(tasks);
             selectedPhotoFile = null;
+            if (profilePictureInput) profilePictureInput.value = '';
             alert('Perfil actualizado correctamente.');
             redirectToDashboard();
         } catch (error) {
