@@ -12,7 +12,6 @@ const avatarCircle = document.getElementById('avatar-circle');
 const avatarInitials = document.getElementById('avatar-initials');
 const nameDisplay = document.getElementById('profile-name-display');
 const departmentDisplay = document.getElementById('profile-department-display');
-const changePhotoButton = document.getElementById('change-photo-button');
 const closeButton = document.getElementById('close-profile');
 const cancelButton = document.getElementById('cancel-profile');
 const currentPasswordInput = document.getElementById('current-password');
@@ -46,6 +45,17 @@ const setAvatar = (photoURL, name, email) => {
         avatarCircle.style.backgroundColor = '#321a2a';
         avatarInitials.textContent = getInitials(name || email);
     }
+};
+
+const uploadProfilePhoto = async (file, uid) => {
+    if (!file || !uid) return '';
+    const fileName = String(file.name || 'profile').trim() || 'profile';
+    const timestamp = Date.now();
+    const path = `profile_pictures/${uid}/${timestamp}-${fileName}`;
+    const metadata = file.type ? { contentType: file.type } : undefined;
+    const pictureRef = storageRef(storage, path);
+    const snapshot = await uploadBytes(pictureRef, file, metadata);
+    return getDownloadURL(snapshot.ref);
 };
 
 onAuthStateChanged(auth, (user) => {
@@ -83,7 +93,6 @@ const triggerPhotoPicker = () => {
     profilePictureInput?.click();
 };
 
-changePhotoButton?.addEventListener('click', triggerPhotoPicker);
 avatarCircle?.addEventListener('click', triggerPhotoPicker);
 
 profilePictureInput?.addEventListener('change', (e) => {
@@ -149,14 +158,11 @@ if (profileForm) {
             }
 
             if (selectedPhotoFile) {
-                const pictureRef = storageRef(storage, `profile_pictures/${currentUser.uid}/${selectedPhotoFile.name}`);
-                const uploadTask = uploadBytes(pictureRef, selectedPhotoFile)
-                    .then(snapshot => getDownloadURL(snapshot.ref))
-                    .then(downloadURL => {
-                        updates.profile_picture = downloadURL;
-                        return updateProfile(currentUser, { photoURL: downloadURL });
-                    });
-                tasks.push(uploadTask);
+                const downloadURL = await uploadProfilePhoto(selectedPhotoFile, currentUser.uid);
+                if (downloadURL) {
+                    updates.profile_picture = downloadURL;
+                    tasks.push(updateProfile(currentUser, { photoURL: downloadURL }));
+                }
             }
 
             if (Object.keys(updates).length > 0) {
@@ -170,6 +176,7 @@ if (profileForm) {
             }
 
             await Promise.all(tasks);
+            selectedPhotoFile = null;
             alert('Perfil actualizado correctamente.');
             redirectToDashboard();
         } catch (error) {
