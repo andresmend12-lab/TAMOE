@@ -1,6 +1,6 @@
 import { auth, database } from './firebase.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-import { ref, onValue, update, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { ref, onValue, remove, get, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const notificationBtn = document.getElementById('notification-toggle-btn');
@@ -8,8 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificationList = document.getElementById('notification-list');
     const notificationBadge = document.getElementById('notification-badge');
     const noNotificationsMsg = document.getElementById('no-notifications-msg');
+    const clearNotificationsBtn = document.getElementById('clear-notifications-btn');
 
-    if (!notificationBtn) return;
+    if (!notificationBtn || !notificationPanel || !notificationList || !notificationBadge || !noNotificationsMsg) return;
 
     let currentUser = null;
     let notificationsRef = null;
@@ -35,24 +36,110 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const resolveNotificationManageId = async (manageIdValue, pathValue) => {
+        const manageId = String(manageIdValue || '').trim();
+        if (manageId) return manageId;
+        const path = String(pathValue || '').trim();
+        if (!path) return '';
+        try {
+            const snap = await get(ref(database, path));
+            const data = snap.val();
+            return String(data?.manageId || '').trim();
+        } catch (error) {
+            console.error("Error resolving manageId:", error);
+            return '';
+        }
+    };
 
-    notificationList.addEventListener('click', (e) => {
+    const openNotificationTarget = (manageIdValue) => {
+        const manageId = String(manageIdValue || '').trim();
+        if (!manageId) return;
+
+        const detailView = document.getElementById('detail-view');
+        const detailFrame = document.getElementById('detail-frame');
+        if (detailView && detailFrame) {
+            document.getElementById('tab-projects')?.click();
+            detailView.classList.remove('hidden');
+            detailFrame.src = `detail.html?mid=${encodeURIComponent(manageId)}`;
+            document.getElementById('tree-view')?.classList.add('hidden');
+            document.getElementById('project-detail')?.classList.add('hidden');
+            document.getElementById('dashboard-tabs')?.classList.add('hidden');
+            if (window.location.protocol !== 'file:') {
+                const targetPath = `/${encodeURIComponent(manageId)}`;
+                if (window.location.pathname !== targetPath) {
+                    try {
+                        window.history.pushState({}, '', targetPath);
+                    } catch (error) {
+                        // Ignore history update failures.
+                    }
+                }
+            }
+            document.title = `Detalle ${manageId} | Tamoe`;
+            return;
+        }
+
+        const encoded = encodeURIComponent(manageId);
+        const origin = window.location.origin;
+        const target = origin && origin !== 'null'
+            ? `${origin}/${encoded}`
+            : `maindashboard.html?mid=${encoded}`;
+        window.location.assign(target);
+    };
+
+    const deleteNotification = async (notificationId) => {
+        if (!currentUser || !notificationId) return;
+        const notificationRef = ref(database, `notifications/${currentUser.uid}/${notificationId}`);
+        try {
+            await remove(notificationRef);
+        } catch (error) {
+            console.error("Error deleting notification:", error);
+        }
+    };
+
+    const clearAllNotifications = async () => {
+        if (!currentUser) return;
+        const notificationRef = ref(database, `notifications/${currentUser.uid}`);
+        try {
+            await remove(notificationRef);
+        } catch (error) {
+            console.error("Error clearing notifications:", error);
+        }
+    };
+
+    const buildNotificationTitle = (notification) => {
+        const base = String(notification?.title || '').trim() || 'Nueva notificacion';
+        const name = String(notification?.taskName || '').trim();
+        return name ? `${base} "${name}"` : base;
+    };
+
+    const buildNotificationMeta = (notification) => {
+        const parts = [];
+        const manageId = String(notification?.manageId || '').trim();
+        const fromName = String(notification?.fromName || '').trim();
+        if (manageId) parts.push(manageId);
+        if (fromName) parts.push(`Asignado por ${fromName}`);
+        return parts.join(' | ');
+    };
+
+
+    notificationList.addEventListener('click', async (e) => {
         const notifElement = e.target.closest('a[data-id]');
         if (notifElement) {
             e.preventDefault();
             const notificationId = notifElement.dataset.id;
-            markNotificationAsRead(notificationId);
-            // In a real app, you would also navigate to the relevant page
+            const manageId = await resolveNotificationManageId(
+                notifElement.dataset.manageId || '',
+                notifElement.dataset.path || ''
+            );
+            await deleteNotification(notificationId);
+            openNotificationTarget(manageId);
         }
     });
 
-    function markNotificationAsRead(notificationId) {
-        if (!currentUser || !notificationId) return;
-        const notificationRef = ref(database, `notifications/${currentUser.uid}/${notificationId}`);
-        update(notificationRef, { read: true }).catch(error => {
-            console.error("Error marking notification as read:", error);
-        });
-    }
+    clearNotificationsBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        clearAllNotifications();
+    });
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -93,17 +180,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const notifElement = document.createElement('a');
-            notifElement.href = "#"; // In a real app, this would link to the task/item
+            const manageId = String(notification.manageId || '').trim();
+            notifElement.href = manageId ? `/${encodeURIComponent(manageId)}` : "#";
             notifElement.className = `p-4 flex items-start gap-3 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors border-b border-border-dark ${!notification.read ? 'bg-primary/5 dark:bg-primary/10' : ''}`;
             notifElement.dataset.id = notification.id;
+            if (manageId) {
+                notifElement.dataset.manageId = manageId;
+            }
+            const path = String(notification.path || '').trim();
+            if (path) {
+                notifElement.dataset.path = path;
+            }
 
-            const iconClass = notification.read ? 'text-text-muted' : 'text-primary';
+            const metaLine = buildNotificationMeta(notification);
             
             notifElement.innerHTML = `
                 <div class="w-1 h-1 rounded-full ${!notification.read ? 'bg-primary' : 'bg-text-muted/50'} mt-2.5"></div>
                 <div class="flex-1">
-                    <p class="font-semibold text-gray-900 dark:text-white">${notification.title || 'Nueva Notificación'}</p>
-                    <p class="text-sm text-text-muted">${notification.taskName || ''}</p>
+                    <p class="font-semibold text-gray-900 dark:text-white">${buildNotificationTitle(notification)}</p>
+                    <p class="text-sm text-text-muted">${metaLine}</p>
                     <p class="text-xs text-text-muted/70 mt-1">${new Date(notification.createdAt).toLocaleString()}</p>
                 </div>
             `;
@@ -117,3 +212,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+

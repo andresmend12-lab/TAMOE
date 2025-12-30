@@ -105,6 +105,9 @@
 - `notifications/{uid}/{notificationId}`
   - `title`: string
   - `taskName`: string
+  - `manageId`: string (opcional, para abrir detalle)
+  - `entityType`: string (opcional, `task|subtask`)
+  - `path`: string (opcional, ruta RTDB del elemento)
   - `fromUid`: string
   - `fromName`: string
   - `read`: boolean
