@@ -35,6 +35,7 @@
         summary { list-style: none; }
         body:not(.dark) .text-text-muted { color: #6a3f59; }
         body:not(.dark) .placeholder\:text-text-muted::placeholder { color: #6a3f59; }
+        #detail-view:not(.hidden) ~ #tree-view { display: none; }
         .dark main :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select),
         .dark aside :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select) {
             color: #ffffff !important;

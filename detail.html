@@ -80,6 +80,18 @@
         ::-webkit-scrollbar-track { background: var(--scroll-track); }
         ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+        #description-view {
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            padding: 0;
+        }
+        #description-input {
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            outline: none;
+        }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-display overflow-hidden flex flex-col h-screen">
@@ -176,19 +188,25 @@
                     </section>
 
                     <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                        <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center justify-between gap-2 mb-2">
                             <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">article</span>
                                 Descripción
                             </h3>
+                        </div>
+                        <div id="description-view" class="w-full px-0 py-1 text-gray-900 dark:text-white whitespace-pre-line"></div>
+                        <textarea id="description-input" class="hidden w-full bg-transparent text-gray-900 dark:text-white px-0 py-1 border-0 focus:ring-0 focus:border-transparent placeholder:text-text-muted resize-y min-h-[80px] max-h-[200px] overflow-y-auto" placeholder="Escribe una descripción..."></textarea>
+                        <div class="mt-3 flex items-center justify-between gap-2">
+                            <span id="description-status" class="text-xs text-text-muted"></span>
                             <div class="flex items-center gap-2">
-                                <span id="description-status" class="text-xs text-text-muted"></span>
-                                <button id="save-description" class="h-8 px-3 rounded-md bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-colors">
+                                <button id="edit-description" class="size-8 rounded-md border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Editar descripción">
+                                    <span class="material-symbols-outlined text-[18px]">edit</span>
+                                </button>
+                                <button id="save-description" class="hidden h-8 px-3 rounded-md bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-colors">
                                     Guardar
                                 </button>
                             </div>
                         </div>
-                        <textarea id="description-input" class="w-full bg-white dark:bg-background-dark text-gray-900 dark:text-white rounded-lg p-3 border border-border-dark focus:ring-1 focus:ring-primary focus:border-primary/50 placeholder:text-text-muted resize-y min-h-[120px] max-h-[240px] overflow-y-auto" placeholder="Escribe una descripción..."></textarea>
                     </section>
 
                     <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
@@ -515,8 +533,10 @@
         let currentUserProfile = null;
 
         const descriptionInput = qs('description-input');
+        const descriptionView = qs('description-view');
         const descriptionStatus = qs('description-status');
         const saveDescriptionButton = qs('save-description');
+        const editDescriptionButton = qs('edit-description');
         const activitiesList = qs('activities-list');
         const commentsList = qs('comments-list');
         const commentInput = qs('comment-input');
@@ -540,6 +560,30 @@
         const assigneeDept = qs('assignee-dept');
         const assigneeToggle = qs('assignee-toggle');
         const assigneeMenu = qs('assignee-menu');
+
+        let descriptionEditing = false;
+
+        const setDescriptionView = (textValue) => {
+            if (!descriptionView) return;
+            const text = String(textValue || '').trim();
+            if (text) {
+                descriptionView.textContent = text;
+                descriptionView.classList.remove('text-text-muted');
+            } else {
+                descriptionView.textContent = 'Sin descripción.';
+                descriptionView.classList.add('text-text-muted');
+            }
+        };
+
+        const setDescriptionEditing = (isEditing) => {
+            descriptionEditing = Boolean(isEditing);
+            descriptionInput?.classList.toggle('hidden', !descriptionEditing);
+            descriptionView?.classList.toggle('hidden', descriptionEditing);
+            saveDescriptionButton?.classList.toggle('hidden', !descriptionEditing);
+            if (descriptionEditing) {
+                setTimeout(() => descriptionInput?.focus(), 0);
+            }
+        };
 
         const STATUS_STEPS = ['Pendiente', 'En proceso', 'Finalizado'];
         const STATUS_TYPES = new Set(['project', 'product', 'task', 'subtask']);
@@ -1866,9 +1910,13 @@
             }
 
             const clientId = String(ids?.clientId || '').trim();
+            const clientRoot = clientId
+                ? loadedClients.find(c => c.id === clientId)
+                : null;
 
             if (type === 'client') {
-                const projects = item.projects || {};
+                const clientItem = clientRoot || item;
+                const projects = clientItem?.projects || {};
                 const projectArray = Object.entries(projects || {}).filter(([, proj]) => proj);
                 projectArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
 
@@ -1982,9 +2030,10 @@
 
             if (type === 'project') {
                 const projectId = String(ids?.projectId || item.id || '').trim();
+                const projectItem = clientRoot?.projects?.[projectId] || item;
                 const projPath = clientId && projectId ? `clients/${clientId}/projects/${projectId}` : '';
 
-                const projTasks = item.tasks || {};
+                const projTasks = projectItem?.tasks || {};
                 const projTaskArray = Object.entries(projTasks || {}).filter(([, t]) => t);
                 projTaskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (projTaskArray.length) {
@@ -1998,7 +2047,7 @@
                     });
                 }
 
-                const products = item.products || {};
+                const products = projectItem?.products || {};
                 const productArray = Object.entries(products || {}).filter(([, prod]) => prod);
                 productArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (productArray.length) {
@@ -2062,7 +2111,8 @@
                     ? `clients/${clientId}/projects/${projectId}/products/${productId}`
                     : '';
 
-                const tasks = item.tasks || {};
+                const productItem = clientRoot?.projects?.[projectId]?.products?.[productId] || item;
+                const tasks = productItem?.tasks || {};
                 const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
                 taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (!taskArray.length) {
@@ -2078,7 +2128,13 @@
 
             if (type === 'task') {
                 const taskPath = currentItemPath || buildItemPath(ids, 'task') || '';
-                const subtasks = item.subtasks || {};
+                const projectId = String(ids?.projectId || '').trim();
+                const productId = String(ids?.productId || '').trim();
+                const taskId = String(ids?.taskId || item.id || '').trim();
+                const taskItem = productId
+                    ? clientRoot?.projects?.[projectId]?.products?.[productId]?.tasks?.[taskId]
+                    : clientRoot?.projects?.[projectId]?.tasks?.[taskId];
+                const subtasks = (taskItem || item)?.subtasks || {};
                 const subArray = Object.entries(subtasks || {}).filter(([, s]) => s);
                 subArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
                 if (!subArray.length) {
@@ -2145,13 +2201,13 @@
 
                 const card = document.createElement('div');
                 card.id = `comment-${entry.id}`;
-                card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark px-3 py-3 scroll-mt-24';
+                card.className = 'flex items-start gap-3 scroll-mt-24';
 
                 const header = document.createElement('div');
-                header.className = 'flex items-start justify-between gap-3';
+                header.className = 'flex flex-col gap-1 min-w-0';
 
                 const left = document.createElement('div');
-                left.className = 'flex items-center gap-3 min-w-0';
+                left.className = 'flex items-start gap-3 min-w-0';
 
                 const avatar = document.createElement('div');
                 avatar.className = 'w-9 h-9 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat shrink-0';
@@ -2160,10 +2216,23 @@
                 const authorMeta = document.createElement('div');
                 authorMeta.className = 'flex flex-col min-w-0 leading-tight';
 
+                const nameRow = document.createElement('div');
+                nameRow.className = 'flex items-center gap-2 min-w-0 flex-wrap';
+
                 const author = document.createElement('span');
                 author.className = 'text-sm font-semibold text-gray-900 dark:text-white truncate';
                 author.textContent = authorName;
-                authorMeta.appendChild(author);
+
+                const text = document.createElement('span');
+                text.className = 'text-sm text-gray-900 dark:text-white break-words';
+                text.textContent = entry.text || '';
+
+                const date = document.createElement('span');
+                date.className = 'text-xs text-text-muted whitespace-nowrap';
+                date.textContent = formatDate(entry.createdAt);
+
+                nameRow.append(author, date, text);
+                authorMeta.appendChild(nameRow);
 
                 if (authorDept) {
                     const dept = document.createElement('span');
@@ -2173,18 +2242,8 @@
                 }
 
                 left.append(avatar, authorMeta);
-
-                const date = document.createElement('span');
-                date.className = 'text-xs text-text-muted whitespace-nowrap mt-1';
-                date.textContent = formatDate(entry.createdAt);
-
-                header.append(left, date);
-
-                const text = document.createElement('p');
-                text.className = 'text-sm text-gray-200 whitespace-pre-line mt-2';
-                text.textContent = entry.text || '';
-
-                card.append(header, text);
+                header.append(left);
+                card.append(header);
                 commentsList.appendChild(card);
 
             });
@@ -2206,11 +2265,14 @@
                 : 'Inicia sesión para comentar.';
             if (commentHelper) commentHelper.textContent = helperText;
 
-            [descriptionInput, saveDescriptionButton, commentInput, commentButton].forEach(el => {
+            [descriptionInput, saveDescriptionButton, editDescriptionButton, commentInput, commentButton].forEach(el => {
                 if (!el) return;
                 el.disabled = !canEdit;
                 el.classList.toggle('opacity-60', !canEdit);
             });
+            if (!canEdit && descriptionEditing) {
+                setDescriptionEditing(false);
+            }
 
             const canEditStatus = canEdit && STATUS_TYPES.has(currentItemType) && !statusSaving;
             statusStepButtons.forEach(btn => {
@@ -2253,6 +2315,8 @@
 
             const descText = item.description || '';
             if (descriptionInput) descriptionInput.value = descText;
+            setDescriptionView(descText);
+            setDescriptionEditing(false);
 
             currentItemType = type;
             currentItemStatus = normalizeStatus(item.status);
@@ -2320,6 +2384,8 @@
                         console.warn('No se pudo registrar el log de actividad:', e);
                     }
                 }
+                setDescriptionView(text);
+                setDescriptionEditing(false);
                 if (descriptionStatus) {
                     descriptionStatus.textContent = 'Descripción guardada';
                     setTimeout(() => { descriptionStatus.textContent = ''; }, 2000);
@@ -2379,6 +2445,26 @@
             updateAuthUI();
         });
 
+        editDescriptionButton?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!currentUser) {
+                alert('Debes iniciar sesión para editar la descripción.');
+                return;
+            }
+            if (descriptionEditing) {
+                const viewText = descriptionView?.textContent || '';
+                if (descriptionInput) {
+                    descriptionInput.value = viewText === 'Sin descripción.' ? '' : viewText;
+                }
+                setDescriptionEditing(false);
+                return;
+            }
+            setDescriptionEditing(true);
+            const viewText = descriptionView?.textContent || '';
+            if (descriptionInput && viewText === 'Sin descripción.') {
+                descriptionInput.value = '';
+            }
+        });
         saveDescriptionButton?.addEventListener('click', saveDescription);
         commentButton?.addEventListener('click', submitComment);
         qs('open-dashboard')?.addEventListener('click', () => {
