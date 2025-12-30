@@ -49,6 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusRecentTitle = document.getElementById('status-recent-title');
     const statusActivityHeader = document.getElementById('status-activity-header');
     const statusMetricActiveLabel = document.getElementById('status-metric-active-label');
+    const myTasksList = document.getElementById('my-tasks-list');
+    const myTasksEmpty = document.getElementById('my-tasks-empty');
+    const myTasksSummary = document.getElementById('my-tasks-summary');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -591,6 +594,179 @@ document.addEventListener('DOMContentLoaded', () => {
         const style = STATUS_STYLES[normalized] || STATUS_STYLES['Pendiente'];
         label.textContent = normalized;
         button.className = `status-chip inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-normal border whitespace-nowrap ${style}`;
+    };
+
+    const renderMyTasks = () => {
+        if (!myTasksList || !myTasksEmpty || !myTasksSummary) return;
+        myTasksList.innerHTML = '';
+        const uid = String(currentUser?.uid || '').trim();
+        if (!uid) {
+            myTasksSummary.textContent = '0 asignadas';
+            myTasksEmpty.textContent = 'Inicia sesion para ver tus tareas.';
+            myTasksEmpty.classList.remove('hidden');
+            return;
+        }
+
+        const assignments = [];
+        const statusRank = { 'En proceso': 0, 'Pendiente': 1, 'Finalizado': 2 };
+        const normalizeText = (value, fallback = '') => {
+            const text = String(value || '').trim();
+            return text || fallback;
+        };
+        const buildContext = (clientName, projectName, productName) => (
+            [clientName, projectName, productName].filter(Boolean).join(' \u2022 ') || '-'
+        );
+        const isAssignedToUser = (assigneeUid) => String(assigneeUid || '').trim() === uid;
+
+        const pushAssignment = (entry) => {
+            assignments.push(entry);
+        };
+
+        allClients.forEach((client) => {
+            if (!client) return;
+            const clientName = normalizeText(client.name, client.id || 'Cliente');
+            const projects = client.projects || {};
+
+            Object.entries(projects).forEach(([projectId, project]) => {
+                if (!project) return;
+                const projectName = normalizeText(project.name, projectId || 'Proyecto');
+
+                Object.entries(project.tasks || {}).forEach(([taskId, task]) => {
+                    if (!task) return;
+                    if (isAssignedToUser(task.assigneeUid)) {
+                        pushAssignment({
+                            type: 'task',
+                            name: normalizeText(task.name, 'Tarea'),
+                            status: normalizeStatus(task.status),
+                            manageId: normalizeText(task.manageId),
+                            createdAt: task.createdAt || '',
+                            context: buildContext(clientName, projectName, ''),
+                        });
+                    }
+                    Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
+                        if (!subtask) return;
+                        if (isAssignedToUser(subtask.assigneeUid)) {
+                            pushAssignment({
+                                type: 'subtask',
+                                name: normalizeText(subtask.name, 'Subtarea'),
+                                status: normalizeStatus(subtask.status),
+                                manageId: normalizeText(subtask.manageId),
+                                createdAt: subtask.createdAt || '',
+                                context: buildContext(clientName, projectName, ''),
+                                parentName: normalizeText(task.name, 'Tarea'),
+                            });
+                        }
+                    });
+                });
+
+                Object.entries(project.products || {}).forEach(([productId, product]) => {
+                    if (!product) return;
+                    const productName = normalizeText(product.name, productId || 'Producto');
+
+                    Object.entries(product.tasks || {}).forEach(([taskId, task]) => {
+                        if (!task) return;
+                        if (isAssignedToUser(task.assigneeUid)) {
+                            pushAssignment({
+                                type: 'task',
+                                name: normalizeText(task.name, 'Tarea'),
+                                status: normalizeStatus(task.status),
+                                manageId: normalizeText(task.manageId),
+                                createdAt: task.createdAt || '',
+                                context: buildContext(clientName, projectName, productName),
+                            });
+                        }
+                        Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
+                            if (!subtask) return;
+                            if (isAssignedToUser(subtask.assigneeUid)) {
+                                pushAssignment({
+                                    type: 'subtask',
+                                    name: normalizeText(subtask.name, 'Subtarea'),
+                                    status: normalizeStatus(subtask.status),
+                                    manageId: normalizeText(subtask.manageId),
+                                    createdAt: subtask.createdAt || '',
+                                    context: buildContext(clientName, projectName, productName),
+                                    parentName: normalizeText(task.name, 'Tarea'),
+                                });
+                            }
+                        });
+                    });
+                });
+            });
+        });
+
+        assignments.sort((a, b) => {
+            const rankA = statusRank[a.status] ?? 99;
+            const rankB = statusRank[b.status] ?? 99;
+            if (rankA !== rankB) return rankA - rankB;
+            const dateA = Date.parse(String(a.createdAt || '')) || 0;
+            const dateB = Date.parse(String(b.createdAt || '')) || 0;
+            if (dateA !== dateB) return dateB - dateA;
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+
+        myTasksSummary.textContent = assignments.length === 1
+            ? '1 asignada'
+            : `${assignments.length} asignadas`;
+
+        if (!assignments.length) {
+            myTasksEmpty.textContent = 'No tienes tareas asignadas.';
+            myTasksEmpty.classList.remove('hidden');
+            return;
+        }
+
+        myTasksEmpty.classList.add('hidden');
+
+        assignments.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4 flex flex-col gap-2';
+
+            const header = document.createElement('div');
+            header.className = 'flex items-start justify-between gap-3';
+
+            const info = document.createElement('div');
+            info.className = 'min-w-0 flex flex-col gap-1';
+
+            const meta = document.createElement('div');
+            meta.className = 'flex items-center gap-2 flex-wrap';
+
+            const typeLabel = document.createElement('span');
+            typeLabel.className = 'text-[11px] uppercase tracking-[0.2em] text-text-muted';
+            typeLabel.textContent = item.type === 'subtask' ? 'Subtarea' : 'Tarea';
+            meta.appendChild(typeLabel);
+
+            if (item.manageId) {
+                const chip = createIdChip(item.manageId);
+                chip.classList.add('text-[11px]', 'font-mono');
+                meta.appendChild(chip);
+            }
+
+            const title = document.createElement('p');
+            title.className = 'text-gray-900 dark:text-white font-semibold truncate';
+            title.textContent = item.name;
+
+            const context = document.createElement('p');
+            context.className = 'text-xs text-text-muted truncate';
+            context.textContent = item.context;
+
+            info.append(meta, title, context);
+
+            if (item.parentName) {
+                const parentLine = document.createElement('p');
+                parentLine.className = 'text-xs text-text-muted truncate';
+                parentLine.textContent = `Subtarea de ${item.parentName}`;
+                info.appendChild(parentLine);
+            }
+
+            const statusChip = document.createElement('span');
+            const statusLabel = document.createElement('span');
+            statusLabel.className = 'leading-none';
+            statusChip.appendChild(statusLabel);
+            applyStatusChipStyle(statusChip, statusLabel, item.status);
+
+            header.append(info, statusChip);
+            card.appendChild(header);
+            myTasksList.appendChild(card);
+        });
     };
 
     const parseClientPath = (pathValue) => {
@@ -1560,8 +1736,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             renderMessageCard(noClientsMessage, {
                 icon: 'lock',
-                title: 'Inicia sesi\u00F3n',
-                description: 'Inicia sesi\u00F3n para ver tus clientes.',
+                title: 'Inicia sesion para continuar.',
+                description: 'Inicia sesion para continuar.',
             });
             return;
         }
@@ -2709,8 +2885,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) {
             renderTreeState({
                 icon: 'lock',
-                title: 'Inicia sesi\u00F3n',
-                description: 'Inicia sesi\u00F3n para ver tus clientes.',
+                title: 'Inicia sesion para continuar.',
+                description: 'Inicia sesion para continuar.',
             });
             updateTreeExpandToggle();
             return;
@@ -3765,6 +3941,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderClients();
             renderTree();
             renderStatusDashboard();
+            renderMyTasks();
         }, (error) => {
             console.error("Error fetching clients: ", error);
             clientsLoading = false;
@@ -4271,6 +4448,12 @@ document.addEventListener('DOMContentLoaded', () => {
         allClients = [];
         renderClients();
         renderTree();
+        if (myTasksList) myTasksList.innerHTML = '';
+        if (myTasksSummary) myTasksSummary.textContent = '0 asignadas';
+        if (myTasksEmpty) {
+            myTasksEmpty.textContent = 'Inicia sesion para ver tus tareas.';
+            myTasksEmpty.classList.remove('hidden');
+        }
         noClientsMessage.textContent = "Por favor, inicie sesión.";
         noClientsMessage.classList.remove('hidden');
         resetProjectDetail();
@@ -4286,6 +4469,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+
+
 
 
 

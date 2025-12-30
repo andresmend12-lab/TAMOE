@@ -412,12 +412,18 @@
                 </section>
 
                 <section id="tab-panel-my-tasks" data-tab-panel="my-tasks" role="tabpanel" aria-labelledby="tab-my-tasks" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="material-symbols-outlined text-primary">checklist</span>
-                        <h2 class="text-gray-900 dark:text-white text-xl font-bold">Mis tareas</h2>
-                    </div>
-                    <p class="text-text-muted text-sm">Próximamente.</p>
-                </section>
+    <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">checklist</span>
+                <h2 class="text-gray-900 dark:text-white text-xl font-bold">Mis tareas</h2>
+            </div>
+            <p id="my-tasks-summary" class="text-text-muted text-sm">0 asignadas</p>
+        </div>
+        <p id="my-tasks-empty" class="text-text-muted text-sm">No tienes tareas asignadas.</p>
+        <div id="my-tasks-list" class="flex flex-col gap-3"></div>
+    </div>
+</section>
 
                 <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
                     <div class="flex items-center gap-2 mb-2">
@@ -816,3 +822,4 @@
 </body>
 </body>
 </html>
+
