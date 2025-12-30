@@ -106,6 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedTaskId = null;
     let selectedSubtaskId = null;
     let sidebarAutoOpenKeys = new Set();
+    let taskCreationContext = null;
+    let productCreationContext = null;
     const projectChildSort = new Map();
     let clientSearchQuery = '';
     let clientsLoading = false;
@@ -2675,11 +2677,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const setTaskCreationContext = (clientId, projectId, productId = null) => {
-        selectedClientId = clientId;
-        selectedProjectId = projectId;
-        selectedProductId = productId;
-        selectedTaskId = null;
-        selectedSubtaskId = null;
+        taskCreationContext = { clientId, projectId, productId };
+        ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
+    };
+
+    const setProductCreationContext = (clientId, projectId) => {
+        productCreationContext = { clientId, projectId };
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
     };
 
@@ -2742,7 +2745,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const openProductModal = () => {
-        if (!selectedClientId || !selectedProjectId) {
+        const target = productCreationContext || { clientId: selectedClientId, projectId: selectedProjectId };
+        if (!target.clientId || !target.projectId) {
             alert('Selecciona un proyecto primero.');
             return;
         }
@@ -2753,17 +2757,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeProductModal = () => {
         addProductModal.classList.add('hidden');
         addProductForm?.reset();
+        productCreationContext = null;
     };
 
     const openTaskModal = () => {
-        if (!selectedClientId || !selectedProjectId) {
+        const target = taskCreationContext || { clientId: selectedClientId, projectId: selectedProjectId, productId: selectedProductId };
+        if (!target.clientId || !target.projectId) {
             alert('Selecciona un proyecto primero.');
             return;
         }
-        const client = allClients.find(c => c.id === selectedClientId);
-        const project = client?.projects?.[selectedProjectId];
+        const client = allClients.find(c => c.id === target.clientId);
+        const project = client?.projects?.[target.projectId];
         const hasProducts = !!(project && Object.keys(project.products || {}).length);
-        if (hasProducts && !selectedProductId) {
+        if (hasProducts && !target.productId) {
             alert('Selecciona un producto para crear tareas.');
             return;
         }
@@ -2774,6 +2780,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeTaskModal = () => {
         addTaskModal.classList.add('hidden');
         addTaskForm?.reset();
+        taskCreationContext = null;
     };
 
     const openSubtaskModal = () => {
@@ -3986,7 +3993,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             label: 'Crear producto',
                             icon: 'add_box',
                             onClick: () => {
-                                setTaskCreationContext(client.id, proj.id);
+                                setProductCreationContext(client.id, proj.id);
                                 openProductModal();
                             }
                         }
@@ -4433,7 +4440,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const productName = productNameInput.value.trim();
         if (!productName) return;
-        if (!currentUser || !selectedClientId || !selectedProjectId) {
+        const target = productCreationContext || { clientId: selectedClientId, projectId: selectedProjectId };
+        if (!currentUser || !target.clientId || !target.projectId) {
             alert("Selecciona un proyecto e inicia sesión para añadir productos.");
             return;
         }
@@ -4444,8 +4452,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveProductBtn.textContent = "Guardando...";
             }
 
-            const manageId = await allocateNextManageId(selectedClientId);
-            const newProductRef = push(ref(database, `clients/${selectedClientId}/projects/${selectedProjectId}/products`));
+            const manageId = await allocateNextManageId(target.clientId);
+            const newProductRef = push(ref(database, `clients/${target.clientId}/projects/${target.projectId}/products`));
             const productData = {
                 name: productName,
                 status: 'Pendiente',
@@ -4457,7 +4465,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await set(newProductRef, productData);
             
             await executeAutomations('activityCreated', {
-                path: `clients/${selectedClientId}/projects/${selectedProjectId}/products/${newProductRef.key}`,
+                path: `clients/${target.clientId}/projects/${target.projectId}/products/${newProductRef.key}`,
                 type: 'product',
                 data: productData
             });
@@ -4481,7 +4489,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const taskName = taskNameInput.value.trim();
         if (!taskName) return;
-        if (!currentUser || !selectedClientId || !selectedProjectId) {
+        const target = taskCreationContext || { clientId: selectedClientId, projectId: selectedProjectId, productId: selectedProductId };
+        if (!currentUser || !target.clientId || !target.projectId) {
             alert("Selecciona un proyecto e inicia sesión para añadir tareas.");
             return;
         }
@@ -4492,10 +4501,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveTaskBtn.textContent = "Guardando...";
             }
 
-            const manageId = await allocateNextManageId(selectedClientId);
-            const taskPath = selectedProductId
-                ? `clients/${selectedClientId}/projects/${selectedProjectId}/products/${selectedProductId}/tasks`
-                : `clients/${selectedClientId}/projects/${selectedProjectId}/tasks`;
+            const manageId = await allocateNextManageId(target.clientId);
+            const taskPath = target.productId
+                ? `clients/${target.clientId}/projects/${target.projectId}/products/${target.productId}/tasks`
+                : `clients/${target.clientId}/projects/${target.projectId}/tasks`;
             const newTaskRef = push(ref(database, taskPath));
             const taskData = {
                 name: taskName,
