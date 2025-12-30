@@ -660,6 +660,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'Elemento';
     };
 
+    const getAssignmentTitle = (type) => (
+        type === 'subtask' ? 'Se te ha asignado la subtarea' : 'Se te ha asignado la tarea'
+    );
+
     const getCurrentActorName = () => {
         const uid = currentUser?.uid;
         return (
@@ -671,24 +675,33 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     };
 
-    const sendNotification = async (targetUidValue, titleValue, taskNameValue) => {
+    const sendNotification = async (targetUidValue, titleValue, taskNameValue, meta = {}) => {
         const targetUid = String(targetUidValue || '').trim();
         if (!targetUid) return;
-        const title = String(titleValue || '').trim() || 'Notificación';
+        const title = String(titleValue || '').trim() || 'Notificacion';
         const taskName = String(taskNameValue || '').trim();
+        const manageId = String(meta.manageId || '').trim();
+        const entityType = String(meta.entityType || '').trim();
+        const path = String(meta.path || '').trim();
         const fromUid = currentUser?.uid || '';
 
+        const payload = {
+            title,
+            taskName,
+            fromUid,
+            fromName: getCurrentActorName(),
+            read: false,
+            createdAt: serverTimestamp(),
+        };
+
+        if (manageId) payload.manageId = manageId;
+        if (entityType) payload.entityType = entityType;
+        if (path) payload.path = path;
+
         try {
-            await push(ref(database, `notifications/${targetUid}`), {
-                title,
-                taskName,
-                fromUid,
-                fromName: getCurrentActorName(),
-                read: false,
-                createdAt: serverTimestamp(),
-            });
+            await push(ref(database, `notifications/${targetUid}`), payload);
         } catch (error) {
-            console.warn('No se pudo enviar la notificación:', error);
+            console.warn('No se pudo enviar la notificacion:', error);
         }
     };
 
@@ -767,7 +780,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (uid && prevUid !== uid) {
             const itemName = itemBefore?.name || 'Tarea';
-            await sendNotification(uid, 'Nueva asignación', itemName);
+            const title = getAssignmentTitle(parsed?.type);
+            await sendNotification(uid, title, itemName, {
+                manageId: itemBefore?.manageId || '',
+                entityType: parsed?.type || '',
+                path,
+            });
         }
     };
 
@@ -4239,3 +4257,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+
+
