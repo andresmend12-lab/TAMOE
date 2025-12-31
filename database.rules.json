@@ -1,10 +1,14 @@
 {
   "rules": {
     "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".indexOn": ["email", "role", "department"],
+
       "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid",
+        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
         ".validate": "newData.hasChildren(['username', 'email'])",
+
         "username": {
           ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 50"
         },
@@ -17,21 +21,26 @@
         "profile_picture": {
           ".validate": "newData.isString()"
         },
-        "$other": {
-          ".validate": false
+        "role": {
+          ".validate": "newData.isString() && newData.val().matches(/^(admin|editor|viewer)$/)",
+          ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        },
+        "permissions": {
+          ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
         }
       }
     },
 
     "clients": {
       ".read": "auth != null",
-      ".indexOn": ["createdBy", "createdAt", "name"],
+      ".indexOn": ["createdBy", "createdAt", "name", "manageId"],
 
       "$clientId": {
         ".write": "auth != null && (
-          !data.exists() ||
-          data.child('createdBy').val() === auth.uid ||
-          root.child('users').child(auth.uid).child('role').val() === 'admin'
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'editor' ||
+          (!data.exists() && auth != null) ||
+          data.child('createdBy').val() === auth.uid
         )",
         ".validate": "newData.hasChildren(['name', 'createdAt', 'createdBy'])",
 
@@ -47,18 +56,19 @@
           )"
         },
         "manageId": {
-          ".validate": "newData.isString() && newData.val().length <= 20"
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2,4}-[0-9]{3,6}$/)"
         },
         "managePrefix": {
-          ".validate": "newData.isString() && newData.val().length <= 10"
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 4"
         },
         "manageNextNumber": {
-          ".validate": "newData.isNumber() && newData.val() >= 0"
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999"
         },
 
         "activity_logs": {
+          ".indexOn": ["timestamp", "action"],
           "$logId": {
-            ".validate": "newData.hasChildren(['actorUid', 'actorName', 'description', 'timestamp', 'action'])",
+            ".validate": "newData.hasChildren(['actorUid', 'actorName', 'timestamp', 'action'])",
             "actorUid": {
               ".validate": "newData.isString()"
             },
@@ -72,27 +82,28 @@
               ".validate": "newData.isNumber() || newData.isString()"
             },
             "action": {
-              ".validate": "newData.isString() && newData.val().matches(/^(status_update|assignee_update|rename|delete|create|automation_qc|comment)$/)"
+              ".validate": "newData.isString() && newData.val().matches(/^(status_update|assignee_update|rename|delete|create|automation_qc|comment|task_assigned)$/)"
             },
             "path": {
-              ".validate": "newData.isString()"
+              ".validate": "newData.isString() && newData.val().length <= 500"
             },
             "entityType": {
               ".validate": "newData.isString() && newData.val().matches(/^(client|project|product|task|subtask)$/)"
             },
             "source": {
-              ".validate": "newData.isString()"
+              ".validate": "newData.isString() && newData.val().length <= 50"
             },
             "assigneeUid": {
-              ".validate": "newData.isString()"
+              ".validate": "newData.isString() && newData.val().length <= 128"
             },
             "sourcePath": {
-              ".validate": "newData.isString()"
+              ".validate": "newData.isString() && newData.val().length <= 500"
             }
           }
         },
 
         "projects": {
+          ".indexOn": ["status", "createdAt", "manageId"],
           "$projectId": {
             ".validate": "newData.hasChildren(['name', 'createdAt'])",
 
@@ -103,13 +114,14 @@
               ".validate": "newData.isString()"
             },
             "manageId": {
-              ".validate": "newData.isString() && newData.val().length <= 20"
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2,4}-[0-9]{3,6}$/)"
             },
             "status": {
               ".validate": "newData.isString() && newData.val().matches(/^(Pendiente|En proceso|Finalizado)$/)"
             },
 
             "products": {
+              ".indexOn": ["status", "createdAt", "manageId"],
               "$productId": {
                 ".validate": "newData.hasChildren(['name', 'createdAt'])",
 
@@ -120,13 +132,14 @@
                   ".validate": "newData.isString()"
                 },
                 "manageId": {
-                  ".validate": "newData.isString() && newData.val().length <= 20"
+                  ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2,4}-[0-9]{3,6}$/)"
                 },
                 "status": {
                   ".validate": "newData.isString() && newData.val().matches(/^(Pendiente|En proceso|Finalizado)$/)"
                 },
 
                 "tasks": {
+                  ".indexOn": ["status", "assigneeUid", "dueDate", "priority", "manageId"],
                   "$taskId": {
                     ".validate": "newData.hasChildren(['name', 'createdAt'])",
 
@@ -137,13 +150,13 @@
                       ".validate": "newData.isString()"
                     },
                     "manageId": {
-                      ".validate": "newData.isString() && newData.val().length <= 20"
+                      ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2,4}-[0-9]{3,6}$/)"
                     },
                     "status": {
                       ".validate": "newData.isString() && newData.val().matches(/^(Pendiente|En proceso|Finalizado)$/)"
                     },
                     "assigneeUid": {
-                      ".validate": "newData.isString()"
+                      ".validate": "newData.isString() && newData.val().length <= 128"
                     },
                     "description": {
                       ".validate": "newData.isString() && newData.val().length <= 2000"
@@ -160,8 +173,14 @@
                     },
 
                     "comments": {
+                      ".indexOn": ["createdAt"],
                       "$commentId": {
                         ".validate": "newData.hasChildren(['text', 'userId', 'userName', 'createdAt'])",
+                        ".write": "auth != null && (
+                          !data.exists() ||
+                          data.child('userId').val() === auth.uid ||
+                          root.child('users').child(auth.uid).child('role').val() === 'admin'
+                        )",
                         "text": {
                           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 2000"
                         },
@@ -172,7 +191,7 @@
                           ".validate": "newData.isString() && newData.val().length <= 100"
                         },
                         "userDepartment": {
-                          ".validate": "newData.isString()"
+                          ".validate": "newData.isString() && newData.val().length <= 100"
                         },
                         "userPhoto": {
                           ".validate": "newData.isString()"
@@ -184,6 +203,7 @@
                     },
 
                     "subtasks": {
+                      ".indexOn": ["status", "assigneeUid", "manageId"],
                       "$subtaskId": {
                         ".validate": "newData.hasChildren(['name', 'createdAt'])",
                         "name": {
@@ -193,13 +213,13 @@
                           ".validate": "newData.isString()"
                         },
                         "manageId": {
-                          ".validate": "newData.isString() && newData.val().length <= 20"
+                          ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2,4}-[0-9]{3,6}$/)"
                         },
                         "status": {
                           ".validate": "newData.isString() && newData.val().matches(/^(Pendiente|En proceso|Finalizado)$/)"
                         },
                         "assigneeUid": {
-                          ".validate": "newData.isString()"
+                          ".validate": "newData.isString() && newData.val().length <= 128"
                         }
                       }
                     }
@@ -209,6 +229,7 @@
             },
 
             "tasks": {
+              ".indexOn": ["status", "assigneeUid", "dueDate", "priority", "manageId"],
               "$taskId": {
                 ".validate": "newData.hasChildren(['name', 'createdAt'])",
 
@@ -219,13 +240,13 @@
                   ".validate": "newData.isString()"
                 },
                 "manageId": {
-                  ".validate": "newData.isString() && newData.val().length <= 20"
+                  ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2,4}-[0-9]{3,6}$/)"
                 },
                 "status": {
                   ".validate": "newData.isString() && newData.val().matches(/^(Pendiente|En proceso|Finalizado)$/)"
                 },
                 "assigneeUid": {
-                  ".validate": "newData.isString()"
+                  ".validate": "newData.isString() && newData.val().length <= 128"
                 },
                 "description": {
                   ".validate": "newData.isString() && newData.val().length <= 2000"
@@ -242,8 +263,14 @@
                 },
 
                 "comments": {
+                  ".indexOn": ["createdAt"],
                   "$commentId": {
                     ".validate": "newData.hasChildren(['text', 'userId', 'userName', 'createdAt'])",
+                    ".write": "auth != null && (
+                      !data.exists() ||
+                      data.child('userId').val() === auth.uid ||
+                      root.child('users').child(auth.uid).child('role').val() === 'admin'
+                    )",
                     "text": {
                       ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 2000"
                     },
@@ -254,7 +281,7 @@
                       ".validate": "newData.isString() && newData.val().length <= 100"
                     },
                     "userDepartment": {
-                      ".validate": "newData.isString()"
+                      ".validate": "newData.isString() && newData.val().length <= 100"
                     },
                     "userPhoto": {
                       ".validate": "newData.isString()"
@@ -266,6 +293,7 @@
                 },
 
                 "subtasks": {
+                  ".indexOn": ["status", "assigneeUid", "manageId"],
                   "$subtaskId": {
                     ".validate": "newData.hasChildren(['name', 'createdAt'])",
                     "name": {
@@ -275,13 +303,13 @@
                       ".validate": "newData.isString()"
                     },
                     "manageId": {
-                      ".validate": "newData.isString() && newData.val().length <= 20"
+                      ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2,4}-[0-9]{3,6}$/)"
                     },
                     "status": {
                       ".validate": "newData.isString() && newData.val().matches(/^(Pendiente|En proceso|Finalizado)$/)"
                     },
                     "assigneeUid": {
-                      ".validate": "newData.isString()"
+                      ".validate": "newData.isString() && newData.val().length <= 128"
                     }
                   }
                 }
@@ -294,13 +322,13 @@
 
     "automations": {
       ".read": "auth != null",
-      ".indexOn": ["createdBy", "enabled"],
+      ".indexOn": ["createdBy", "enabled", "createdAt"],
 
       "$automationId": {
         ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
           !data.exists() ||
-          data.child('createdBy').val() === auth.uid ||
-          root.child('users').child(auth.uid).child('role').val() === 'admin'
+          data.child('createdBy').val() === auth.uid
         )",
         ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt'])",
 
@@ -319,7 +347,7 @@
           ".validate": "newData.isBoolean()"
         },
         "status": {
-          ".validate": "newData.isString()"
+          ".validate": "newData.isString() && newData.val().length <= 50"
         },
         "scope": {
           ".validate": "newData.hasChildren(['type'])"
@@ -336,13 +364,13 @@
     "notifications": {
       "$uid": {
         ".read": "$uid === auth.uid",
-        ".write": "auth != null",
+        ".write": "$uid === auth.uid || auth != null",
         ".indexOn": ["createdAt", "read"],
 
         "$notificationId": {
           ".validate": "newData.hasChildren(['title', 'createdAt'])",
           "title": {
-            ".validate": "newData.isString() && newData.val().length <= 200"
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
           },
           "taskName": {
             ".validate": "newData.isString() && newData.val().length <= 300"
@@ -354,10 +382,10 @@
             ".validate": "newData.isString() && newData.val().matches(/^(task|subtask|project|product|client)$/)"
           },
           "path": {
-            ".validate": "newData.isString()"
+            ".validate": "newData.isString() && newData.val().length <= 500"
           },
           "fromUid": {
-            ".validate": "newData.isString()"
+            ".validate": "newData.isString() && newData.val().length <= 128"
           },
           "fromName": {
             ".validate": "newData.isString() && newData.val().length <= 100"
@@ -372,6 +400,24 @@
       }
     },
 
+    "security_logs": {
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".write": false,
+      ".indexOn": ["timestamp", "eventType", "userId"]
+    },
+
+    "security_alerts": {
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".indexOn": ["timestamp", "severity", "acknowledged"],
+
+      "$alertId": {
+        "acknowledged": {
+          ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        }
+      }
+    },
+
     "system": {
       ".read": false,
       ".write": false,
@@ -382,7 +428,7 @@
           ".write": "$uid === auth.uid",
           "$action": {
             "count": {
-              ".validate": "newData.isNumber() && newData.val() <= 100"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
             },
             "windowStart": {
               ".validate": "newData.isNumber()"
@@ -393,6 +439,7 @@
 
       "audit_log": {
         ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".indexOn": ["timestamp", "action"],
         "$logId": {
           ".write": false
         }
@@ -400,6 +447,7 @@
 
       "backup_reminders": {
         ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".indexOn": ["timestamp"],
         "$reminderId": {
           ".write": false
         }

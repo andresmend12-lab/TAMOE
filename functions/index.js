@@ -452,3 +452,357 @@ exports.exportClientData = functions
       client: clientData
     };
   });
+
+// ============================================
+// SECURE NOTIFICATION CREATION
+// ============================================
+
+/**
+ * Create notification securely (server-side)
+ * This prevents clients from spoofing notifications
+ */
+exports.createNotification = functions
+  .region(REGION)
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Autenticación requerida.");
+    }
+
+    const { targetUid, title, taskName, manageId, entityType, path } = data;
+
+    // Validate required fields
+    if (!targetUid || !title) {
+      throw new functions.https.HttpsError("invalid-argument", "targetUid y title son requeridos.");
+    }
+
+    // Rate limiting
+    const allowed = await checkRateLimit(context.auth.uid, "createNotification");
+    if (!allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        "Has excedido el límite de notificaciones. Intenta de nuevo en un minuto."
+      );
+    }
+
+    // Verify target user exists
+    const targetUserRef = db.ref(`users/${targetUid}`);
+    const targetUserSnap = await targetUserRef.once("value");
+    if (!targetUserSnap.exists()) {
+      throw new functions.https.HttpsError("not-found", "Usuario destino no encontrado.");
+    }
+
+    // Get sender info
+    const senderRef = db.ref(`users/${context.auth.uid}`);
+    const senderSnap = await senderRef.once("value");
+    const senderData = senderSnap.val() || {};
+
+    // Create notification
+    const notificationRef = db.ref(`notifications/${targetUid}`).push();
+    await notificationRef.set({
+      title: sanitizeString(title, 200),
+      taskName: sanitizeString(taskName, 300),
+      manageId: sanitizeString(manageId, 20),
+      entityType: sanitizeString(entityType, 20),
+      path: sanitizeString(path, 500),
+      fromUid: context.auth.uid,
+      fromName: senderData.username || context.auth.token.email || "Usuario",
+      read: false,
+      createdAt: admin.database.ServerValue.TIMESTAMP
+    });
+
+    return { success: true, notificationId: notificationRef.key };
+  });
+
+// ============================================
+// SECURITY LOGGING
+// ============================================
+
+/**
+ * Log security events
+ */
+exports.logSecurityEvent = functions
+  .region(REGION)
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Autenticación requerida.");
+    }
+
+    const { eventType, details } = data;
+
+    if (!eventType) {
+      throw new functions.https.HttpsError("invalid-argument", "eventType es requerido.");
+    }
+
+    // Rate limiting for security logs
+    const allowed = await checkRateLimit(context.auth.uid, "securityLog");
+    if (!allowed) {
+      return { logged: false, reason: "rate_limited" };
+    }
+
+    const logEntry = {
+      userId: context.auth.uid,
+      userEmail: context.auth.token.email,
+      eventType: sanitizeString(eventType, 50),
+      details: details ? sanitizeString(JSON.stringify(details), 1000) : null,
+      timestamp: admin.database.ServerValue.TIMESTAMP,
+      ip: context.rawRequest?.ip || "unknown",
+      userAgent: sanitizeString(context.rawRequest?.headers?.["user-agent"], 500)
+    };
+
+    const logRef = db.ref("security_logs").push();
+    await logRef.set(logEntry);
+
+    // Alert for critical events
+    const criticalEvents = ["permission_denied", "rate_limit_exceeded", "invalid_access", "suspicious_activity"];
+    if (criticalEvents.includes(eventType)) {
+      await db.ref("security_alerts").push().set({
+        ...logEntry,
+        severity: "high",
+        acknowledged: false
+      });
+      console.warn(`SECURITY ALERT: ${eventType} by ${context.auth.uid}`);
+    }
+
+    return { logged: true };
+  });
+
+// ============================================
+// TASK ASSIGNMENT VALIDATION
+// ============================================
+
+/**
+ * Validate task assignments (ensure assignee exists)
+ */
+exports.validateTaskAssignment = functions
+  .region(REGION)
+  .database.ref("/clients/{clientId}/projects/{projectId}/products/{productId}/tasks/{taskId}/assigneeUid")
+  .onWrite(async (change, context) => {
+    const newAssignee = change.after.val();
+    const { clientId, projectId, productId, taskId } = context.params;
+
+    // Skip if deleted or empty
+    if (!newAssignee) return null;
+
+    // Verify user exists
+    const userRef = db.ref(`users/${newAssignee}`);
+    const userSnap = await userRef.once("value");
+
+    if (!userSnap.exists()) {
+      console.warn(`Invalid assignee ${newAssignee} for task ${taskId}, removing`);
+      await change.after.ref.remove();
+      return null;
+    }
+
+    // Log assignment
+    await db.ref(`clients/${clientId}/activity_logs`).push().set({
+      action: "task_assigned",
+      taskId,
+      assigneeUid: newAssignee,
+      timestamp: admin.database.ServerValue.TIMESTAMP,
+      actorUid: "system"
+    });
+
+    return null;
+  });
+
+/**
+ * Validate project-level task assignments
+ */
+exports.validateProjectTaskAssignment = functions
+  .region(REGION)
+  .database.ref("/clients/{clientId}/projects/{projectId}/tasks/{taskId}/assigneeUid")
+  .onWrite(async (change, context) => {
+    const newAssignee = change.after.val();
+    const { clientId, projectId, taskId } = context.params;
+
+    if (!newAssignee) return null;
+
+    const userRef = db.ref(`users/${newAssignee}`);
+    const userSnap = await userRef.once("value");
+
+    if (!userSnap.exists()) {
+      console.warn(`Invalid assignee ${newAssignee} for project task ${taskId}, removing`);
+      await change.after.ref.remove();
+      return null;
+    }
+
+    return null;
+  });
+
+// ============================================
+// USER ROLE MANAGEMENT
+// ============================================
+
+/**
+ * Update user role (admin only)
+ */
+exports.updateUserRole = functions
+  .region(REGION)
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Autenticación requerida.");
+    }
+
+    // Check if requester is admin
+    const requesterRef = db.ref(`users/${context.auth.uid}/role`);
+    const requesterRoleSnap = await requesterRef.once("value");
+    if (requesterRoleSnap.val() !== "admin") {
+      throw new functions.https.HttpsError("permission-denied", "Solo administradores pueden cambiar roles.");
+    }
+
+    const { targetUserId, newRole } = data;
+
+    if (!targetUserId || !newRole) {
+      throw new functions.https.HttpsError("invalid-argument", "targetUserId y newRole son requeridos.");
+    }
+
+    // Validate role
+    const validRoles = ["admin", "editor", "viewer"];
+    if (!validRoles.includes(newRole)) {
+      throw new functions.https.HttpsError("invalid-argument", `Rol inválido. Válidos: ${validRoles.join(", ")}`);
+    }
+
+    // Prevent removing last admin
+    if (targetUserId === context.auth.uid && newRole !== "admin") {
+      const usersRef = db.ref("users");
+      const usersSnap = await usersRef.once("value");
+      const users = usersSnap.val() || {};
+
+      const adminCount = Object.values(users).filter(u => u.role === "admin").length;
+      if (adminCount <= 1) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "No puedes quitarte el rol de admin siendo el único administrador."
+        );
+      }
+    }
+
+    // Verify target user exists
+    const targetUserRef = db.ref(`users/${targetUserId}`);
+    const targetUserSnap = await targetUserRef.once("value");
+    if (!targetUserSnap.exists()) {
+      throw new functions.https.HttpsError("not-found", "Usuario no encontrado.");
+    }
+
+    // Update role
+    await targetUserRef.update({ role: newRole });
+
+    // Log the change
+    await db.ref("security_logs").push().set({
+      action: "role_change",
+      targetUserId,
+      oldRole: targetUserSnap.val().role || "viewer",
+      newRole,
+      changedBy: context.auth.uid,
+      timestamp: admin.database.ServerValue.TIMESTAMP
+    });
+
+    return { success: true };
+  });
+
+// ============================================
+// ABUSE DETECTION
+// ============================================
+
+/**
+ * Detect and log abuse patterns
+ */
+exports.detectAbusePatterns = functions
+  .region(REGION)
+  .pubsub.schedule("every 1 hours")
+  .onRun(async (context) => {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
+    // Check for users with excessive rate limit hits
+    const rateLimitsRef = db.ref("system/rate_limits");
+    const rateLimitsSnap = await rateLimitsRef.once("value");
+    const rateLimits = rateLimitsSnap.val() || {};
+
+    const suspiciousUsers = [];
+
+    for (const [uid, actions] of Object.entries(rateLimits)) {
+      let totalRequests = 0;
+      for (const actionData of Object.values(actions || {})) {
+        if (actionData.windowStart > oneHourAgo) {
+          totalRequests += actionData.count || 0;
+        }
+      }
+
+      // Flag if more than 500 requests in the hour
+      if (totalRequests > 500) {
+        suspiciousUsers.push({ uid, totalRequests });
+      }
+    }
+
+    if (suspiciousUsers.length > 0) {
+      await db.ref("security_alerts").push().set({
+        type: "high_volume_activity",
+        users: suspiciousUsers,
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        severity: "medium",
+        acknowledged: false
+      });
+
+      console.warn(`Abuse detection: ${suspiciousUsers.length} users with high activity`);
+    }
+
+    return null;
+  });
+
+// ============================================
+// DATA CLEANUP
+// ============================================
+
+/**
+ * Clean up old security logs (keep 90 days)
+ */
+exports.cleanupSecurityLogs = functions
+  .region(REGION)
+  .pubsub.schedule("every 24 hours")
+  .onRun(async (context) => {
+    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+
+    const logsRef = db.ref("security_logs");
+    const oldLogsSnap = await logsRef
+      .orderByChild("timestamp")
+      .endAt(ninetyDaysAgo)
+      .once("value");
+
+    const deletions = [];
+    oldLogsSnap.forEach((child) => {
+      deletions.push(child.ref.remove());
+    });
+
+    await Promise.all(deletions);
+    console.log(`Cleaned up ${deletions.length} old security log entries`);
+
+    return null;
+  });
+
+/**
+ * Clean up acknowledged security alerts (keep 30 days)
+ */
+exports.cleanupSecurityAlerts = functions
+  .region(REGION)
+  .pubsub.schedule("every 24 hours")
+  .onRun(async (context) => {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+    const alertsRef = db.ref("security_alerts");
+    const oldAlertsSnap = await alertsRef
+      .orderByChild("timestamp")
+      .endAt(thirtyDaysAgo)
+      .once("value");
+
+    const deletions = [];
+    oldAlertsSnap.forEach((child) => {
+      if (child.val().acknowledged === true) {
+        deletions.push(child.ref.remove());
+      }
+    });
+
+    await Promise.all(deletions);
+    console.log(`Cleaned up ${deletions.length} old security alerts`);
+
+    return null;
+  });
