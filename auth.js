@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     savePendingProfile(pendingProfile);
                     try {
                         auth.languageCode = 'es';
-                        await sendEmailVerification(user, { url: buildVerifyUrl(pendingProfile) });
+                        await sendEmailVerification(user, { url: buildVerifyUrl(pendingProfile), handleCodeInApp: true });
                     } catch (error) {
                         console.warn('No se pudo enviar la verificaci\u00F3n de correo:', error);
                         alert('No se pudo enviar la verificaci\u00F3n de correo.');
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     savePendingProfile(pendingProfile);
                     try {
                         auth.languageCode = 'es';
-                        await sendEmailVerification(user, { url: buildVerifyUrl(pendingProfile) });
+                        await sendEmailVerification(user, { url: buildVerifyUrl(pendingProfile), handleCodeInApp: true });
                     } catch (error) {
                         console.warn('No se pudo enviar la verificaci\u00F3n de correo:', error);
                     }

@@ -5,8 +5,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
     getAdditionalUserInfo,
-    sendEmailVerification,
-    signOut
+    sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { ref, set, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
@@ -24,6 +23,24 @@ if (themeToggle) {
     themeToggle.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    });
+}
+
+const passwordToggles = document.querySelectorAll('[data-password-toggle]');
+if (passwordToggles.length) {
+    passwordToggles.forEach((toggle) => {
+        const targetId = toggle.getAttribute('data-password-target');
+        const input = targetId ? document.getElementById(targetId) : null;
+        if (!input) return;
+        toggle.addEventListener('click', () => {
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            const icon = toggle.querySelector('span');
+            if (icon) {
+                icon.textContent = isHidden ? 'visibility' : 'visibility_off';
+            }
+            toggle.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+        });
     });
 }
 
@@ -90,6 +107,24 @@ const buildVerifyUrl = () => {
 // --- Login Page Logic ---
 const loginForm = document.getElementById('login-form');
 const loginGoogleButton = document.getElementById('login-google-button');
+const resendVerificationButton = document.getElementById('resend-verification');
+const loginStatus = document.getElementById('login-status');
+
+const setLoginStatus = (message, isError = false) => {
+    if (!loginStatus) return;
+    loginStatus.textContent = message;
+    loginStatus.classList.toggle('text-red-500', Boolean(isError));
+    loginStatus.classList.toggle('dark:text-red-400', Boolean(isError));
+    loginStatus.classList.toggle('text-text-muted-light', !isError);
+    loginStatus.classList.toggle('dark:text-text-muted-dark', !isError);
+};
+
+const setLoginLoading = (isLoading) => {
+    if (!resendVerificationButton) return;
+    resendVerificationButton.disabled = Boolean(isLoading);
+    resendVerificationButton.classList.toggle('opacity-70', Boolean(isLoading));
+    resendVerificationButton.classList.toggle('cursor-not-allowed', Boolean(isLoading));
+};
 
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -103,11 +138,11 @@ if (loginForm) {
             if (!user.emailVerified) {
                 try {
                     auth.languageCode = 'es';
-                    await sendEmailVerification(user, { url: buildVerifyUrl() });
+                    await sendEmailVerification(user, { url: buildVerifyUrl(), handleCodeInApp: true });
                 } catch (error) {
                     console.warn('No se pudo enviar la verificaci\u00F3n de correo:', error);
                 }
-                await signOut(auth);
+                setLoginStatus('Te enviamos el correo de verificaci\u00F3n.', false);
                 window.location.href = 'verify-email.html?sent=1';
                 return;
             }
@@ -117,7 +152,46 @@ if (loginForm) {
             const errorCode = error.code;
             const errorMessage = error.message;
             console.error(errorCode, errorMessage);
-            alert('Error al iniciar sesi\u00F3n: ' + errorMessage);
+            setLoginStatus('Error al iniciar sesi\u00F3n: ' + errorMessage, true);
+        }
+    });
+}
+
+if (resendVerificationButton) {
+    resendVerificationButton.addEventListener('click', async () => {
+        const email = document.getElementById('login-email')?.value.trim() || '';
+        const password = document.getElementById('login-password')?.value || '';
+
+        if (!email || !password) {
+            setLoginStatus('Introduce tu correo y contrase\u00F1a para reenviar el correo.', true);
+            return;
+        }
+
+        try {
+            setLoginLoading(true);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+            if (user.emailVerified) {
+                await ensureUserProfile(user);
+                window.location.href = 'maindashboard.html';
+                return;
+            }
+            auth.languageCode = 'es';
+            await sendEmailVerification(user, { url: buildVerifyUrl(), handleCodeInApp: true });
+            setLoginStatus('Correo de verificaci\u00F3n reenviado.', false);
+            window.location.href = 'verify-email.html?sent=1';
+        } catch (error) {
+            let message = 'No se pudo reenviar el correo.';
+            if (error?.code === 'auth/wrong-password') {
+                message = 'La contrase\u00F1a no es correcta.';
+            } else if (error?.code === 'auth/user-not-found') {
+                message = 'No encontramos un usuario con ese correo.';
+            } else if (error?.code === 'auth/too-many-requests') {
+                message = 'Demasiados intentos. Int\u00E9ntalo m\u00E1s tarde.';
+            }
+            setLoginStatus(message, true);
+        } finally {
+            setLoginLoading(false);
         }
     });
 }

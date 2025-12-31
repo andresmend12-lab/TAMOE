@@ -1,5 +1,5 @@
 import { auth, database } from './firebase.js';
-import { onAuthStateChanged, reload, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { applyActionCode, onAuthStateChanged, reload, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { ref, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
 const statusEl = document.getElementById('verify-status');
@@ -9,6 +9,7 @@ const resendButton = document.getElementById('verify-resend');
 const pendingProfileKey = 'pendingInviteProfile';
 const urlParams = new URLSearchParams(window.location.search);
 const isVerifyRedirect = urlParams.get('mode') === 'verifyEmail';
+const actionCode = urlParams.get('oobCode') || '';
 const wasInviteFlow = urlParams.get('invite') === '1';
 const wasSentNotice = urlParams.get('sent') === '1';
 
@@ -148,6 +149,34 @@ const checkVerification = async () => {
     }
 };
 
+const handleVerifyActionCode = async () => {
+    if (!isVerifyRedirect || !actionCode) {
+        return false;
+    }
+
+    try {
+        setLoading(true);
+        setStatus('Verificando correo...', false);
+        await applyActionCode(auth, actionCode);
+        const user = auth.currentUser;
+        if (user) {
+            await reload(user);
+            if (user.emailVerified) {
+                await finalizeRegistration(user);
+                return true;
+            }
+        }
+        setStatus('Correo verificado. Inicia sesi\u00F3n para continuar.', false);
+        return true;
+    } catch (error) {
+        console.error('Error aplicando verificaci\u00F3n:', error);
+        setStatus('El enlace ya no es v\u00E1lido o ha caducado.', true);
+        return true;
+    } finally {
+        setLoading(false);
+    }
+};
+
 const resendVerification = async () => {
     const user = auth.currentUser;
     if (!user) {
@@ -159,7 +188,7 @@ const resendVerification = async () => {
         setLoading(true);
         auth.languageCode = 'es';
         const profile = getPendingProfile();
-        await sendEmailVerification(user, { url: buildVerifyUrl(profile) });
+        await sendEmailVerification(user, { url: buildVerifyUrl(profile), handleCodeInApp: true });
         setStatus('Correo de verificaci\u00F3n reenviado.', false);
     } catch (error) {
         console.error('Error reenviando verificaci\u00F3n:', error);
@@ -177,16 +206,19 @@ if (wasInviteFlow || wasSentNotice || isVerifyRedirect) {
     scrubUrlParams();
 }
 
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        checkVerification();
-    } else {
-        if (isVerifyRedirect) {
-            setStatus('Correo verificado. Inicia sesi\u00F3n para terminar el registro.', false);
-        } else if (wasSentNotice) {
-            setStatus('Te enviamos un correo de verificaci\u00F3n. Rev\u00EDsalo para continuar.', false);
-        } else {
-            setStatus('Revisa tu correo para verificar tu cuenta.', false);
-        }
+handleVerifyActionCode().then((handled) => {
+    if (handled) {
+        return;
     }
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            checkVerification();
+        } else {
+            if (wasSentNotice) {
+                setStatus('Te enviamos un correo de verificaci\u00F3n. Rev\u00EDsalo para continuar.', false);
+            } else {
+                setStatus('Revisa tu correo para verificar tu cuenta.', false);
+            }
+        }
+    });
 });

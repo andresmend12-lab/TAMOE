@@ -22,11 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
         submitButton.classList.toggle('cursor-not-allowed', Boolean(isLoading));
     };
 
-    const buildLoginUrl = () => {
+    const buildResetUrl = () => {
         try {
-            return new URL('login.html', window.location.href).href;
+            return new URL('resetpassword.html', window.location.href).href;
         } catch (error) {
-            return 'login.html';
+            return 'resetpassword.html';
         }
     };
 
@@ -44,7 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             auth.languageCode = 'es';
             await sendPasswordResetEmail(auth, email, {
-                url: buildLoginUrl(),
+                url: buildResetUrl(),
+                handleCodeInApp: true,
             });
             if (emailInput) {
                 emailInput.value = '';
