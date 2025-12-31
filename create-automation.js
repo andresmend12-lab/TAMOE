@@ -1,5 +1,5 @@
 import { auth, database } from './firebase.js';
-import { ref, push, serverTimestamp, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { ref, push, serverTimestamp, get, update } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 
@@ -24,12 +24,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- App State ---
     let currentUser = null;
     let clientsData = null; // To store fetched client data
+    const urlParams = new URLSearchParams(window.location.search);
+    const editingAutomationId = urlParams.get('id');
+    let editingAutomationData = null;
 
     // --- Authentication ---
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
-            loadClients(); // Load client data once authenticated
+            await loadClients(); // Load client data once authenticated
+            if (editingAutomationId) {
+                await loadAutomationForEdit(editingAutomationId);
+            } else {
+                addTrigger();
+                addAction();
+            }
         } else {
             currentUser = null;
             alert("Debes iniciar sesión para crear una automatización.");
@@ -78,6 +87,126 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Error cargando clientes:", error);
             scopeClientSelect.innerHTML = '<option value="">Error al cargar</option>';
+        }
+    }
+
+    const normalizeActivityType = (value) => {
+        const raw = String(value || '').trim().toLowerCase();
+        if (raw === 'project' || raw === 'proyecto') return 'Project';
+        if (raw === 'product' || raw === 'producto') return 'Product';
+        if (raw === 'task' || raw === 'tarea') return 'Task';
+        return 'Task';
+    };
+
+    const normalizeTriggerType = (value) => {
+        const raw = String(value || '').trim().toLowerCase();
+        if (raw === 'created' || raw === 'create') return 'created';
+        if (raw === 'statuschange' || raw === 'status_change') return 'statusChange';
+        return 'created';
+    };
+
+    const normalizeArray = (value) => {
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === 'object') return Object.values(value);
+        return [];
+    };
+
+    const setSelectValue = (select, value) => {
+        if (!select || value == null) return;
+        const optionExists = Array.from(select.options).some(opt => opt.value === value);
+        if (optionExists) select.value = value;
+    };
+
+    const addTriggerWithData = (trigger) => {
+        const triggerClone = triggerTemplate.content.cloneNode(true);
+        triggersContainer.appendChild(triggerClone);
+        const newBlock = triggersContainer.lastElementChild;
+        const activitySelect = newBlock.querySelector('.trigger-activity-type');
+        const triggerTypeSelect = newBlock.querySelector('.trigger-type');
+        const normalizedActivity = normalizeActivityType(trigger?.activityType);
+        setSelectValue(activitySelect, normalizedActivity);
+        updateTriggerTypeOptions(newBlock);
+        const normalizedTriggerType = normalizeTriggerType(trigger?.triggerType);
+        setSelectValue(triggerTypeSelect, normalizedTriggerType);
+        handleTriggerTypeChange(newBlock);
+        if (normalizedTriggerType === 'statusChange') {
+            const fromSelect = newBlock.querySelector('.status-change-options select:first-child');
+            const toSelect = newBlock.querySelector('.status-change-options select:last-child');
+            if (trigger?.fromState) setSelectValue(fromSelect, trigger.fromState);
+            if (trigger?.toState) setSelectValue(toSelect, trigger.toState);
+        }
+    };
+
+    const addActionWithData = (action, controllingTriggerBlock) => {
+        const actionClone = actionTemplate.content.cloneNode(true);
+        actionsContainer.appendChild(actionClone);
+        const newBlock = actionsContainer.lastElementChild;
+        updateActionOptions(newBlock, controllingTriggerBlock);
+        const actionSelect = newBlock.querySelector('.action-select');
+        if (action?.type) {
+            setSelectValue(actionSelect, action.type);
+        }
+        updateActionDetails(newBlock);
+        if (action?.type && action.type.startsWith('createChild_')) {
+            const nameInput = newBlock.querySelector('.child-activity-name-input');
+            if (nameInput && action?.name) {
+                nameInput.value = action.name;
+            }
+        }
+    };
+
+    async function loadAutomationForEdit(automationId) {
+        const automationRef = ref(database, `automations/${automationId}`);
+        const snapshot = await get(automationRef);
+        if (!snapshot.exists()) {
+            alert('No se encontro la automatizacion para editar.');
+            addTrigger();
+            addAction();
+            return;
+        }
+
+        editingAutomationData = snapshot.val();
+        if (automationNameInput) automationNameInput.value = editingAutomationData?.name || '';
+        if (saveBtn) saveBtn.textContent = 'Guardar cambios';
+
+        const scope = editingAutomationData?.scope || {};
+        const scopeClient = scope.client || 'all';
+        if (scopeClientSelect) {
+            scopeClientSelect.value = scopeClient;
+        }
+        renderScopeTreeForClient(scopeClient);
+        if (scopeClient && scopeClient !== 'all') {
+            const projectIds = Array.isArray(scope.projects) ? scope.projects : [];
+            projectIds.forEach((projectId) => {
+                const checkbox = scopeProjectsList.querySelector(`input[data-type="project"][value="${projectId}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            const productItems = Array.isArray(scope.products) ? scope.products : [];
+            productItems.forEach((product) => {
+                if (!product) return;
+                const checkbox = scopeProjectsList.querySelector(
+                    `input[data-type="product"][value="${product.productId}"][data-project-id="${product.projectId}"]`
+                );
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+
+        triggersContainer.innerHTML = '';
+        actionsContainer.innerHTML = '';
+        const triggers = normalizeArray(editingAutomationData?.triggers);
+        const actions = normalizeArray(editingAutomationData?.actions);
+
+        if (triggers.length === 0) {
+            addTrigger();
+        } else {
+            triggers.forEach(trigger => addTriggerWithData(trigger));
+        }
+
+        const controllingTriggerBlock = triggersContainer.querySelector('.trigger-block');
+        if (actions.length === 0) {
+            addAction();
+        } else {
+            actions.forEach(action => addActionWithData(action, controllingTriggerBlock));
         }
     }
 
@@ -286,8 +415,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const actions = [];
         document.querySelectorAll('.action-block').forEach(block => {
             const actionType = block.querySelector('.action-select').value;
-            // In a real app, you'd collect more detail from the action-details section
-            actions.push({ type: actionType });
+            const actionData = { type: actionType };
+            if (actionType.startsWith('createChild_')) {
+                const nameInput = block.querySelector('.child-activity-name-input');
+                const customName = String(nameInput?.value || '').trim();
+                if (customName) {
+                    actionData.name = customName;
+                }
+            }
+            actions.push(actionData);
         });
 
         if (actions.length === 0) {
@@ -329,17 +465,28 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.disabled = true;
             saveBtn.textContent = 'Guardando...';
             
-            const automationsRef = ref(database, 'automations');
-            await push(automationsRef, automationData);
+            if (editingAutomationId) {
+                const automationRef = ref(database, `automations/${editingAutomationId}`);
+                await update(automationRef, {
+                    name,
+                    triggers,
+                    actions,
+                    scope: automationData.scope,
+                    updatedAt: serverTimestamp()
+                });
+            } else {
+                const automationsRef = ref(database, 'automations');
+                await push(automationsRef, automationData);
+            }
             
-            alert('¡Automatización guardada con éxito!');
+            alert('Automatizacion guardada con exito.');
             window.location.href = 'maindashboard.html';
 
         } catch (error) {
             console.error("Error guardando la automatización: ", error);
             alert(`Error al guardar: ${error.message}`);
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">save</span> Guardar Automatización';
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">save</span> Guardar Automatizacion';
         }
     }
     
@@ -383,7 +530,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Initial Setup ---
-    addTrigger();
-    addAction();
 });

@@ -155,19 +155,27 @@ function fetchAutomations() {
         if (snapshot.exists()) {
             const automationsData = snapshot.val();
             allAutomations = Object.keys(automationsData).map(key => {
-                const automation = automationsData[key];
+                const automation = automationsData[key] || {};
+                const triggers = Array.isArray(automation.triggers)
+                    ? automation.triggers
+                    : Object.values(automation.triggers || {});
+                const actions = Array.isArray(automation.actions)
+                    ? automation.actions
+                    : Object.values(automation.actions || {});
+                const triggerLabel = triggers.map(t => t.activityType).filter(Boolean).join(', ') || 'Sin disparador';
+                const steps = actions.map(a => a.type).filter(Boolean);
                 // Adapt data to what renderAutomationCard expects
                 return {
                     id: key,
-                    name: automation.name,
+                    name: automation.name || 'Automatizacion sin nombre',
                     enabled: automation.enabled !== false, // default to true
                     status: automation.enabled !== false ? 'active' : 'paused',
                     lastRun: 'Nunca', // Mock last run
                     trigger: {
                         icon: 'play_arrow', // Mock icon
-                        label: automation.triggers.map(t => t.activityType).join(', ')
+                        label: triggerLabel
                     },
-                    steps: automation.actions.map(a => a.type)
+                    steps
                 };
             });
         } else {

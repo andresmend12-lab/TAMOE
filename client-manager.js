@@ -66,6 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const calendarNextBtn = document.getElementById('calendar-next');
     const calendarTodayBtn = document.getElementById('calendar-today');
     const calendarViewButtons = Array.from(document.querySelectorAll('[data-calendar-view]'));
+    const projectAutomationToggle = document.getElementById('project-automation-toggle');
+    const projectAutomationPanel = document.getElementById('project-automation-panel');
+    const projectAutomationList = document.getElementById('project-automation-list');
+    const projectAutomationEmpty = document.getElementById('project-automation-empty');
 
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
@@ -123,6 +127,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let clientsLoading = false;
     let calendarItems = [];
     let calendarState = { view: 'month', date: new Date() };
+    let availableProjectAutomations = [];
+    let selectedProjectAutomationIds = new Set();
+    let projectAutomationLoading = false;
+    const projectAutomationCache = new Map();
 
     // User dropdown
     const userMenuToggle = document.getElementById('user-menu-toggle');
@@ -1260,6 +1268,106 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCalendar();
     };
 
+    const normalizeAutomationIdList = (value) => {
+        if (Array.isArray(value)) {
+            return value.map(id => String(id || '').trim()).filter(Boolean);
+        }
+        if (value && typeof value === 'object') {
+            const entries = Object.entries(value);
+            const rawValues = entries.map(([, entryValue]) => entryValue);
+            const stringValues = rawValues.filter(entryValue => typeof entryValue === 'string' && entryValue.trim());
+            if (stringValues.length > 0) {
+                return stringValues.map(id => String(id || '').trim()).filter(Boolean);
+            }
+            return entries.filter(([, entryValue]) => entryValue).map(([key]) => String(key));
+        }
+        return [];
+    };
+
+    const renderProjectAutomationList = () => {
+        if (!projectAutomationList) return;
+        projectAutomationList.innerHTML = '';
+        if (!Array.isArray(availableProjectAutomations) || availableProjectAutomations.length === 0) {
+            if (projectAutomationEmpty) projectAutomationEmpty.classList.remove('hidden');
+            return;
+        }
+        if (projectAutomationEmpty) projectAutomationEmpty.classList.add('hidden');
+        availableProjectAutomations.forEach((automation) => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-3 rounded-lg border border-border-dark/60 bg-white/70 dark:bg-surface-dark/60 px-3 py-2 text-sm text-gray-900 dark:text-white';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'h-4 w-4 rounded border-border-dark text-primary focus:ring-primary';
+            checkbox.dataset.automationId = automation.id;
+            checkbox.checked = selectedProjectAutomationIds.has(automation.id);
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'truncate';
+            nameSpan.textContent = automation.name || 'Automatizacion sin nombre';
+            label.append(checkbox, nameSpan);
+            projectAutomationList.appendChild(label);
+        });
+    };
+
+    const loadProjectAutomations = async () => {
+        if (projectAutomationLoading) return;
+        projectAutomationLoading = true;
+        try {
+            const snapshot = await get(ref(database, 'automations'));
+            if (snapshot.exists()) {
+                const automationsData = snapshot.val();
+                availableProjectAutomations = Object.keys(automationsData).map((key) => {
+                    const automation = automationsData[key] || {};
+                    return {
+                        id: key,
+                        name: automation.name || '',
+                        enabled: automation.enabled !== false,
+                    };
+                }).filter(item => item.enabled);
+                availableProjectAutomations.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            } else {
+                availableProjectAutomations = [];
+            }
+        } catch (error) {
+            console.error('Error loading automations:', error);
+            availableProjectAutomations = [];
+        } finally {
+            projectAutomationLoading = false;
+            renderProjectAutomationList();
+        }
+    };
+
+    const resetProjectAutomationSelection = () => {
+        selectedProjectAutomationIds = new Set();
+        if (projectAutomationToggle) projectAutomationToggle.checked = false;
+        if (projectAutomationPanel) projectAutomationPanel.classList.add('hidden');
+        renderProjectAutomationList();
+    };
+
+    const getSelectedProjectAutomationIds = () => Array.from(selectedProjectAutomationIds);
+
+    const cacheProjectAutomationIds = (clientId, projectId, ids) => {
+        if (!clientId || !projectId) return;
+        const normalized = normalizeAutomationIdList(ids);
+        if (normalized.length === 0) return;
+        projectAutomationCache.set(`${clientId}:${projectId}`, normalized);
+    };
+
+    const getProjectAutomationIds = (clientId, projectId) => {
+        if (!clientId || !projectId) return [];
+        const cacheKey = `${clientId}:${projectId}`;
+        if (projectAutomationCache.has(cacheKey)) {
+            const cached = projectAutomationCache.get(cacheKey);
+            return Array.isArray(cached) ? cached.slice() : [];
+        }
+        const client = allClients.find(c => c.id === clientId);
+        const project = client?.projects?.[projectId];
+        const ids = normalizeAutomationIdList(project?.automationIds);
+        if (ids.length > 0) {
+            projectAutomationCache.set(cacheKey, ids);
+        }
+        return ids;
+    };
+
     const parseClientPath = (pathValue) => {
         const path = String(pathValue || '').trim();
         if (!path) return null;
@@ -1413,13 +1521,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!skipAutomations) {
+            const projectAutomationIds = getProjectAutomationIds(parsed?.clientId, parsed?.projectId);
             executeAutomations('activityStatusChanged', {
                 path: path,
                 type: parsed.type,
                 data: itemBefore,
                 oldStatus: prevStatus,
                 newStatus: normalized
-            });
+            }, { includeAutomationIds: projectAutomationIds });
         }
     };
 
@@ -3183,6 +3292,8 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Primero selecciona un cliente.');
             return;
         }
+        resetProjectAutomationSelection();
+        loadProjectAutomations();
         addProjectModal.classList.remove('hidden');
         setTimeout(() => projectNameInput?.focus(), 50);
     };
@@ -3190,6 +3301,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeProjectModal = () => {
         addProjectModal.classList.add('hidden');
         addProjectForm?.reset();
+        resetProjectAutomationSelection();
     };
 
     const openProductModal = () => {
@@ -4841,6 +4953,12 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const projectName = projectNameInput.value.trim();
         if (!projectName) return;
+        const applyAutomations = Boolean(projectAutomationToggle?.checked);
+        const selectedAutomationIds = applyAutomations ? getSelectedProjectAutomationIds() : [];
+        if (applyAutomations && selectedAutomationIds.length === 0 && currentUser && selectedClientId) {
+            alert('Selecciona al menos una automatizacion o desmarca la opcion.');
+            return;
+        }
         if (!currentUser || !selectedClientId) {
             alert("Selecciona un cliente e inicia sesión para añadir proyectos.");
             return;
@@ -4861,14 +4979,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 projectId: newProjectRef.key,
                 manageId
             };
+            if (selectedAutomationIds.length > 0) {
+                projectData.automationIds = selectedAutomationIds;
+            }
 
             await set(newProjectRef, projectData);
+            if (selectedAutomationIds.length > 0) {
+                cacheProjectAutomationIds(selectedClientId, newProjectRef.key, selectedAutomationIds);
+            }
             
             await executeAutomations('activityCreated', {
                 path: `clients/${selectedClientId}/projects/${newProjectRef.key}`,
                 type: 'project',
                 data: projectData
-            });
+            }, { includeAutomationIds: selectedAutomationIds });
 
             closeProjectModal();
             renderClients();
@@ -4912,12 +5036,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             await set(newProductRef, productData);
-            
+
+            const projectAutomationIds = getProjectAutomationIds(target.clientId, target.projectId);
             await executeAutomations('activityCreated', {
                 path: `clients/${target.clientId}/projects/${target.projectId}/products/${newProductRef.key}`,
                 type: 'product',
                 data: productData
-            });
+            }, { includeAutomationIds: projectAutomationIds });
 
             closeProductModal();
             renderClients();
@@ -4965,12 +5090,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             await set(newTaskRef, taskData);
-            
+
+            const projectAutomationIds = getProjectAutomationIds(target.clientId, target.projectId);
             await executeAutomations('activityCreated', {
                 path: taskPath + `/${newTaskRef.key}`,
                 type: 'task',
                 data: taskData
-            });
+            }, { includeAutomationIds: projectAutomationIds });
 
             closeTaskModal();
             renderTasks(selectedClientId, selectedProjectId, selectedProductId);
@@ -5017,12 +5143,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             await set(newSubtaskRef, subtaskData);
-            
+
+            const projectAutomationIds = getProjectAutomationIds(selectedClientId, selectedProjectId);
             await executeAutomations('activityCreated', {
                 path: subtaskPath + `/${newSubtaskRef.key}`,
                 type: 'subtask',
                 data: subtaskData
-            });
+            }, { includeAutomationIds: projectAutomationIds });
 
             closeSubtaskModal();
             renderSubtasks(selectedClientId, selectedProjectId, selectedProductId, selectedTaskId);
@@ -5037,8 +5164,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const executeAutomations = async (eventType, eventData) => {
+    const executeAutomations = async (eventType, eventData, options = {}) => {
         console.log('Executing automations for', eventType, eventData);
+        const includeAutomationIds = normalizeAutomationIdList(options?.includeAutomationIds);
+        const includeSet = includeAutomationIds.length > 0 ? new Set(includeAutomationIds) : null;
         const automationsRef = ref(database, 'automations');
         const snapshot = await get(automationsRef);
         if (!snapshot.exists()) {
@@ -5053,12 +5182,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            const isInScope = isActivityInScope(eventData.path, automation.scope);
-            if (!isInScope) {
-                continue;
+            const isIncluded = includeSet ? includeSet.has(automationId) : false;
+            if (!isIncluded) {
+                const isInScope = isActivityInScope(eventData.path, automation.scope);
+                if (!isInScope) {
+                    continue;
+                }
             }
 
-            for (const trigger of automation.triggers) {
+            const triggers = Array.isArray(automation.triggers)
+                ? automation.triggers
+                : Object.values(automation.triggers || {});
+            const actions = Array.isArray(automation.actions)
+                ? automation.actions
+                : Object.values(automation.actions || {});
+            for (const trigger of triggers) {
                 let triggerMet = false;
                 if (eventType === 'activityCreated' && trigger.triggerType === 'created' && trigger.activityType.toLowerCase() === eventData.type.toLowerCase()) {
                     triggerMet = true;
@@ -5070,7 +5208,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (triggerMet) {
                     console.log('Trigger met for automation', automation.name);
-                    for (const action of automation.actions) {
+                    for (const action of actions) {
                         executeAction(action, eventData, automation);
                     }
                     // Stop checking other triggers for this automation
@@ -5118,21 +5256,40 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const executeCreateChildAction = async (action, eventData, automation) => {
-        const childType = action.type.split('_')[1]; // e.g., 'Product', 'Task', 'Subtask'
+        const rawChildType = action.type.split('_')[1]; // e.g., 'Product', 'Task', 'Subtask'
+        const childTypeValue = String(rawChildType || '').trim().toLowerCase();
+        const childTypeInfo = (() => {
+            if (childTypeValue === 'product' || childTypeValue === 'producto') return { key: 'product', label: 'Producto' };
+            if (childTypeValue === 'task' || childTypeValue === 'tarea') return { key: 'task', label: 'Tarea' };
+            if (childTypeValue === 'subtask' || childTypeValue === 'subtarea') return { key: 'subtask', label: 'Subtarea' };
+            return null;
+        })();
         const parentPath = eventData.path;
         const parentData = eventData.data;
 
-        let childName = `New ${childType}`;
+        if (!childTypeInfo) {
+            console.error('Unknown child type for creation:', rawChildType);
+            return;
+        }
+
+        let childName = `Nuevo ${childTypeInfo.label}`;
+        if (childTypeInfo.label === 'Tarea' || childTypeInfo.label === 'Subtarea') {
+            childName = `Nueva ${childTypeInfo.label}`;
+        }
+        const customName = String(action?.name || action?.childName || '').trim();
+        if (customName) {
+            childName = customName;
+        }
         
         let childPath;
-        if (childType.toLowerCase() === 'product') {
+        if (childTypeInfo.key === 'product') {
             childPath = `${parentPath}/products`;
-        } else if (childType.toLowerCase() === 'task') {
+        } else if (childTypeInfo.key === 'task') {
             childPath = `${parentPath}/tasks`;
-        } else if (childType.toLowerCase() === 'subtask') {
+        } else if (childTypeInfo.key === 'subtask') {
             childPath = `${parentPath}/subtasks`;
         } else {
-            console.error('Unknown child type for creation:', childType);
+            console.error('Unknown child type for creation:', rawChildType);
             return;
         }
 
@@ -5157,8 +5314,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             await logActivity(
                 pathParts.clientId,
-                `Automatización '${automation.name}' creó ${childType.toLowerCase()} "${childName}" para ${pathParts.type} "${parentData.name}".`,
-                { action: 'automation_create_child', path: parentPath, entityType: childType.toLowerCase() }
+                `Automatizacion '${automation.name}' creo ${childTypeInfo.label.toLowerCase()} "${childName}" para ${pathParts.type} "${parentData.name}".`,
+                { action: 'automation_create_child', path: parentPath, entityType: childTypeInfo.key }
             );
 
         } catch (error) {
@@ -5191,6 +5348,29 @@ document.addEventListener('DOMContentLoaded', () => {
         addProductBtn?.addEventListener('click', openProductModal);
         addTaskBtn?.addEventListener('click', openTaskModal);
         addSubtaskBtn?.addEventListener('click', openSubtaskModal);
+
+        projectAutomationToggle?.addEventListener('change', () => {
+            if (projectAutomationToggle.checked) {
+                showEl(projectAutomationPanel);
+                loadProjectAutomations();
+                return;
+            }
+            hideEl(projectAutomationPanel);
+            selectedProjectAutomationIds.clear();
+            renderProjectAutomationList();
+        });
+
+        projectAutomationList?.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!target || !target.matches('input[type="checkbox"][data-automation-id]')) return;
+            const automationId = target.dataset.automationId;
+            if (!automationId) return;
+            if (target.checked) {
+                selectedProjectAutomationIds.add(automationId);
+            } else {
+                selectedProjectAutomationIds.delete(automationId);
+            }
+        });
 
         clientSearchInput?.addEventListener('input', () => {
             renderSearchResults();
