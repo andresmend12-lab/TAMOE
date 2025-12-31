@@ -4817,6 +4817,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientData = {
                 name: companyName,
                 createdAt: new Date().toISOString(),
+                createdBy: currentUser.uid,
                 clientId: newClientRef.key,
                 manageId,
                 managePrefix,
