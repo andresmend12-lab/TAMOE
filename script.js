@@ -5,7 +5,8 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
     getAdditionalUserInfo,
-    sendEmailVerification
+    sendEmailVerification,
+    signOut
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { ref, set, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
@@ -109,6 +110,7 @@ const loginForm = document.getElementById('login-form');
 const loginGoogleButton = document.getElementById('login-google-button');
 const resendVerificationButton = document.getElementById('resend-verification');
 const loginStatus = document.getElementById('login-status');
+const loginParams = new URLSearchParams(window.location.search);
 
 const setLoginStatus = (message, isError = false) => {
     if (!loginStatus) return;
@@ -126,6 +128,17 @@ const setLoginLoading = (isLoading) => {
     resendVerificationButton.classList.toggle('cursor-not-allowed', Boolean(isLoading));
 };
 
+if (loginStatus && loginParams.get('verified') === '1') {
+    setLoginStatus('Correo verificado. Ya puedes iniciar sesi\u00F3n.', false);
+    try {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('verified');
+        window.history.replaceState({}, document.title, cleanUrl.pathname);
+    } catch (error) {
+        // Ignore URL cleanup errors.
+    }
+}
+
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -141,6 +154,11 @@ if (loginForm) {
                     await sendEmailVerification(user, { url: buildVerifyUrl(), handleCodeInApp: true });
                 } catch (error) {
                     console.warn('No se pudo enviar la verificaci\u00F3n de correo:', error);
+                }
+                try {
+                    await signOut(auth);
+                } catch (error) {
+                    console.warn('No se pudo cerrar sesi\u00F3n:', error);
                 }
                 setLoginStatus('Te enviamos el correo de verificaci\u00F3n.', false);
                 window.location.href = 'verify-email.html?sent=1';
@@ -179,6 +197,11 @@ if (resendVerificationButton) {
             auth.languageCode = 'es';
             await sendEmailVerification(user, { url: buildVerifyUrl(), handleCodeInApp: true });
             setLoginStatus('Correo de verificaci\u00F3n reenviado.', false);
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.warn('No se pudo cerrar sesi\u00F3n:', error);
+            }
             window.location.href = 'verify-email.html?sent=1';
         } catch (error) {
             let message = 'No se pudo reenviar el correo.';

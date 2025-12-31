@@ -5,8 +5,10 @@ import { ref, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-dat
 const statusEl = document.getElementById('verify-status');
 const checkButton = document.getElementById('verify-check');
 const resendButton = document.getElementById('verify-resend');
+const loginLink = document.getElementById('verify-login-link');
 
 const pendingProfileKey = 'pendingInviteProfile';
+const verificationAppliedKey = 'emailVerificationApplied';
 const urlParams = new URLSearchParams(window.location.search);
 const isVerifyRedirect = urlParams.get('mode') === 'verifyEmail';
 const actionCode = urlParams.get('oobCode') || '';
@@ -101,6 +103,46 @@ const clearPendingProfile = () => {
     }
 };
 
+const setVerificationApplied = () => {
+    try {
+        localStorage.setItem(verificationAppliedKey, '1');
+    } catch (error) {
+        // Ignore storage errors.
+    }
+};
+
+const isVerificationApplied = () => {
+    try {
+        return localStorage.getItem(verificationAppliedKey) === '1';
+    } catch (error) {
+        return false;
+    }
+};
+
+const clearVerificationApplied = () => {
+    try {
+        localStorage.removeItem(verificationAppliedKey);
+    } catch (error) {
+        // Ignore storage errors.
+    }
+};
+
+const buildLoginUrl = () => {
+    try {
+        const url = new URL('login.html', window.location.href);
+        url.searchParams.set('verified', '1');
+        return url.href;
+    } catch (error) {
+        return 'login.html?verified=1';
+    }
+};
+
+const updateLoginLink = (href) => {
+    if (loginLink) {
+        loginLink.href = href;
+    }
+};
+
 const finalizeRegistration = async (user) => {
     const profile = getPendingProfile();
     if (!profile) {
@@ -121,14 +163,20 @@ const finalizeRegistration = async (user) => {
     });
 
     clearPendingProfile();
+    clearVerificationApplied();
     await signOut(auth);
-    window.location.href = 'login.html';
+    window.location.href = buildLoginUrl();
 };
 
 const checkVerification = async () => {
     const user = auth.currentUser;
     if (!user) {
         setStatus('Inicia sesi\u00F3n para completar tu registro.', true);
+        return;
+    }
+
+    if (!isVerificationApplied() && !isVerifyRedirect) {
+        setStatus('A\u00FAn no hemos detectado la verificaci\u00F3n. Revisa tu correo.', false);
         return;
     }
 
@@ -158,6 +206,7 @@ const handleVerifyActionCode = async () => {
         setLoading(true);
         setStatus('Verificando correo...', false);
         await applyActionCode(auth, actionCode);
+        setVerificationApplied();
         const user = auth.currentUser;
         if (user) {
             await reload(user);
@@ -166,7 +215,12 @@ const handleVerifyActionCode = async () => {
                 return true;
             }
         }
-        setStatus('Correo verificado. Inicia sesi\u00F3n para continuar.', false);
+        const loginUrl = buildLoginUrl();
+        updateLoginLink(loginUrl);
+        setStatus('Correo verificado. Redirigiendo a inicio de sesi\u00F3n...', false);
+        setTimeout(() => {
+            window.location.href = loginUrl;
+        }, 1200);
         return true;
     } catch (error) {
         console.error('Error aplicando verificaci\u00F3n:', error);
@@ -206,13 +260,19 @@ if (wasInviteFlow || wasSentNotice || isVerifyRedirect) {
     scrubUrlParams();
 }
 
+updateLoginLink(buildLoginUrl());
+
 handleVerifyActionCode().then((handled) => {
     if (handled) {
         return;
     }
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            checkVerification();
+            if (isVerificationApplied()) {
+                checkVerification();
+            } else {
+                setStatus('Revisa tu correo para verificar tu cuenta.', false);
+            }
         } else {
             if (wasSentNotice) {
                 setStatus('Te enviamos un correo de verificaci\u00F3n. Rev\u00EDsalo para continuar.', false);

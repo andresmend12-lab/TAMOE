@@ -1,6 +1,6 @@
 
 import { auth } from './firebase.js';
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
 onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -10,6 +10,8 @@ onAuthStateChanged(auth, (user) => {
     }
 
     if (!user.emailVerified) {
-        window.location.href = 'verify-email.html';
+        signOut(auth).finally(() => {
+            window.location.href = 'verify-email.html';
+        });
     }
 });

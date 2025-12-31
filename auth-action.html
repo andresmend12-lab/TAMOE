@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Verificar correo - Tamoe Innovation</title>
+<title>Procesando solicitud - Tamoe Innovation</title>
 <link rel="icon" href="imagotipo_tamoe.png" type="image/png">
 <!-- Fonts -->
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
@@ -60,31 +60,22 @@
 </button>
 <main class="w-full max-w-md mx-4 z-10">
 <div class="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-none border border-border-light dark:border-border-dark p-8 sm:p-10 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
-<div class="text-center mb-8">
+<div class="text-center mb-6">
 <div class="flex justify-center">
-<span class="material-icons-outlined text-primary text-4xl">mark_email_read</span>
+<span class="material-icons-outlined text-primary text-4xl">hourglass_top</span>
 </div>
 <h2 class="mt-6 text-2xl font-display font-semibold text-secondary dark:text-gray-200">
-                    Verifica tu correo electr&oacute;nico
+                    Procesando tu solicitud
                 </h2>
-<p class="mt-2 text-sm text-text-muted-light dark:text-text-muted-dark">
-                    Te enviamos un enlace de confirmaci&oacute;n. Abre tu correo y confirma para activar tu cuenta.
+<p id="action-status" class="mt-2 text-sm text-text-muted-light dark:text-text-muted-dark">
+                    Estamos redirigiendo al siguiente paso.
                 </p>
 </div>
-<div class="space-y-3">
-<button id="verify-check" type="button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-surface-dark focus:ring-primary transition-all transform active:scale-[0.98]">
-                        He verificado mi correo
-                    </button>
-<button id="verify-resend" type="button" class="w-full flex justify-center py-3 px-4 border border-border-light dark:border-border-dark rounded-lg shadow-sm text-sm font-medium text-text-light dark:text-white bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-surface-dark focus:ring-primary transition-all transform active:scale-[0.98]">
-                        Reenviar correo
-                    </button>
-</div>
-<p id="verify-status" class="mt-4 text-sm text-text-muted-light dark:text-text-muted-dark"></p>
-<div class="mt-6 text-center text-sm">
-<a id="verify-login-link" class="text-primary font-bold hover:underline" href="login.html">Ir a inicio de sesi&oacute;n</a>
+<div class="text-center text-sm">
+<a id="action-link" class="text-primary font-bold hover:underline" href="login.html">Continuar</a>
 </div>
 </div>
 </main>
-<script src="verify-email.js" type="module"></script>
+<script src="auth-action.js" type="module"></script>
 </body>
 </html>

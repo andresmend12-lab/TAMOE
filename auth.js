@@ -1,5 +1,5 @@
 import { auth, database } from './firebase.js';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, isSignInWithEmailLink, signInWithEmailLink, sendEmailVerification, updatePassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, isSignInWithEmailLink, signInWithEmailLink, sendEmailVerification, updatePassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { ref, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -162,6 +162,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert('No se pudo enviar la verificaci\u00F3n de correo.');
                         return;
                     }
+                    try {
+                        await signOut(auth);
+                    } catch (error) {
+                        console.warn('No se pudo cerrar sesi\u00F3n:', error);
+                    }
                     window.location.href = 'verify-email.html?sent=1';
                 } catch (error) {
                     console.error("Email link sign-in error: ", error);
@@ -203,6 +208,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         await sendEmailVerification(user, { url: buildVerifyUrl(pendingProfile), handleCodeInApp: true });
                     } catch (error) {
                         console.warn('No se pudo enviar la verificaci\u00F3n de correo:', error);
+                    }
+                    try {
+                        await signOut(auth);
+                    } catch (error) {
+                        console.warn('No se pudo cerrar sesi\u00F3n:', error);
                     }
                     window.location.href = 'verify-email.html?sent=1';
                 } catch (error) {
