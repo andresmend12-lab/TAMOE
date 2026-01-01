@@ -1468,6 +1468,13 @@
             const safePath = String(path || '').trim();
             if (!safePath) return;
             try {
+                // Guardar estado de elementos expandidos antes de recargar
+                const openDetails = [];
+                document.querySelectorAll('details[open]').forEach(detail => {
+                    const id = detail.getAttribute('data-path');
+                    if (id) openDetails.push(id);
+                });
+
                 const manageIdValue = await allocateNextManageId(currentResult?.ids?.clientId || '');
                 const newRef = push(ref(database, safePath));
                 const now = new Date().toISOString();
@@ -1483,7 +1490,17 @@
                     data.assigneeUid = '';
                 }
                 await update(newRef, data);
+
+                // Restaurar estado de elementos expandidos después de recargar
                 await loadData();
+
+                // Esperar un tick para que el DOM se actualice
+                setTimeout(() => {
+                    openDetails.forEach(id => {
+                        const detail = document.querySelector(`details[data-path="${id}"]`);
+                        if (detail) detail.setAttribute('open', '');
+                    });
+                }, 100);
             } catch (err) {
                 console.error('Error creando actividad:', err);
                 alert(`No se pudo crear la actividad: ${err.message || err}`);
@@ -2145,23 +2162,10 @@
                 }
                 : null;
 
-            if (!subArray.length) {
-                return makeRow(
-                    'check_circle',
-                    taskName,
-                    task?.manageId,
-                    normalizeStatus(task?.status),
-                    onTaskStatusChange,
-                    task?.assigneeUid ?? '',
-                    onTaskAssigneeChange,
-                    safeTaskPath, // itemPath
-                    task, // itemData
-                    'task' // itemType
-                );
-            }
-
+            // Siempre hacer las tareas expandibles para permitir crear subtareas
             const details = document.createElement('details');
             details.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
+            details.setAttribute('data-path', safeTaskPath);
             details.appendChild(makeSummary(
                 'check_circle',
                 taskName,
@@ -2199,37 +2203,45 @@
             }));
             content.appendChild(taskActionRow);
 
-            subArray.forEach(sub => {
-                const subPath = safeTaskPath ? `${safeTaskPath}/subtasks/${sub.id}` : '';
-                const onSubStatusChange = subPath
-                    ? async (nextStatus) => {
-                        const status = await updateStatusAtPath(subPath, nextStatus);
-                        sub.status = status;
-                        return status;
-                    }
-                    : null;
+            if (!subArray.length) {
+                const msg = document.createElement('p');
+                msg.className = 'text-text-muted text-sm';
+                msg.textContent = 'No hay subtareas en esta tarea.';
+                content.appendChild(msg);
+            } else {
+                subArray.forEach(sub => {
+                    const subPath = safeTaskPath ? `${safeTaskPath}/subtasks/${sub.id}` : '';
+                    const onSubStatusChange = subPath
+                        ? async (nextStatus) => {
+                            const status = await updateStatusAtPath(subPath, nextStatus);
+                            sub.status = status;
+                            return status;
+                        }
+                        : null;
 
-                const onSubAssigneeChange = subPath
-                    ? async (nextUid) => {
-                        const uid = await updateAssigneeAtPath(subPath, nextUid);
-                        sub.assigneeUid = uid;
-                        return uid;
-                    }
-                    : null;
+                    const onSubAssigneeChange = subPath
+                        ? async (nextUid) => {
+                            const uid = await updateAssigneeAtPath(subPath, nextUid);
+                            sub.assigneeUid = uid;
+                            return uid;
+                        }
+                        : null;
 
-                content.appendChild(makeRow(
-                    'subdirectory_arrow_right',
-                    sub.name || 'Subtarea',
-                    sub.manageId,
-                    normalizeStatus(sub.status),
-                    onSubStatusChange,
-                    sub.assigneeUid ?? '',
-                    onSubAssigneeChange,
-                    subPath, // itemPath
-                    sub, // itemData
-                    'subtask' // itemType
-                ));
-            });
+                    content.appendChild(makeRow(
+                        'subdirectory_arrow_right',
+                        sub.name || 'Subtarea',
+                        sub.manageId,
+                        normalizeStatus(sub.status),
+                        onSubStatusChange,
+                        sub.assigneeUid ?? '',
+                        onSubAssigneeChange,
+                        subPath, // itemPath
+                        sub, // itemData
+                        'subtask' // itemType
+                    ));
+                });
+            }
+
             details.appendChild(content);
             return details;
         };
@@ -2301,6 +2313,7 @@
 
                     const projDetails = document.createElement('details');
                     projDetails.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
+                    projDetails.setAttribute('data-path', projPath);
                     projDetails.appendChild(makeSummary(
                         'layers',
                         proj.name || 'Proyecto',
@@ -2390,6 +2403,7 @@
 
                             const prodDetails = document.createElement('details');
                             prodDetails.className = 'border border-border-dark/70 rounded-lg bg-white dark:bg-background-dark/10';
+                            prodDetails.setAttribute('data-path', prodPath);
                             prodDetails.appendChild(makeSummary(
                                 'category',
                                 prod.name || 'Producto',
@@ -2522,6 +2536,7 @@
 
                         const prodDetails = document.createElement('details');
                         prodDetails.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
+                        prodDetails.setAttribute('data-path', prodPath);
                         prodDetails.appendChild(makeSummary(
                             'category',
                             prod.name || 'Producto',
