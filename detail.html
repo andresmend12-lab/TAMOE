@@ -2177,6 +2177,23 @@
 
             const content = document.createElement('div');
             content.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+
+            // Botón para crear subtareas dentro de la tarea
+            if (safeTaskPath) {
+                const taskActionRow = document.createElement('div');
+                taskActionRow.className = 'flex flex-wrap items-center gap-2 mb-2';
+                taskActionRow.appendChild(makeActivityActionButton({
+                    label: 'Crear subtarea',
+                    icon: 'subdirectory_arrow_right',
+                    onClick: () => createChildActivity({
+                        label: 'subtarea',
+                        type: 'subtask',
+                        path: `${safeTaskPath}/subtasks`
+                    })
+                }));
+                content.appendChild(taskActionRow);
+            }
+
             subArray.forEach(sub => {
                 const subPath = safeTaskPath ? `${safeTaskPath}/subtasks/${sub.id}` : '';
                 const onSubStatusChange = subPath
@@ -2295,6 +2312,31 @@
                     const projContent = document.createElement('div');
                     projContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-3';
 
+                    // Botones de acción para crear actividades dentro del proyecto
+                    const projActionRow = document.createElement('div');
+                    projActionRow.className = 'flex flex-wrap items-center gap-2 mb-2';
+                    if (projPath) {
+                        projActionRow.appendChild(makeActivityActionButton({
+                            label: 'Crear producto',
+                            icon: 'category',
+                            onClick: () => createChildActivity({
+                                label: 'producto',
+                                type: 'product',
+                                path: `${projPath}/products`
+                            })
+                        }));
+                        projActionRow.appendChild(makeActivityActionButton({
+                            label: 'Crear tarea',
+                            icon: 'check_circle',
+                            onClick: () => createChildActivity({
+                                label: 'tarea',
+                                type: 'task',
+                                path: `${projPath}/tasks`
+                            })
+                        }));
+                        projContent.appendChild(projActionRow);
+                    }
+
                     const projTasks = proj.tasks || {};
                     const projTaskArray = Object.entries(projTasks || {}).filter(([, t]) => t);
                     projTaskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
@@ -2345,6 +2387,23 @@
 
                             const prodContent = document.createElement('div');
                             prodContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+
+                            // Botón para crear tareas dentro del producto
+                            if (prodPath) {
+                                const prodActionRow = document.createElement('div');
+                                prodActionRow.className = 'flex flex-wrap items-center gap-2 mb-2';
+                                prodActionRow.appendChild(makeActivityActionButton({
+                                    label: 'Crear tarea',
+                                    icon: 'check_circle',
+                                    onClick: () => createChildActivity({
+                                        label: 'tarea',
+                                        type: 'task',
+                                        path: `${prodPath}/tasks`
+                                    })
+                                }));
+                                prodContent.appendChild(prodActionRow);
+                            }
+
                             const tasks = prod.tasks || {};
                             const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
                             taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
@@ -2455,6 +2514,23 @@
 
                         const prodContent = document.createElement('div');
                         prodContent.className = 'pl-5 pr-3 pb-3 flex flex-col gap-2';
+
+                        // Botón para crear tareas dentro del producto
+                        if (prodPath) {
+                            const prodActionRow = document.createElement('div');
+                            prodActionRow.className = 'flex flex-wrap items-center gap-2 mb-2';
+                            prodActionRow.appendChild(makeActivityActionButton({
+                                label: 'Crear tarea',
+                                icon: 'check_circle',
+                                onClick: () => createChildActivity({
+                                    label: 'tarea',
+                                    type: 'task',
+                                    path: `${prodPath}/tasks`
+                                })
+                            }));
+                            prodContent.appendChild(prodActionRow);
+                        }
+
                         const tasks = prod.tasks || {};
                         const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
                         taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
