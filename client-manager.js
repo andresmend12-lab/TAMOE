@@ -1290,9 +1290,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setMiniCount(countEl, items.length);
         };
 
-        renderMiniList(inProgressItems, myTasksInProgressList, myTasksInProgressEmpty, myTasksInProgressCount);
-        renderMiniList(blockedItems, myTasksBlockedList, myTasksBlockedEmpty, myTasksBlockedCount);
-        renderMiniList(recentItems, myTasksRecentList, myTasksRecentEmpty, myTasksRecentCount);
+        // Commented out redundant mini lists (removed from UI)
+        // renderMiniList(inProgressItems, myTasksInProgressList, myTasksInProgressEmpty, myTasksInProgressCount);
+        // renderMiniList(blockedItems, myTasksBlockedList, myTasksBlockedEmpty, myTasksBlockedCount);
+        // renderMiniList(recentItems, myTasksRecentList, myTasksRecentEmpty, myTasksRecentCount);
 
         if (!filteredAssignments.length) {
             myTasksEmpty.textContent = hasActiveFilters

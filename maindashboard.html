@@ -487,47 +487,28 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
-                                <p class="text-text-muted text-sm font-medium mb-2">En curso</p>
-                                <p id="my-tasks-kpi-inprogress" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
+                                <div class="inline-flex items-center gap-2">
+                                    <p class="text-text-muted text-sm font-medium">En curso:</p>
+                                    <p id="my-tasks-kpi-inprogress" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
+                                </div>
                             </div>
                             <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
-                                <p class="text-text-muted text-sm font-medium mb-2">Pendientes</p>
-                                <p id="my-tasks-kpi-pending" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
+                                <div class="inline-flex items-center gap-2">
+                                    <p class="text-text-muted text-sm font-medium">Pendientes:</p>
+                                    <p id="my-tasks-kpi-pending" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
+                                </div>
                             </div>
                             <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
-                                <p class="text-text-muted text-sm font-medium mb-2">Bloqueadas</p>
-                                <p id="my-tasks-kpi-blocked" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
+                                <div class="inline-flex items-center gap-2">
+                                    <p class="text-text-muted text-sm font-medium">Bloqueadas:</p>
+                                    <p id="my-tasks-kpi-blocked" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
+                                </div>
                             </div>
                             <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
-                                <p class="text-text-muted text-sm font-medium mb-2">Finalizadas recientes</p>
-                                <p id="my-tasks-kpi-recent" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                            <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-dark p-4 flex flex-col gap-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">En curso</h4>
-                                    <span id="my-tasks-inprogress-count" class="text-text-muted text-xs font-semibold">0</span>
+                                <div class="inline-flex items-center gap-2">
+                                    <p class="text-text-muted text-sm font-medium">Finalizadas recientes:</p>
+                                    <p id="my-tasks-kpi-recent" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
                                 </div>
-                                <div id="my-tasks-inprogress-list" class="flex flex-col gap-2"></div>
-                                <p id="my-tasks-inprogress-empty" class="text-text-muted text-sm">Sin tareas en curso.</p>
-                            </div>
-                            <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-dark p-4 flex flex-col gap-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Bloqueadas</h4>
-                                    <span id="my-tasks-blocked-count" class="text-text-muted text-xs font-semibold">0</span>
-                                </div>
-                                <div id="my-tasks-blocked-list" class="flex flex-col gap-2"></div>
-                                <p id="my-tasks-blocked-empty" class="text-text-muted text-sm">Sin tareas bloqueadas.</p>
-                            </div>
-                            <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-dark p-4 flex flex-col gap-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Finalizadas recientes</h4>
-                                    <span id="my-tasks-recent-count" class="text-text-muted text-xs font-semibold">0</span>
-                                </div>
-                                <div id="my-tasks-recent-list" class="flex flex-col gap-2"></div>
-                                <p id="my-tasks-recent-empty" class="text-text-muted text-sm">Sin finalizadas recientes.</p>
                             </div>
                         </div>
 
