@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 products: selectedProducts
             },
             enabled: true,
-            createdByUid: currentUser.uid,
+            createdBy: currentUser.uid,
             createdAt: serverTimestamp()
         };
 

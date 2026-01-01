@@ -1,0 +1,35 @@
+{
+  "name": "tamoe",
+  "version": "1.0.0",
+  "description": "Sistema de Gestión de Proyectos y Tareas",
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src/**/*.js",
+    "dev": "firebase emulators:start",
+    "deploy": "firebase deploy",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:rules": "firebase deploy --only database"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/ui": "^1.6.0",
+    "jsdom": "^24.0.0",
+    "eslint": "^8.57.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "project-management",
+    "firebase",
+    "task-management"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true
+}
