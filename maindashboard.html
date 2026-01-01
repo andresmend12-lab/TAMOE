@@ -307,15 +307,7 @@
                              <p data-activity-path class="text-sm text-text-muted truncate">Todas las actividades</p>
                          </div>
                          <div class="flex items-center gap-2">
-                             <div class="relative">
-                                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">sort</span>
-                                 <select id="activity-sort-projects" data-activity-sort class="h-9 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-8 focus:border-primary focus:ring-1 focus:ring-primary">
-                                     <option value="created-desc">Fecha de creación (más reciente)</option>
-                                     <option value="created-asc">Fecha de creación (más antigua)</option>
-                                     <option value="alpha-asc">Nombre (A–Z)</option>
-                                     <option value="alpha-desc">Nombre (Z–A)</option>
-                                 </select>
-                             </div>
+                             <div id="activity-sort-projects" data-activity-sort class="relative"></div>
                              <button id="tree-expand-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
                                  <span id="tree-expand-icon" class="material-symbols-outlined text-[18px]">unfold_more</span>
                                  <span id="tree-expand-label">Expandir todo</span>
@@ -454,15 +446,7 @@
                                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">search</span>
                                     <input id="status-filter-search" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 placeholder:text-text-muted focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Buscar..." type="search" autocomplete="off"/>
                                 </div>
-                                <div class="relative">
-                                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">sort</span>
-                                    <select id="activity-sort-status" data-activity-sort class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
-                                        <option value="created-desc">Fecha de creación (más reciente)</option>
-                                        <option value="created-asc">Fecha de creación (más antigua)</option>
-                                        <option value="alpha-asc">Nombre (A–Z)</option>
-                                        <option value="alpha-desc">Nombre (Z–A)</option>
-                                    </select>
-                                </div>
+                                <div id="activity-sort-status" data-activity-sort class="relative"></div>
                             </div>
                             <div id="status-attention-list" class="flex flex-col gap-3"></div>
                             <p id="status-attention-empty" class="text-text-muted text-sm">No hay elementos que requieran atención.</p>
@@ -497,15 +481,7 @@
                 <h2 class="text-gray-900 dark:text-white text-xl font-bold">Mis tareas</h2>
             </div>
             <div class="flex items-center gap-3">
-                <div class="relative">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">sort</span>
-                    <select id="activity-sort-my-tasks" data-activity-sort class="h-9 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-8 focus:border-primary focus:ring-1 focus:ring-primary">
-                        <option value="created-desc">Fecha de creación (más reciente)</option>
-                        <option value="created-asc">Fecha de creación (más antigua)</option>
-                        <option value="alpha-asc">Nombre (A–Z)</option>
-                        <option value="alpha-desc">Nombre (Z–A)</option>
-                    </select>
-                </div>
+                <div id="activity-sort-my-tasks" data-activity-sort class="relative"></div>
                 <p id="my-tasks-summary" class="text-text-muted text-sm">0 asignadas</p>
             </div>
         </div>

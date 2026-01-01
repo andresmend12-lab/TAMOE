@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusFilterStatus = document.getElementById('status-filter-status');
     const statusFilterAssignee = document.getElementById('status-filter-assignee');
     const statusFilterSearch = document.getElementById('status-filter-search');
-    const activitySortSelectors = Array.from(document.querySelectorAll('[data-activity-sort]'));
+    const activitySortContainers = Array.from(document.querySelectorAll('[data-activity-sort]'));
     const myTasksList = document.getElementById('my-tasks-list');
     const myTasksEmpty = document.getElementById('my-tasks-empty');
     const myTasksSummary = document.getElementById('my-tasks-summary');
@@ -160,6 +160,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const SORT_STORAGE_KEY = 'tamoe.activitySortMode';
     const SORT_MODES = new Set(['created-desc', 'created-asc', 'alpha-asc', 'alpha-desc']);
+    const SORT_LABELS = {
+        'created-desc': 'Fecha de creación (más reciente)',
+        'created-asc': 'Fecha de creación (más antigua)',
+        'alpha-asc': 'Nombre (A–Z)',
+        'alpha-desc': 'Nombre (Z–A)',
+    };
     const DEFAULT_SORT_MODE = 'created-desc';
     let currentSortMode = DEFAULT_SORT_MODE;
 
@@ -196,10 +202,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const updateSortMenuChecks = (container) => {
+        if (!container) return;
+        const menu = container.querySelector('.action-menu');
+        if (!menu) return;
+        menu.querySelectorAll('button[data-sort]').forEach((btn) => {
+            const isActive = btn.dataset.sort === currentSortMode;
+            const check = btn.querySelector('.material-symbols-outlined.check');
+            if (check) check.classList.toggle('opacity-0', !isActive);
+        });
+    };
+
     const syncSortSelectors = () => {
-        activitySortSelectors.forEach((select) => {
-            if (!select) return;
-            select.value = currentSortMode;
+        activitySortContainers.forEach((container) => {
+            updateSortMenuChecks(container);
+            const button = container.querySelector('button[data-sort-toggle]');
+            if (!button) return;
+            const label = SORT_LABELS[currentSortMode] || 'Ordenar';
+            button.setAttribute('aria-label', `Ordenar: ${label}`);
+            button.title = `Ordenar: ${label}`;
         });
     };
 
@@ -259,6 +280,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (persist) persistSortMode(normalized);
         syncSortSelectors();
         if (rerender) refreshSortedViews();
+    };
+
+    const mountActivitySortMenus = () => {
+        if (!activitySortContainers.length) return;
+        activitySortContainers.forEach((container) => {
+            if (!container) return;
+            if (container.dataset.sortMounted === 'true') {
+                updateSortMenuChecks(container);
+                return;
+            }
+            container.dataset.sortMounted = 'true';
+            container.innerHTML = '';
+            const size = container.id === 'activity-sort-status' ? 'lg' : 'md';
+            const menu = createSortMenu({
+                value: currentSortMode,
+                onChange: (mode) => setSortMode(mode),
+                size,
+            });
+            container.appendChild(menu);
+        });
+        syncSortSelectors();
     };
 
     setSortMode(loadSortMode(), { persist: false, rerender: false });
@@ -2287,26 +2329,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return wrapper;
     };
 
-    const createSortMenu = ({ value, onChange }) => {
+    const createSortMenu = ({ value, onChange, size = 'md' }) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'relative flex items-center justify-end';
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'p-1 rounded-md text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors';
+        button.dataset.sortToggle = 'true';
+        button.className = size === 'lg'
+            ? 'size-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center'
+            : 'size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center';
         button.setAttribute('aria-label', 'Ordenar actividades');
+        button.title = SORT_LABELS[value] || 'Ordenar actividades';
         button.innerHTML = '<span class="material-symbols-outlined text-[18px]">sort</span>';
 
         const menu = document.createElement('div');
-        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-56 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-40 text-gray-900 dark:text-white';
+        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-64 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-40 text-gray-900 dark:text-white';
 
         const options = [
-            { key: 'alpha', label: 'Orden alfabético', icon: 'sort_by_alpha' },
-            { key: 'created', label: 'Fecha de creación', icon: 'schedule' },
+            { key: 'created-desc', label: SORT_LABELS['created-desc'], icon: 'schedule' },
+            { key: 'created-asc', label: SORT_LABELS['created-asc'], icon: 'history' },
+            { key: 'alpha-asc', label: SORT_LABELS['alpha-asc'], icon: 'sort_by_alpha' },
+            { key: 'alpha-desc', label: SORT_LABELS['alpha-desc'], icon: 'sort_by_alpha' },
         ];
 
         const updateChecks = () => {
-            Array.from(menu.querySelectorAll('button')).forEach((btn) => {
+            Array.from(menu.querySelectorAll('button[data-sort]')).forEach((btn) => {
                 const isActive = btn.dataset.sort === value;
                 const check = btn.querySelector('.material-symbols-outlined.check');
                 if (check) check.classList.toggle('opacity-0', !isActive);
@@ -5608,11 +5656,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 clientSearchInput.blur();
             }
         });
-        activitySortSelectors.forEach((select) => {
-            select.addEventListener('change', (event) => {
-                setSortMode(event.target.value);
-            });
-        });
+        mountActivitySortMenus();
         document.addEventListener('click', (event) => {
             if (!searchRoot) return;
             if (!searchRoot.contains(event.target)) hideSearchResults();

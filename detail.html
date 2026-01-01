@@ -1605,26 +1605,60 @@
 
         const createSortSelect = (sectionKey) => {
             const wrapper = document.createElement('div');
-            wrapper.className = 'relative';
+            wrapper.className = 'relative flex items-center justify-end';
 
-            const icon = document.createElement('span');
-            icon.className = 'material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]';
-            icon.textContent = 'sort';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'size-8 rounded-md border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center';
+            button.setAttribute('aria-label', 'Ordenar actividades');
+            button.title = 'Ordenar actividades';
+            button.innerHTML = '<span class="material-symbols-outlined text-[16px]">sort</span>';
 
-            const select = document.createElement('select');
-            select.className = 'h-8 rounded-md border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-7 focus:border-primary focus:ring-1 focus:ring-primary';
+            const menu = document.createElement('div');
+            menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-60 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-50 text-gray-900 dark:text-white';
+
+            const updateChecks = () => {
+                const current = getDetailSortMode(sectionKey);
+                menu.querySelectorAll('button[data-sort]').forEach((btn) => {
+                    const isActive = btn.dataset.sort === current;
+                    const check = btn.querySelector('.material-symbols-outlined.check');
+                    if (check) check.classList.toggle('opacity-0', !isActive);
+                });
+            };
+
             SORT_OPTIONS.forEach((option) => {
-                const opt = document.createElement('option');
-                opt.value = option.value;
-                opt.textContent = option.label;
-                select.appendChild(opt);
-            });
-            select.value = getDetailSortMode(sectionKey);
-            select.addEventListener('change', (event) => {
-                setDetailSortMode(sectionKey, event.target.value);
+                const optBtn = document.createElement('button');
+                optBtn.type = 'button';
+                optBtn.dataset.sort = option.value;
+                optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
+                optBtn.innerHTML = `
+                    <span class="inline-flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">sort</span>
+                        ${option.label}
+                    </span>
+                    <span class="material-symbols-outlined check text-[18px] text-text-muted opacity-0">check</span>
+                `;
+                optBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    menu.classList.add('hidden');
+                    setDetailSortMode(sectionKey, option.value);
+                    updateChecks();
+                });
+                menu.appendChild(optBtn);
             });
 
-            wrapper.append(icon, select);
+            menu.addEventListener('click', event => event.stopPropagation());
+
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                closeAllActionMenus(menu);
+                updateChecks();
+                menu.classList.toggle('hidden');
+            });
+
+            wrapper.append(button, menu);
             return wrapper;
         };
 
