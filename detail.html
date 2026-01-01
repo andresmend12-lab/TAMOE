@@ -273,7 +273,7 @@
 
     <script type="module">
         import { auth, database } from './firebase.js';
-        import { ref, get, update, push, onValue, serverTimestamp, runTransaction } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import { ref, get, update, push, onValue, serverTimestamp, runTransaction, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
         import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const qs = (id) => document.getElementById(id);
@@ -1261,6 +1261,170 @@
             return link;
         };
 
+        const editActivityName = async (path, currentName, type) => {
+            if (!currentUser) {
+                alert('Debes iniciar sesión para editar.');
+                return;
+            }
+            const label = TYPE_LABELS[type] || 'elemento';
+            const newName = prompt(`Nuevo nombre de ${label}:`, currentName);
+            if (newName === null || newName.trim() === '') return;
+
+            const name = newName.trim();
+            try {
+                await update(ref(database, path), { name });
+                await loadData();
+            } catch (err) {
+                console.error('Error editando nombre:', err);
+                alert(`No se pudo editar: ${err.message || err}`);
+            }
+        };
+
+        const deleteActivity = async (path, name, type) => {
+            if (!currentUser) {
+                alert('Debes iniciar sesión para eliminar.');
+                return;
+            }
+            const label = TYPE_LABELS[type] || 'elemento';
+            const confirmed = confirm(`¿Estás seguro de que quieres eliminar ${label} "${name}"?\n\nEsta acción no se puede deshacer.`);
+            if (!confirmed) return;
+
+            try {
+                await remove(ref(database, path));
+                await loadData();
+            } catch (err) {
+                console.error('Error eliminando:', err);
+                alert(`No se pudo eliminar: ${err.message || err}`);
+            }
+        };
+
+        const createSettingsIcon = (path, item, type) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'relative flex-shrink-0';
+
+            const icon = document.createElement('button');
+            icon.type = 'button';
+            icon.className = 'inline-flex items-center justify-center w-6 h-6 rounded text-text-muted hover:text-primary hover:bg-primary/10 transition-colors';
+            icon.innerHTML = '<span class="material-symbols-outlined text-[18px]">more_vert</span>';
+            icon.setAttribute('aria-label', 'Opciones');
+            icon.title = 'Opciones';
+
+            const menu = document.createElement('div');
+            menu.className = 'hidden absolute right-0 top-full mt-2 w-48 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl z-50';
+
+            // Opciones del menú
+            const options = [];
+
+            // Editar nombre
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-white/5 text-sm text-gray-900 dark:text-white text-left transition-colors';
+            editBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">edit</span><span>Editar nombre</span>';
+            editBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                menu.classList.add('hidden');
+                await editActivityName(path, item?.name, type);
+            });
+            options.push(editBtn);
+
+            // Cambiar estado (solo si la actividad tiene estado)
+            if (item?.status !== undefined) {
+                const statusBtn = document.createElement('button');
+                statusBtn.type = 'button';
+                statusBtn.className = 'w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-white/5 text-sm text-gray-900 dark:text-white text-left transition-colors';
+                statusBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">swap_horiz</span><span>Cambiar estado</span>';
+                statusBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    menu.classList.add('hidden');
+                    // El control de estado ya existe, solo cerramos el menú
+                });
+                options.push(statusBtn);
+            }
+
+            // Asignar (solo para tareas y subtareas)
+            if (type === 'task' || type === 'subtask') {
+                const assignBtn = document.createElement('button');
+                assignBtn.type = 'button';
+                assignBtn.className = 'w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-white/5 text-sm text-gray-900 dark:text-white text-left transition-colors';
+                assignBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">person</span><span>Asignar</span>';
+                assignBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    menu.classList.add('hidden');
+                    // El control de asignación ya existe, solo cerramos el menú
+                });
+                options.push(assignBtn);
+            }
+
+            // Separador
+            const separator = document.createElement('hr');
+            separator.className = 'border-border-dark';
+            options.push(separator);
+
+            // Eliminar
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm text-red-600 dark:text-red-400 text-left transition-colors';
+            deleteBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">delete</span><span>Eliminar</span>';
+            deleteBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                menu.classList.add('hidden');
+                await deleteActivity(path, item?.name, type);
+            });
+            options.push(deleteBtn);
+
+            // Añadir todas las opciones al menú
+            options.forEach(option => menu.appendChild(option));
+
+            // Toggle del menú
+            icon.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Cerrar otros menús abiertos
+                document.querySelectorAll('.settings-menu-open').forEach(m => {
+                    if (m !== menu) m.classList.add('hidden');
+                });
+
+                const isOpen = !menu.classList.contains('hidden');
+                if (isOpen) {
+                    menu.classList.add('hidden');
+                    menu.classList.remove('settings-menu-open');
+                } else {
+                    menu.classList.remove('hidden');
+                    menu.classList.add('settings-menu-open');
+                }
+            });
+
+            // Cerrar al hacer clic fuera
+            const closeOnClickOutside = (e) => {
+                if (!wrapper.contains(e.target)) {
+                    menu.classList.add('hidden');
+                    menu.classList.remove('settings-menu-open');
+                }
+            };
+
+            // Añadir listener cuando se abre el menú
+            icon.addEventListener('click', () => {
+                setTimeout(() => {
+                    document.addEventListener('click', closeOnClickOutside);
+                }, 0);
+            });
+
+            // Remover listener cuando se cierra
+            menu.addEventListener('transitionend', () => {
+                if (menu.classList.contains('hidden')) {
+                    document.removeEventListener('click', closeOnClickOutside);
+                }
+            });
+
+            wrapper.append(icon, menu);
+            return wrapper;
+        };
+
         const createAssigneeBadge = (assigneeUid) => {
             const uid = String(assigneeUid || '').trim();
             const badge = document.createElement('span');
@@ -1880,7 +2044,7 @@
             return wrapper;
         };
 
-        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null) => {
+        const makeSummary = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null, itemPath = null, itemData = null, itemType = null) => {
             const summary = document.createElement('summary');
             summary.className = 'flex items-center justify-between gap-2 cursor-pointer select-none px-3 py-2 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg';
 
@@ -1909,11 +2073,16 @@
             }
             right.appendChild(createManageLink(manageIdValue));
 
+            // Añadir icono de configuración si se proporciona la información necesaria
+            if (itemPath && itemData && itemType) {
+                right.appendChild(createSettingsIcon(itemPath, itemData, itemType));
+            }
+
             summary.append(left, right);
             return summary;
         };
 
-        const makeRow = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null) => {
+        const makeRow = (iconName, titleText, manageIdValue, statusValue = null, onStatusChange = null, assigneeUid = null, onAssigneeChange = null, itemPath = null, itemData = null, itemType = null) => {
             const row = document.createElement('div');
             row.className = 'flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white dark:bg-surface-dark border border-border-dark text-gray-900 dark:text-white';
 
@@ -1941,6 +2110,11 @@
                 }
             }
             right.appendChild(createManageLink(manageIdValue));
+
+            // Añadir icono de configuración si se proporciona la información necesaria
+            if (itemPath && itemData && itemType) {
+                right.appendChild(createSettingsIcon(itemPath, itemData, itemType));
+            }
 
             row.append(left, right);
             return row;
@@ -1979,7 +2153,10 @@
                     normalizeStatus(task?.status),
                     onTaskStatusChange,
                     task?.assigneeUid ?? '',
-                    onTaskAssigneeChange
+                    onTaskAssigneeChange,
+                    safeTaskPath, // itemPath
+                    task, // itemData
+                    'task' // itemType
                 );
             }
 
@@ -1992,7 +2169,10 @@
                 normalizeStatus(task?.status),
                 onTaskStatusChange,
                 task?.assigneeUid ?? '',
-                onTaskAssigneeChange
+                onTaskAssigneeChange,
+                safeTaskPath, // itemPath
+                task, // itemData
+                'task' // itemType
             ));
 
             const content = document.createElement('div');
@@ -2022,7 +2202,10 @@
                     normalizeStatus(sub.status),
                     onSubStatusChange,
                     sub.assigneeUid ?? '',
-                    onSubAssigneeChange
+                    onSubAssigneeChange,
+                    subPath, // itemPath
+                    sub, // itemData
+                    'subtask' // itemType
                 ));
             });
             details.appendChild(content);
@@ -2101,7 +2284,12 @@
                         proj.name || 'Proyecto',
                         proj.manageId,
                         normalizeStatus(proj.status),
-                        onProjStatusChange
+                        onProjStatusChange,
+                        null, // assigneeUid
+                        null, // onAssigneeChange
+                        projPath, // itemPath
+                        proj, // itemData
+                        'project' // itemType
                     ));
 
                     const projContent = document.createElement('div');
@@ -2147,7 +2335,12 @@
                                 prod.name || 'Producto',
                                 prod.manageId,
                                 normalizeStatus(prod.status),
-                                onProdStatusChange
+                                onProdStatusChange,
+                                null, // assigneeUid
+                                null, // onAssigneeChange
+                                prodPath, // itemPath
+                                prod, // itemData
+                                'product' // itemType
                             ));
 
                             const prodContent = document.createElement('div');
@@ -2252,7 +2445,12 @@
                             prod.name || 'Producto',
                             prod.manageId,
                             normalizeStatus(prod.status),
-                            onProdStatusChange
+                            onProdStatusChange,
+                            null, // assigneeUid
+                            null, // onAssigneeChange
+                            prodPath, // itemPath
+                            prod, // itemData
+                            'product' // itemType
                         ));
 
                         const prodContent = document.createElement('div');
@@ -2364,7 +2562,10 @@
                         normalizeStatus(sub.status),
                         onSubStatusChange,
                         sub.assigneeUid ?? '',
-                        onSubAssigneeChange
+                        onSubAssigneeChange,
+                        subPath, // itemPath
+                        sub, // itemData
+                        'subtask' // itemType
                     ));
                 });
                 return;
