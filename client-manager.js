@@ -895,7 +895,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const raw = String(value || '').trim().toLowerCase();
         if (!raw) return 'Pendiente';
         if (raw === 'pendiente') return 'Pendiente';
-        if (raw === 'bloqueada' || raw === 'bloqueado' || raw === 'bloqueadas' || raw === 'bloqueados') return 'Bloqueada';
         if (raw === 'en curso' || raw === 'encurso') return 'En proceso';
         if (raw === 'en proceso' || raw === 'enproceso' || raw === 'en_proceso') return 'En proceso';
         if (raw === 'finalizado' || raw === 'finalizada') return 'Finalizado';
@@ -976,11 +975,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return next;
     });
 
-    const STATUS_OPTIONS = ['Pendiente', 'En proceso', 'Bloqueada', 'Finalizado'];
+    const STATUS_OPTIONS = ['Pendiente', 'En proceso', 'Finalizado'];
     const STATUS_STYLES = {
         'Pendiente': 'bg-slate-200/80 text-slate-800 border-slate-300 dark:bg-slate-500/15 dark:text-slate-200 dark:border-slate-500/30',
         'En proceso': 'bg-blue-200/80 text-blue-900 border-blue-300 dark:bg-blue-500/15 dark:text-blue-200 dark:border-blue-500/30',
-        'Bloqueada': 'bg-rose-200/80 text-rose-900 border-rose-300 dark:bg-rose-500/15 dark:text-rose-200 dark:border-rose-500/30',
         'Finalizado': 'bg-emerald-200/80 text-emerald-900 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-500/30',
     };
 

@@ -485,7 +485,7 @@
                             <p class="text-text-muted text-sm mt-2">Tareas y subtareas asignadas a ti para avanzar en tu trabajo diario.</p>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
                                 <div class="inline-flex items-center gap-2">
                                     <p class="text-text-muted text-sm font-medium">En curso:</p>
@@ -496,12 +496,6 @@
                                 <div class="inline-flex items-center gap-2">
                                     <p class="text-text-muted text-sm font-medium">Pendientes:</p>
                                     <p id="my-tasks-kpi-pending" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
-                                </div>
-                            </div>
-                            <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
-                                <div class="inline-flex items-center gap-2">
-                                    <p class="text-text-muted text-sm font-medium">Bloqueadas:</p>
-                                    <p id="my-tasks-kpi-blocked" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
                                 </div>
                             </div>
                             <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
@@ -526,7 +520,6 @@
                                     <select id="my-tasks-filter-status" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
                                         <option value="all">Estado: Todos</option>
                                         <option value="En proceso">En curso</option>
-                                        <option value="Bloqueada">Bloqueada</option>
                                         <option value="Pendiente">Pendiente</option>
                                         <option value="Finalizado">Finalizado</option>
                                     </select>
