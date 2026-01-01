@@ -68,6 +68,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const myTasksList = document.getElementById('my-tasks-list');
     const myTasksEmpty = document.getElementById('my-tasks-empty');
     const myTasksSummary = document.getElementById('my-tasks-summary');
+    const myTasksFilterStatus = document.getElementById('my-tasks-filter-status');
+    const myTasksFilterClient = document.getElementById('my-tasks-filter-client');
+    const myTasksFilterType = document.getElementById('my-tasks-filter-type');
+    const myTasksFilterSearch = document.getElementById('my-tasks-filter-search');
+    const myTasksKpiInProgress = document.getElementById('my-tasks-kpi-inprogress');
+    const myTasksKpiPending = document.getElementById('my-tasks-kpi-pending');
+    const myTasksKpiBlocked = document.getElementById('my-tasks-kpi-blocked');
+    const myTasksKpiRecent = document.getElementById('my-tasks-kpi-recent');
+    const myTasksInProgressList = document.getElementById('my-tasks-inprogress-list');
+    const myTasksInProgressEmpty = document.getElementById('my-tasks-inprogress-empty');
+    const myTasksInProgressCount = document.getElementById('my-tasks-inprogress-count');
+    const myTasksBlockedList = document.getElementById('my-tasks-blocked-list');
+    const myTasksBlockedEmpty = document.getElementById('my-tasks-blocked-empty');
+    const myTasksBlockedCount = document.getElementById('my-tasks-blocked-count');
+    const myTasksRecentList = document.getElementById('my-tasks-recent-list');
+    const myTasksRecentEmpty = document.getElementById('my-tasks-recent-empty');
+    const myTasksRecentCount = document.getElementById('my-tasks-recent-count');
     const calendarViewLabel = document.getElementById('calendar-view-label');
     const calendarMonthLabel = document.getElementById('calendar-month');
     const calendarWeekdays = document.getElementById('calendar-weekdays');
@@ -144,6 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectAutomationCache = new Map();
     const statusFilters = { type: 'all', client: 'all', status: 'all', assignee: 'all', query: '' };
     let statusFiltersInitialized = false;
+    const myTasksFilters = { status: 'all', client: 'all', type: 'all', query: '' };
+    let myTasksFiltersInitialized = false;
 
     // User dropdown
     const userMenuToggle = document.getElementById('user-menu-toggle');
@@ -976,24 +995,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderMyTasks = () => {
         if (!myTasksList || !myTasksEmpty || !myTasksSummary) return;
         myTasksList.innerHTML = '';
+        if (myTasksInProgressList) myTasksInProgressList.innerHTML = '';
+        if (myTasksBlockedList) myTasksBlockedList.innerHTML = '';
+        if (myTasksRecentList) myTasksRecentList.innerHTML = '';
+
+        const setMiniCount = (el, value) => {
+            if (el) el.textContent = String(value);
+        };
+        const setKpiValue = (el, value) => {
+            if (el) el.textContent = String(value);
+        };
+        const toggleMiniEmpty = (listEl, emptyEl, hasItems) => {
+            if (!listEl || !emptyEl) return;
+            emptyEl.classList.toggle('hidden', hasItems);
+        };
+
         const uid = String(currentUser?.uid || '').trim();
         if (!uid) {
             myTasksSummary.textContent = '0 asignadas';
             myTasksEmpty.textContent = 'Inicia sesion para ver tus tareas.';
             myTasksEmpty.classList.remove('hidden');
+            setKpiValue(myTasksKpiInProgress, 0);
+            setKpiValue(myTasksKpiPending, 0);
+            setKpiValue(myTasksKpiBlocked, 0);
+            setKpiValue(myTasksKpiRecent, 0);
+            setMiniCount(myTasksInProgressCount, 0);
+            setMiniCount(myTasksBlockedCount, 0);
+            setMiniCount(myTasksRecentCount, 0);
+            toggleMiniEmpty(myTasksInProgressList, myTasksInProgressEmpty, false);
+            toggleMiniEmpty(myTasksBlockedList, myTasksBlockedEmpty, false);
+            toggleMiniEmpty(myTasksRecentList, myTasksRecentEmpty, false);
             return;
         }
 
         const assignments = [];
-        const statusRank = { 'Bloqueada': 0, 'En proceso': 1, 'Pendiente': 2, 'Finalizado': 3 };
         const normalizeText = (value, fallback = '') => {
             const text = String(value || '').trim();
             return text || fallback;
         };
         const buildContext = (clientName, projectName, productName) => (
-            [clientName, projectName, productName].filter(Boolean).join(' \u2022 ') || '-'
+            [clientName, projectName, productName].map(part => part || '-').join(' \u2022 ')
         );
         const isAssignedToUser = (assigneeUid) => String(assigneeUid || '').trim() === uid;
+        const getMyTaskTime = (item) => {
+            const updated = parseTimestamp(item.updatedAt);
+            if (Number.isFinite(updated)) return updated;
+            const created = parseTimestamp(item.createdAt);
+            return Number.isFinite(created) ? created : 0;
+        };
+        const compareByRecent = (a, b) => {
+            const diff = getMyTaskTime(b) - getMyTaskTime(a);
+            if (diff !== 0) return diff;
+            return String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' });
+        };
 
         const pushAssignment = (entry) => {
             assignments.push(entry);
@@ -1001,7 +1055,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         allClients.forEach((client) => {
             if (!client) return;
-            const clientName = normalizeText(client.name, client.id || 'Cliente');
+            const clientId = client.id || '';
+            const clientName = normalizeText(client.name, clientId || 'Cliente');
             const projects = client.projects || {};
 
             Object.entries(projects).forEach(([projectId, project]) => {
@@ -1017,7 +1072,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             status: normalizeStatus(task.status),
                             manageId: normalizeText(task.manageId),
                             createdAt: task.createdAt || '',
-                            context: buildContext(clientName, projectName, ''),
+                            updatedAt: task.updatedAt || '',
+                            context: buildContext(clientName, projectName, 'Sin producto'),
+                            clientId,
+                            clientName,
+                            path: `clients/${clientId}/projects/${projectId}/tasks/${taskId}`,
+                            entityRef: task,
                         });
                     }
                     Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
@@ -1029,8 +1089,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 status: normalizeStatus(subtask.status),
                                 manageId: normalizeText(subtask.manageId),
                                 createdAt: subtask.createdAt || '',
-                                context: buildContext(clientName, projectName, ''),
+                                updatedAt: subtask.updatedAt || '',
+                                context: buildContext(clientName, projectName, 'Sin producto'),
+                                clientId,
+                                clientName,
+                                path: `clients/${clientId}/projects/${projectId}/tasks/${taskId}/subtasks/${subtaskId}`,
                                 parentName: normalizeText(task.name, 'Tarea'),
+                                entityRef: subtask,
                             });
                         }
                     });
@@ -1049,7 +1114,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 status: normalizeStatus(task.status),
                                 manageId: normalizeText(task.manageId),
                                 createdAt: task.createdAt || '',
+                                updatedAt: task.updatedAt || '',
                                 context: buildContext(clientName, projectName, productName),
+                                clientId,
+                                clientName,
+                                path: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`,
+                                entityRef: task,
                             });
                         }
                         Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
@@ -1061,8 +1131,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     status: normalizeStatus(subtask.status),
                                     manageId: normalizeText(subtask.manageId),
                                     createdAt: subtask.createdAt || '',
+                                    updatedAt: subtask.updatedAt || '',
                                     context: buildContext(clientName, projectName, productName),
+                                    clientId,
+                                    clientName,
+                                    path: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}/subtasks/${subtaskId}`,
                                     parentName: normalizeText(task.name, 'Tarea'),
+                                    entityRef: subtask,
                                 });
                             }
                         });
@@ -1071,76 +1146,329 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        assignments.sort((a, b) => {
-            const rankA = statusRank[a.status] ?? 99;
-            const rankB = statusRank[b.status] ?? 99;
-            if (rankA !== rankB) return rankA - rankB;
-            return compareActivities(a, b);
+        const refreshMyTasksFilters = () => {
+            if (myTasksFilterStatus) myTasksFilters.status = myTasksFilterStatus.value || 'all';
+            if (myTasksFilterClient) myTasksFilters.client = myTasksFilterClient.value || 'all';
+            if (myTasksFilterType) myTasksFilters.type = myTasksFilterType.value || 'all';
+            if (myTasksFilterSearch) myTasksFilters.query = String(myTasksFilterSearch.value || '').trim().toLowerCase();
+        };
+
+        const initMyTasksFilters = () => {
+            if (myTasksFiltersInitialized) return;
+            const refresh = () => {
+                refreshMyTasksFilters();
+                renderMyTasks();
+            };
+            if (myTasksFilterStatus) myTasksFilterStatus.addEventListener('change', refresh);
+            if (myTasksFilterClient) myTasksFilterClient.addEventListener('change', refresh);
+            if (myTasksFilterType) myTasksFilterType.addEventListener('change', refresh);
+            if (myTasksFilterSearch) myTasksFilterSearch.addEventListener('input', refresh);
+            myTasksFiltersInitialized = true;
+        };
+
+        const updateMyTasksClientFilter = (items) => {
+            if (!myTasksFilterClient) return;
+            const previous = myTasksFilterClient.value || myTasksFilters.client;
+            myTasksFilterClient.innerHTML = '';
+            const defaultOption = document.createElement('option');
+            defaultOption.value = 'all';
+            defaultOption.textContent = 'Cliente: Todos';
+            myTasksFilterClient.appendChild(defaultOption);
+
+            const clientMap = new Map();
+            items.forEach((item) => {
+                if (!item.clientId) return;
+                clientMap.set(item.clientId, item.clientName || item.clientId);
+            });
+
+            Array.from(clientMap.entries())
+                .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'es', { sensitivity: 'base' }))
+                .forEach(([id, name]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = name;
+                    myTasksFilterClient.appendChild(option);
+                });
+
+            const hasPrevious = Array.from(myTasksFilterClient.options).some(option => option.value === previous);
+            myTasksFilterClient.value = hasPrevious ? previous : 'all';
+            myTasksFilters.client = myTasksFilterClient.value;
+        };
+
+        updateMyTasksClientFilter(assignments);
+        initMyTasksFilters();
+        refreshMyTasksFilters();
+
+        const filteredAssignments = assignments.filter((item) => {
+            if (myTasksFilters.status !== 'all' && item.status !== myTasksFilters.status) return false;
+            if (myTasksFilters.client !== 'all' && item.clientId !== myTasksFilters.client) return false;
+            if (myTasksFilters.type !== 'all' && item.type !== myTasksFilters.type) return false;
+            if (myTasksFilters.query) {
+                const haystack = [
+                    item.name,
+                    item.manageId,
+                    item.context,
+                    item.parentName,
+                ].filter(Boolean).join(' ').toLowerCase();
+                if (!haystack.includes(myTasksFilters.query)) return false;
+            }
+            return true;
         });
 
-        myTasksSummary.textContent = assignments.length === 1
-            ? '1 asignada'
-            : `${assignments.length} asignadas`;
+        const hasActiveFilters = (
+            myTasksFilters.status !== 'all' ||
+            myTasksFilters.client !== 'all' ||
+            myTasksFilters.type !== 'all' ||
+            myTasksFilters.query
+        );
 
-        if (!assignments.length) {
-            myTasksEmpty.textContent = 'No tienes tareas asignadas.';
+        myTasksSummary.textContent = hasActiveFilters
+            ? `${filteredAssignments.length} de ${assignments.length} asignadas`
+            : (assignments.length === 1 ? '1 asignada' : `${assignments.length} asignadas`);
+
+        const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const isRecent = (item) => {
+            const timestamp = getMyTaskTime(item);
+            if (!timestamp) return false;
+            return (now - timestamp) <= RECENT_WINDOW_MS;
+        };
+
+        const inProgressItems = filteredAssignments.filter(item => item.status === 'En proceso');
+        const blockedItems = filteredAssignments.filter(item => item.status === 'Bloqueada');
+        const pendingItems = filteredAssignments.filter(item => item.status === 'Pendiente');
+        const recentItems = filteredAssignments.filter(item => item.status === 'Finalizado' && isRecent(item));
+
+        setKpiValue(myTasksKpiInProgress, inProgressItems.length);
+        setKpiValue(myTasksKpiPending, pendingItems.length);
+        setKpiValue(myTasksKpiBlocked, blockedItems.length);
+        setKpiValue(myTasksKpiRecent, recentItems.length);
+
+        const MINI_LIST_LIMIT = 4;
+        const buildMiniRow = (item) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between gap-2 rounded-lg border border-border-dark bg-white dark:bg-surface-dark px-3 py-2';
+
+            const info = document.createElement('div');
+            info.className = 'min-w-0 flex flex-col gap-1';
+
+            const name = document.createElement('p');
+            name.className = 'text-sm font-semibold text-gray-900 dark:text-white truncate';
+            name.textContent = item.name;
+
+            const context = document.createElement('p');
+            context.className = 'text-[11px] text-text-muted truncate';
+            context.textContent = item.context;
+
+            info.append(name, context);
+
+            const openBtn = document.createElement('button');
+            openBtn.type = 'button';
+            openBtn.className = 'text-xs font-semibold text-primary hover:underline';
+            openBtn.textContent = 'Abrir';
+            openBtn.disabled = !item.manageId;
+            if (!item.manageId) {
+                openBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            openBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (item.manageId) openDetailPage(item.manageId);
+            });
+
+            row.append(info, openBtn);
+            return row;
+        };
+
+        const renderMiniList = (items, listEl, emptyEl, countEl) => {
+            if (!listEl || !emptyEl) return;
+            listEl.innerHTML = '';
+            const sorted = [...items].sort(compareByRecent).slice(0, MINI_LIST_LIMIT);
+            sorted.forEach(item => listEl.appendChild(buildMiniRow(item)));
+            const hasItems = sorted.length > 0;
+            toggleMiniEmpty(listEl, emptyEl, hasItems);
+            setMiniCount(countEl, items.length);
+        };
+
+        renderMiniList(inProgressItems, myTasksInProgressList, myTasksInProgressEmpty, myTasksInProgressCount);
+        renderMiniList(blockedItems, myTasksBlockedList, myTasksBlockedEmpty, myTasksBlockedCount);
+        renderMiniList(recentItems, myTasksRecentList, myTasksRecentEmpty, myTasksRecentCount);
+
+        if (!filteredAssignments.length) {
+            myTasksEmpty.textContent = hasActiveFilters
+                ? 'No hay tareas para los filtros seleccionados.'
+                : 'No tienes tareas asignadas.';
             myTasksEmpty.classList.remove('hidden');
             return;
         }
 
         myTasksEmpty.classList.add('hidden');
 
-        assignments.forEach((item) => {
-            const card = document.createElement('div');
-            card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4 flex flex-col gap-2';
+        const grouped = {
+            'En proceso': [],
+            'Bloqueada': [],
+            'Pendiente': [],
+            'Finalizado': [],
+        };
 
-            const header = document.createElement('div');
-            header.className = 'flex items-start justify-between gap-3';
+        filteredAssignments.forEach((item) => {
+            if (grouped[item.status]) grouped[item.status].push(item);
+        });
+
+        Object.values(grouped).forEach((list) => list.sort(compareByRecent));
+
+        const applyStatusChange = async (item, nextStatus) => {
+            await updateStatusAtPath(item.path, nextStatus, { source: 'my_tasks' });
+            item.status = nextStatus;
+            if (item.entityRef) item.entityRef.status = nextStatus;
+            renderMyTasks();
+        };
+
+        const runQuickStatusChange = async (item, nextStatus) => {
+            try {
+                await applyStatusChange(item, nextStatus);
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert(`No se pudo actualizar el estado: ${error.message}`);
+            }
+        };
+
+        const buildActionButton = (label, handler, options = {}) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = options.primary
+                ? 'h-8 px-3 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold transition-colors'
+                : 'h-8 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white text-xs font-semibold transition-colors';
+            button.textContent = label;
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handler();
+            });
+            return button;
+        };
+
+        const buildMyTaskRow = (item) => {
+            const card = document.createElement('div');
+            card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4 flex flex-col gap-3';
+
+            const topRow = document.createElement('div');
+            topRow.className = 'flex items-start gap-3';
+
+            const statusControl = createStatusControl({
+                status: item.status,
+                onChange: async (nextStatus) => {
+                    await applyStatusChange(item, nextStatus);
+                },
+            });
 
             const info = document.createElement('div');
             info.className = 'min-w-0 flex flex-col gap-1';
 
-            const meta = document.createElement('div');
-            meta.className = 'flex items-center gap-2 flex-wrap';
-
-            const typeLabel = document.createElement('span');
-            typeLabel.className = 'text-[11px] uppercase tracking-[0.2em] text-text-muted';
-            typeLabel.textContent = item.type === 'subtask' ? 'Subtarea' : 'Tarea';
-            meta.appendChild(typeLabel);
-
-            if (item.manageId) {
-                const chip = createIdChip(item.manageId);
-                chip.classList.add('text-[11px]', 'font-mono');
-                meta.appendChild(chip);
-            }
+            const titleRow = document.createElement('div');
+            titleRow.className = 'flex items-center gap-2 flex-wrap min-w-0';
 
             const title = document.createElement('p');
             title.className = 'text-gray-900 dark:text-white font-semibold truncate';
             title.textContent = item.name;
 
+            titleRow.appendChild(title);
+
+            if (item.manageId) {
+                const chip = createIdChip(item.manageId);
+                chip.classList.add('text-[11px]', 'font-mono');
+                titleRow.appendChild(chip);
+            }
+
             const context = document.createElement('p');
             context.className = 'text-xs text-text-muted truncate';
             context.textContent = item.context;
 
-            info.append(meta, title, context);
+            info.append(titleRow, context);
+            topRow.append(statusControl, info);
 
-            if (item.parentName) {
-                const parentLine = document.createElement('p');
-                parentLine.className = 'text-xs text-text-muted truncate';
-                parentLine.textContent = `Subtarea de ${item.parentName}`;
-                info.appendChild(parentLine);
+            const actions = document.createElement('div');
+            actions.className = 'flex flex-wrap items-center gap-2';
+
+            const statusButton = statusControl.querySelector('button');
+            actions.appendChild(buildActionButton('Cambiar estado', () => statusButton?.click()));
+
+            if (item.status === 'Pendiente') {
+                actions.appendChild(buildActionButton('En curso', () => runQuickStatusChange(item, 'En proceso')));
             }
 
-            const statusChip = document.createElement('span');
-            const statusLabel = document.createElement('span');
-            statusLabel.className = 'leading-none';
-            statusChip.appendChild(statusLabel);
-            applyStatusChipStyle(statusChip, statusLabel, item.status);
+            if (item.status === 'Bloqueada') {
+                actions.appendChild(buildActionButton('Desbloquear', () => runQuickStatusChange(item, 'Pendiente')));
+            } else if (item.status !== 'Finalizado') {
+                actions.appendChild(buildActionButton('Bloquear', () => runQuickStatusChange(item, 'Bloqueada')));
+            }
 
-            header.append(info, statusChip);
-            card.appendChild(header);
-            myTasksList.appendChild(card);
-        });
+            if (item.status !== 'Finalizado') {
+                actions.appendChild(buildActionButton('Hecha', () => runQuickStatusChange(item, 'Finalizado')));
+            }
+
+            const openDetail = buildActionButton('Abrir detalle', () => {
+                if (item.manageId) openDetailPage(item.manageId);
+            }, { primary: true });
+            if (!item.manageId) {
+                openDetail.disabled = true;
+                openDetail.classList.add('opacity-60', 'cursor-not-allowed');
+            }
+            actions.appendChild(openDetail);
+
+            card.append(topRow, actions);
+            return card;
+        };
+
+        const appendGroup = (label, items, emptyLabel, forceEmpty = false) => {
+            if (!items.length && !forceEmpty) return;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex flex-col gap-3';
+
+            const header = document.createElement('div');
+            header.className = 'flex items-center justify-between';
+
+            const title = document.createElement('h4');
+            title.className = 'text-xs font-semibold text-text-muted uppercase tracking-wide';
+            title.textContent = label;
+
+            const count = document.createElement('span');
+            count.className = 'text-text-muted text-xs font-semibold';
+            count.textContent = String(items.length);
+
+            header.append(title, count);
+            wrapper.appendChild(header);
+
+            const list = document.createElement('div');
+            list.className = 'flex flex-col gap-3';
+            items.forEach(item => list.appendChild(buildMyTaskRow(item)));
+            wrapper.appendChild(list);
+
+            if (!items.length && emptyLabel) {
+                const empty = document.createElement('p');
+                empty.className = 'text-text-muted text-sm';
+                empty.textContent = emptyLabel;
+                wrapper.appendChild(empty);
+            }
+
+            myTasksList.appendChild(wrapper);
+        };
+
+        const finalStatusFilter = myTasksFilters.status === 'Finalizado';
+        const finalizedList = finalStatusFilter
+            ? grouped['Finalizado']
+            : grouped['Finalizado'].filter(isRecent).slice(0, 10);
+        const showFinalGroupEmpty = !finalStatusFilter && grouped['Finalizado'].length > 0 && finalizedList.length === 0;
+
+        appendGroup('En curso', grouped['En proceso'], 'Sin tareas en curso.');
+        appendGroup('Bloqueadas', grouped['Bloqueada'], 'Sin tareas bloqueadas.');
+        appendGroup('Pendientes', grouped['Pendiente'], 'Sin tareas pendientes.');
+        appendGroup(
+            finalStatusFilter ? 'Finalizadas' : 'Finalizadas recientes',
+            finalizedList,
+            'Sin finalizadas recientes.',
+            finalStatusFilter || showFinalGroupEmpty
+        );
     };
 
     const CALENDAR_STATUS_DOT = {
