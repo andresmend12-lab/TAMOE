@@ -1249,7 +1249,8 @@
         const createManageLink = (manageIdValue) => {
             const manageIdText = String(manageIdValue || '').trim();
             const link = document.createElement(manageIdText ? 'a' : 'span');
-            link.className = 'text-xs font-mono text-text-muted hover:text-gray-900 dark:hover:text-white hover:underline shrink-0';
+            // ✅ Añadir margen izquierdo para separarlo del nombre
+            link.className = 'text-xs font-mono text-text-muted hover:text-gray-900 dark:hover:text-white hover:underline shrink-0 ml-2';
             if (manageIdText) {
                 link.href = `/${encodeURIComponent(manageIdText)}`;
                 link.target = '_top';
@@ -1679,10 +1680,9 @@
                 alert('Debes iniciar sesi\u00F3n para crear actividades.');
                 return;
             }
-            const nameRaw = prompt(`Nombre de ${label}`);
-            if (nameRaw === null) return;
-            const name = nameRaw.trim();
-            if (!name) return;
+            // ✅ USAR MODAL EN LUGAR DE PROMPT
+            const name = await openCreateActivityModal(label);
+            if (!name) return; // Usuario canceló
             const safePath = String(path || '').trim();
             if (!safePath) return;
 
@@ -2285,7 +2285,10 @@
             title.className = 'text-sm font-semibold truncate';
             title.textContent = titleText || '-';
 
-            left.append(icon, title);
+            // ✅ AÑADIR manageId AL LEFT (después del nombre)
+            const manageLink = createManageLink(manageIdValue);
+
+            left.append(icon, title, manageLink);
 
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3 min-w-0';
@@ -2297,7 +2300,7 @@
                     right.appendChild(createAssigneeBadge(assigneeUid));
                 }
             }
-            right.appendChild(createManageLink(manageIdValue));
+            // ✅ Ya NO añadimos createManageLink aquí (se movió a left)
 
             // Añadir icono de configuración si se proporciona la información necesaria
             if (itemPath && itemData && itemType) {
@@ -2323,7 +2326,10 @@
             title.className = 'text-sm font-medium truncate';
             title.textContent = titleText || '-';
 
-            left.append(icon, title);
+            // ✅ AÑADIR manageId AL LEFT (después del nombre)
+            const manageLink = createManageLink(manageIdValue);
+
+            left.append(icon, title, manageLink);
 
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3 min-w-0';
@@ -2335,7 +2341,7 @@
                     right.appendChild(createAssigneeBadge(assigneeUid));
                 }
             }
-            right.appendChild(createManageLink(manageIdValue));
+            // ✅ Ya NO añadimos createManageLink aquí (se movió a left)
 
             // Añadir icono de configuración si se proporciona la información necesaria
             if (itemPath && itemData && itemType) {
@@ -3294,8 +3300,149 @@
 
         document.addEventListener('click', () => closeAllActionMenus());
 
+        // ========== FUNCIONES PARA EL MODAL DE CREACIÓN DE ACTIVIDAD ==========
+
+        // Variables globales para el modal de creación
+        let createActivityResolve = null;
+        let createActivityReject = null;
+
+        // Abrir modal de creación de actividad
+        const openCreateActivityModal = (label) => {
+            return new Promise((resolve, reject) => {
+                const modal = document.getElementById('create-activity-modal');
+                const title = document.getElementById('create-activity-title');
+                const nameLabel = document.getElementById('activity-name-label');
+                const nameInput = document.getElementById('activity-name-input');
+                const form = document.getElementById('create-activity-form');
+
+                if (!modal || !title || !nameLabel || !nameInput || !form) {
+                    reject(new Error('Modal elements not found'));
+                    return;
+                }
+
+                // Configurar textos según el tipo
+                const labelCapitalized = label.charAt(0).toUpperCase() + label.slice(1);
+                title.textContent = `Añadir ${labelCapitalized}`;
+                nameLabel.textContent = `Nombre del ${labelCapitalized}`;
+                nameInput.placeholder = `Escribe el nombre del ${label}...`;
+
+                // Limpiar input
+                nameInput.value = '';
+
+                // Guardar resolve/reject
+                createActivityResolve = resolve;
+                createActivityReject = reject;
+
+                // Mostrar modal
+                modal.classList.remove('hidden');
+
+                // Focus en input
+                setTimeout(() => nameInput.focus(), 100);
+            });
+        };
+
+        // Cerrar modal de creación de actividad
+        const closeCreateActivityModal = (name = null) => {
+            const modal = document.getElementById('create-activity-modal');
+            const nameInput = document.getElementById('activity-name-input');
+
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+
+            if (nameInput) {
+                nameInput.value = '';
+            }
+
+            if (createActivityResolve) {
+                createActivityResolve(name);
+                createActivityResolve = null;
+                createActivityReject = null;
+            }
+        };
+
+        // Configurar event listeners del modal
+        const setupCreateActivityModal = () => {
+            const modal = document.getElementById('create-activity-modal');
+            const closeBtn = document.getElementById('close-create-activity-modal');
+            const cancelBtn = document.getElementById('cancel-create-activity');
+            const form = document.getElementById('create-activity-form');
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => closeCreateActivityModal(null));
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => closeCreateActivityModal(null));
+            }
+
+            if (form) {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const nameInput = document.getElementById('activity-name-input');
+                    const name = nameInput?.value?.trim() || '';
+                    closeCreateActivityModal(name);
+                });
+            }
+
+            if (modal) {
+                // Cerrar al hacer clic fuera del modal
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeCreateActivityModal(null);
+                    }
+                });
+            }
+        };
+
+        // Configurar modal al cargar el DOM
+        setupCreateActivityModal();
+
         loadData();
     </script>
+
+    <!-- Modal para Crear Actividad -->
+    <div id="create-activity-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+        <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="create-activity-title" class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Actividad</h2>
+                <button id="close-create-activity-modal" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-text-muted">close</span>
+                </button>
+            </div>
+            <form id="create-activity-form">
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <label for="activity-name-input" id="activity-name-label" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Actividad</label>
+                        <input
+                            type="text"
+                            id="activity-name-input"
+                            name="activity-name"
+                            required
+                            autocomplete="off"
+                            class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            placeholder="Escribe el nombre..."
+                        />
+                    </div>
+                    <div class="flex justify-end gap-4 mt-4">
+                        <button
+                            type="button"
+                            id="cancel-create-activity"
+                            class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg shadow-lg shadow-primary/30 transition-all"
+                        >
+                            Crear
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
 
