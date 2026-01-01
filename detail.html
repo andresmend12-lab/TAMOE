@@ -1472,8 +1472,12 @@
                 const openDetails = [];
                 document.querySelectorAll('details[open]').forEach(detail => {
                     const id = detail.getAttribute('data-path');
-                    if (id) openDetails.push(id);
+                    if (id) {
+                        openDetails.push(id);
+                        console.log('Guardando estado expandido para:', id);
+                    }
                 });
+                console.log('Total de elementos expandidos:', openDetails.length);
 
                 const manageIdValue = await allocateNextManageId(currentResult?.ids?.clientId || '');
                 const newRef = push(ref(database, safePath));
@@ -1494,13 +1498,23 @@
                 // Restaurar estado de elementos expandidos después de recargar
                 await loadData();
 
-                // Esperar un tick para que el DOM se actualice
+                // Esperar más tiempo para que el DOM se actualice completamente
                 setTimeout(() => {
+                    console.log('Intentando restaurar estado expandido...');
+                    let restored = 0;
                     openDetails.forEach(id => {
                         const detail = document.querySelector(`details[data-path="${id}"]`);
-                        if (detail) detail.setAttribute('open', '');
+                        if (detail) {
+                            detail.setAttribute('open', '');
+                            detail.open = true;
+                            restored++;
+                            console.log('Restaurado:', id);
+                        } else {
+                            console.warn('No encontrado:', id);
+                        }
                     });
-                }, 100);
+                    console.log(`Restaurados ${restored} de ${openDetails.length} elementos`);
+                }, 300);
             } catch (err) {
                 console.error('Error creando actividad:', err);
                 alert(`No se pudo crear la actividad: ${err.message || err}`);
