@@ -273,7 +273,7 @@
 
     <script type="module">
         import { auth, database } from './firebase.js';
-        import { ref, get, update, push, onValue, serverTimestamp, runTransaction, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import { ref, get, set, update, push, onValue, serverTimestamp, runTransaction, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
         import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         const qs = (id) => document.getElementById(id);
@@ -1529,7 +1529,7 @@
                 if (type === 'task' || type === 'subtask') {
                     data.assigneeUid = '';
                 }
-                await update(newRef, data);
+                await set(newRef, data);
                 await loadData();
 
                 // ✅ RESTAURAR ESTADO
