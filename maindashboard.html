@@ -283,10 +283,10 @@
                         <span class="material-symbols-outlined text-[18px]">settings_suggest</span>
                         Automatizaciones
                     </button>
-                    <a href="analytics.html" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 transition-all">
+                    <button id="tab-analytics" type="button" role="tab" aria-selected="false" aria-controls="tab-panel-analytics" data-tab="analytics" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 dark:border-border-dark bg-white/60 dark:bg-surface-dark text-gray-700 dark:text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5 transition-colors text-sm font-semibold">
                         <span class="material-symbols-outlined text-[18px]">analytics</span>
                         Analytics
-                    </a>
+                    </button>
                 </nav>
             </div>
         </div>
@@ -541,6 +541,197 @@
                         </div>
                     </div>
                 </section>
+
+                <section id="tab-panel-analytics" data-tab-panel="analytics" role="tabpanel" aria-labelledby="tab-analytics" class="hidden">
+                    <div class="flex flex-col gap-6">
+                        <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div class="flex flex-col gap-2">
+                                <div class="flex items-center gap-2 text-text-muted text-sm">
+                                    <span>Dashboard</span>
+                                    <span class="material-symbols-outlined text-xs">chevron_right</span>
+                                    <span class="text-gray-900 dark:text-white font-medium">Analytics</span>
+                                </div>
+                                <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Analytics</h2>
+                                <p class="text-text-muted text-sm max-w-2xl">Resumen general de clientes, proyectos, productos y tareas.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button id="analytics-refresh-btn" type="button" class="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                                    <span class="material-symbols-outlined text-[18px]">refresh</span>
+                                    Actualizar
+                                </button>
+                                <a href="reports.html" class="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold shadow-lg shadow-primary/20 transition-colors">
+                                    <span class="material-symbols-outlined text-[18px]">file_download</span>
+                                    Exportar reportes
+                                </a>
+                            </div>
+                        </header>
+
+                        <div id="analytics-loading" class="flex items-center justify-center py-12">
+                            <div class="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                        </div>
+
+                        <div id="analytics-content" class="hidden flex flex-col gap-8">
+                            <section class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-dark p-4 shadow-lg shadow-black/10">
+                                    <p class="text-text-muted text-xs font-semibold uppercase tracking-wide">Clientes</p>
+                                    <p id="stat-clients" class="text-2xl font-bold text-gray-900 dark:text-white mt-2">0</p>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-dark p-4 shadow-lg shadow-black/10">
+                                    <p class="text-text-muted text-xs font-semibold uppercase tracking-wide">Proyectos</p>
+                                    <p id="stat-projects" class="text-2xl font-bold text-gray-900 dark:text-white mt-2">0</p>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-dark p-4 shadow-lg shadow-black/10">
+                                    <p class="text-text-muted text-xs font-semibold uppercase tracking-wide">Productos</p>
+                                    <p id="stat-products" class="text-2xl font-bold text-gray-900 dark:text-white mt-2">0</p>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-dark p-4 shadow-lg shadow-black/10">
+                                    <p class="text-text-muted text-xs font-semibold uppercase tracking-wide">Tareas</p>
+                                    <p id="stat-tasks" class="text-2xl font-bold text-gray-900 dark:text-white mt-2">0</p>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-dark p-4 shadow-lg shadow-black/10">
+                                    <p class="text-text-muted text-xs font-semibold uppercase tracking-wide">Pendientes</p>
+                                    <p id="stat-pending" class="text-2xl font-bold text-gray-900 dark:text-white mt-2">0</p>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-dark p-4 shadow-lg shadow-black/10">
+                                    <p class="text-text-muted text-xs font-semibold uppercase tracking-wide">Completado</p>
+                                    <p id="stat-completion" class="text-2xl font-bold text-gray-900 dark:text-white mt-2">0%</p>
+                                </div>
+                            </section>
+
+                            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Estado de tareas</h3>
+                                    <div class="relative h-56">
+                                        <canvas id="chart-status"></canvas>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Prioridad</h3>
+                                    <div class="relative h-56">
+                                        <canvas id="chart-priority"></canvas>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Tasa de completado</h3>
+                                    <div class="flex items-center justify-center h-56">
+                                        <div class="relative">
+                                            <canvas id="chart-gauge" width="180" height="180"></canvas>
+                                            <div class="absolute inset-0 flex items-center justify-center">
+                                                <span id="gauge-value" class="text-3xl font-bold text-gray-900 dark:text-white">0%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Actividad (ultimos 30 dias)</h3>
+                                    <div class="relative h-72">
+                                        <canvas id="chart-activity"></canvas>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Carga por usuario</h3>
+                                    <div class="relative h-72">
+                                        <canvas id="chart-workload"></canvas>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Tareas por cliente</h3>
+                                    <div class="relative h-72">
+                                        <canvas id="chart-clients"></canvas>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Estado de proyectos</h3>
+                                    <div class="relative h-72">
+                                        <canvas id="chart-projects"></canvas>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <span class="material-symbols-outlined text-primary">warning</span>
+                                        <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Tareas vencidas</h3>
+                                    </div>
+                                    <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-white dark:bg-background-dark sticky top-0">
+                                            <tr class="border-b border-border-dark">
+                                                <th class="px-3 py-2 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Tarea</th>
+                                                <th class="px-3 py-2 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Ruta</th>
+                                                <th class="px-3 py-2 text-center text-xs font-semibold text-text-muted uppercase tracking-wider">Dias</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="table-overdue" class="divide-y divide-border-dark/40"></tbody>
+                                        </table>
+                                        <div id="no-overdue" class="hidden text-center py-4 text-text-muted text-sm">
+                                            No hay tareas vencidas.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <span class="material-symbols-outlined text-primary">event</span>
+                                        <h3 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Proximos vencimientos (7 dias)</h3>
+                                    </div>
+                                    <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-white dark:bg-background-dark sticky top-0">
+                                            <tr class="border-b border-border-dark">
+                                                <th class="px-3 py-2 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Tarea</th>
+                                                <th class="px-3 py-2 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Ruta</th>
+                                                <th class="px-3 py-2 text-center text-xs font-semibold text-text-muted uppercase tracking-wider">Vence</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="table-upcoming" class="divide-y divide-border-dark/40"></tbody>
+                                        </table>
+                                        <div id="no-upcoming" class="hidden text-center py-4 text-text-muted text-sm">
+                                            No hay vencimientos proximos.
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-5 shadow-lg shadow-black/20">
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Balance de carga</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                    <div class="rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4 text-center">
+                                        <p id="workload-avg" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                                        <p class="text-text-muted text-xs uppercase tracking-wide mt-1">Promedio</p>
+                                    </div>
+                                    <div class="rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4 text-center">
+                                        <p id="workload-max" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                                        <p class="text-text-muted text-xs uppercase tracking-wide mt-1">Maximo</p>
+                                    </div>
+                                    <div class="rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4 text-center">
+                                        <p id="workload-min" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                                        <p class="text-text-muted text-xs uppercase tracking-wide mt-1">Minimo</p>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Usuarios sobrecargados</h4>
+                                        <div id="overloaded-users" class="space-y-2 text-sm"></div>
+                                        <div id="no-overloaded" class="text-text-muted text-sm">Ninguno</div>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Usuarios con poca carga</h4>
+                                        <div id="underloaded-users" class="space-y-2 text-sm"></div>
+                                        <div id="no-underloaded" class="text-text-muted text-sm">Ninguno</div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
 </div>
 </div>
 </main>
@@ -752,6 +943,8 @@
 <script src="automations.js" type="module"></script>
 <script src="notifications.js" type="module"></script>
 <script src="timeline-integration.js" type="module"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="analytics-dashboard.js" type="module"></script>
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const sidebar = document.getElementById("sidebar");

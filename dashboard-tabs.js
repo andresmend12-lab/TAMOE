@@ -43,7 +43,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const initial = tabButtons.find(b => b.getAttribute('aria-selected') === 'true')?.dataset.tab || tabButtons[0]?.dataset.tab;
+    const tabFromHash = () => {
+        const rawHash = window.location.hash ? window.location.hash.replace('#', '').trim() : '';
+        if (!rawHash) return null;
+        return tabButtons.some(btn => btn.dataset.tab === rawHash) ? rawHash : null;
+    };
+
+    const initial = tabFromHash()
+        || tabButtons.find(b => b.getAttribute('aria-selected') === 'true')?.dataset.tab
+        || tabButtons[0]?.dataset.tab;
+
     if (initial) setActiveTab(initial);
 });
-
