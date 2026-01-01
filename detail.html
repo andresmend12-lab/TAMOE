@@ -1456,6 +1456,49 @@
             return button;
         };
 
+        // Guardar estado de todos los <details> abiertos
+        const saveDetailsState = () => {
+            const openDetails = [];
+            const detailsElements = document.querySelectorAll('#activities-list details[open]');
+
+            detailsElements.forEach(details => {
+                const summary = details.querySelector('summary');
+                if (summary) {
+                    const manageLink = summary.querySelector('a[href*="/"]');
+                    if (manageLink) {
+                        const manageId = manageLink.textContent.trim();
+                        if (manageId) {
+                            openDetails.push(manageId);
+                        }
+                    }
+                }
+            });
+
+            return openDetails;
+        };
+
+        // Restaurar estado de <details> abiertos
+        const restoreDetailsState = (openManageIds) => {
+            if (!openManageIds || openManageIds.length === 0) return;
+
+            setTimeout(() => {
+                const detailsElements = document.querySelectorAll('#activities-list details');
+
+                detailsElements.forEach(details => {
+                    const summary = details.querySelector('summary');
+                    if (summary) {
+                        const manageLink = summary.querySelector('a[href*="/"]');
+                        if (manageLink) {
+                            const manageId = manageLink.textContent.trim();
+                            if (openManageIds.includes(manageId)) {
+                                details.setAttribute('open', '');
+                            }
+                        }
+                    }
+                });
+            }, 50);
+        };
+
         const createChildActivity = async ({ label, path, type }) => {
             if (!currentUser) {
                 alert('Debes iniciar sesi\u00F3n para crear actividades.');
@@ -1467,18 +1510,11 @@
             if (!name) return;
             const safePath = String(path || '').trim();
             if (!safePath) return;
-            try {
-                // Guardar estado de elementos expandidos antes de recargar
-                const openDetails = [];
-                document.querySelectorAll('details[open]').forEach(detail => {
-                    const id = detail.getAttribute('data-path');
-                    if (id) {
-                        openDetails.push(id);
-                        console.log('Guardando estado expandido para:', id);
-                    }
-                });
-                console.log('Total de elementos expandidos:', openDetails.length);
 
+            // ✅ GUARDAR ESTADO
+            const openDetailsState = saveDetailsState();
+
+            try {
                 const manageIdValue = await allocateNextManageId(currentResult?.ids?.clientId || '');
                 const newRef = push(ref(database, safePath));
                 const now = new Date().toISOString();
@@ -1494,27 +1530,11 @@
                     data.assigneeUid = '';
                 }
                 await update(newRef, data);
-
-                // Restaurar estado de elementos expandidos después de recargar
                 await loadData();
 
-                // Esperar más tiempo para que el DOM se actualice completamente
-                setTimeout(() => {
-                    console.log('Intentando restaurar estado expandido...');
-                    let restored = 0;
-                    openDetails.forEach(id => {
-                        const detail = document.querySelector(`details[data-path="${id}"]`);
-                        if (detail) {
-                            detail.setAttribute('open', '');
-                            detail.open = true;
-                            restored++;
-                            console.log('Restaurado:', id);
-                        } else {
-                            console.warn('No encontrado:', id);
-                        }
-                    });
-                    console.log(`Restaurados ${restored} de ${openDetails.length} elementos`);
-                }, 300);
+                // ✅ RESTAURAR ESTADO
+                restoreDetailsState(openDetailsState);
+
             } catch (err) {
                 console.error('Error creando actividad:', err);
                 alert(`No se pudo crear la actividad: ${err.message || err}`);
@@ -2179,7 +2199,6 @@
             // Siempre hacer las tareas expandibles para permitir crear subtareas
             const details = document.createElement('details');
             details.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
-            details.setAttribute('data-path', safeTaskPath);
             details.appendChild(makeSummary(
                 'check_circle',
                 taskName,
@@ -2327,7 +2346,6 @@
 
                     const projDetails = document.createElement('details');
                     projDetails.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
-                    projDetails.setAttribute('data-path', projPath);
                     projDetails.appendChild(makeSummary(
                         'layers',
                         proj.name || 'Proyecto',
@@ -2417,7 +2435,6 @@
 
                             const prodDetails = document.createElement('details');
                             prodDetails.className = 'border border-border-dark/70 rounded-lg bg-white dark:bg-background-dark/10';
-                            prodDetails.setAttribute('data-path', prodPath);
                             prodDetails.appendChild(makeSummary(
                                 'category',
                                 prod.name || 'Producto',
@@ -2550,7 +2567,6 @@
 
                         const prodDetails = document.createElement('details');
                         prodDetails.className = 'border border-border-dark rounded-lg bg-white dark:bg-surface-dark';
-                        prodDetails.setAttribute('data-path', prodPath);
                         prodDetails.appendChild(makeSummary(
                             'category',
                             prod.name || 'Producto',
