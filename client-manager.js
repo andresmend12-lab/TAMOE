@@ -1233,13 +1233,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const inProgressItems = filteredAssignments.filter(item => item.status === 'En proceso');
-        const blockedItems = filteredAssignments.filter(item => item.status === 'Bloqueada');
         const pendingItems = filteredAssignments.filter(item => item.status === 'Pendiente');
         const recentItems = filteredAssignments.filter(item => item.status === 'Finalizado' && isRecent(item));
 
         setKpiValue(myTasksKpiInProgress, inProgressItems.length);
         setKpiValue(myTasksKpiPending, pendingItems.length);
-        setKpiValue(myTasksKpiBlocked, blockedItems.length);
         setKpiValue(myTasksKpiRecent, recentItems.length);
 
         const MINI_LIST_LIMIT = 4;
@@ -1305,7 +1303,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const grouped = {
             'En proceso': [],
-            'Bloqueada': [],
             'Pendiente': [],
             'Finalizado': [],
         };
@@ -1389,23 +1386,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const actions = document.createElement('div');
             actions.className = 'flex flex-wrap items-center gap-2';
 
-            const statusButton = statusControl.querySelector('button');
-            actions.appendChild(buildActionButton('Cambiar estado', () => statusButton?.click()));
-
-            if (item.status === 'Pendiente') {
-                actions.appendChild(buildActionButton('En curso', () => runQuickStatusChange(item, 'En proceso')));
-            }
-
-            if (item.status === 'Bloqueada') {
-                actions.appendChild(buildActionButton('Desbloquear', () => runQuickStatusChange(item, 'Pendiente')));
-            } else if (item.status !== 'Finalizado') {
-                actions.appendChild(buildActionButton('Bloquear', () => runQuickStatusChange(item, 'Bloqueada')));
-            }
-
-            if (item.status !== 'Finalizado') {
-                actions.appendChild(buildActionButton('Hecha', () => runQuickStatusChange(item, 'Finalizado')));
-            }
-
+            // Only keep "Abrir detalle" button
             const openDetail = buildActionButton('Abrir detalle', () => {
                 if (item.manageId) openDetailPage(item.manageId);
             }, { primary: true });
@@ -1460,7 +1441,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const showFinalGroupEmpty = !finalStatusFilter && grouped['Finalizado'].length > 0 && finalizedList.length === 0;
 
         appendGroup('En curso', grouped['En proceso'], 'Sin tareas en curso.');
-        appendGroup('Bloqueadas', grouped['Bloqueada'], 'Sin tareas bloqueadas.');
         appendGroup('Pendientes', grouped['Pendiente'], 'Sin tareas pendientes.');
         appendGroup(
             finalStatusFilter ? 'Finalizadas' : 'Finalizadas recientes',
