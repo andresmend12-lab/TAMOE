@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics - TAMOE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    .stat-card {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .chart-container {
+      position: relative;
+      height: 250px;
+    }
+    .gauge-container {
+      position: relative;
+      height: 180px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
+  <!-- Header -->
+  <header class="bg-white dark:bg-gray-800 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="maindashboard.html" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          ← Volver al Dashboard
+        </a>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Analytics</h1>
+      </div>
+      <button id="refresh-btn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Actualizar
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Loading state -->
+    <div id="loading" class="flex items-center justify-center py-20">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+
+    <!-- Content -->
+    <div id="content" class="hidden">
+      <!-- Quick Stats Grid -->
+      <section class="mb-8">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Resumen General</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div class="stat-card bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-3xl font-bold text-blue-600" id="stat-clients">0</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Clientes</div>
+          </div>
+          <div class="stat-card bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-3xl font-bold text-purple-600" id="stat-projects">0</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Proyectos</div>
+          </div>
+          <div class="stat-card bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-3xl font-bold text-indigo-600" id="stat-products">0</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Productos</div>
+          </div>
+          <div class="stat-card bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-3xl font-bold text-cyan-600" id="stat-tasks">0</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Tareas</div>
+          </div>
+          <div class="stat-card bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-3xl font-bold text-yellow-600" id="stat-pending">0</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Pendientes</div>
+          </div>
+          <div class="stat-card bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-3xl font-bold text-green-600" id="stat-completion">0%</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Completado</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts Row 1 -->
+      <section class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Status Donut -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Estado de Tareas</h3>
+          <div class="chart-container">
+            <canvas id="chart-status"></canvas>
+          </div>
+        </div>
+
+        <!-- Priority Donut -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Distribución por Prioridad</h3>
+          <div class="chart-container">
+            <canvas id="chart-priority"></canvas>
+          </div>
+        </div>
+
+        <!-- Completion Gauge -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Tasa de Completado</h3>
+          <div class="gauge-container flex items-center justify-center">
+            <div class="relative">
+              <canvas id="chart-gauge" width="180" height="180"></canvas>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-4xl font-bold text-gray-700 dark:text-gray-300" id="gauge-value">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts Row 2 -->
+      <section class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Activity Line Chart -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Actividad (Últimos 30 días)</h3>
+          <div class="chart-container" style="height: 280px;">
+            <canvas id="chart-activity"></canvas>
+          </div>
+        </div>
+
+        <!-- User Workload Bar Chart -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Carga de Trabajo por Usuario</h3>
+          <div class="chart-container" style="height: 280px;">
+            <canvas id="chart-workload"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts Row 3 -->
+      <section class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Tasks per Client -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Tareas por Cliente</h3>
+          <div class="chart-container" style="height: 280px;">
+            <canvas id="chart-clients"></canvas>
+          </div>
+        </div>
+
+        <!-- Project Status -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Estado de Proyectos</h3>
+          <div class="chart-container" style="height: 280px;">
+            <canvas id="chart-projects"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tables Row -->
+      <section class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Overdue Tasks -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+            <span class="text-red-500">⚠️</span> Tareas Vencidas
+          </h3>
+          <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                <tr>
+                  <th class="px-3 py-2 text-left text-gray-600 dark:text-gray-300">Tarea</th>
+                  <th class="px-3 py-2 text-left text-gray-600 dark:text-gray-300">Ruta</th>
+                  <th class="px-3 py-2 text-center text-gray-600 dark:text-gray-300">Días</th>
+                </tr>
+              </thead>
+              <tbody id="table-overdue" class="divide-y divide-gray-200 dark:divide-gray-700">
+              </tbody>
+            </table>
+            <div id="no-overdue" class="hidden text-center py-4 text-gray-500 dark:text-gray-400">
+              ¡No hay tareas vencidas!
+            </div>
+          </div>
+        </div>
+
+        <!-- Upcoming Deadlines -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+            <span class="text-blue-500">📅</span> Próximos Vencimientos (7 días)
+          </h3>
+          <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                <tr>
+                  <th class="px-3 py-2 text-left text-gray-600 dark:text-gray-300">Tarea</th>
+                  <th class="px-3 py-2 text-left text-gray-600 dark:text-gray-300">Ruta</th>
+                  <th class="px-3 py-2 text-center text-gray-600 dark:text-gray-300">Vence</th>
+                </tr>
+              </thead>
+              <tbody id="table-upcoming" class="divide-y divide-gray-200 dark:divide-gray-700">
+              </tbody>
+            </table>
+            <div id="no-upcoming" class="hidden text-center py-4 text-gray-500 dark:text-gray-400">
+              No hay vencimientos próximos
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Workload Balance -->
+      <section class="mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-md font-semibold text-gray-700 dark:text-gray-300 mb-4">Balance de Carga de Trabajo</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div class="text-2xl font-bold text-gray-700 dark:text-gray-300" id="workload-avg">0</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Promedio</div>
+            </div>
+            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div class="text-2xl font-bold text-red-600" id="workload-max">0</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Máximo</div>
+            </div>
+            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div class="text-2xl font-bold text-green-600" id="workload-min">0</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Mínimo</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Overloaded -->
+            <div>
+              <h4 class="text-sm font-medium text-red-600 mb-2">⚠️ Usuarios Sobrecargados</h4>
+              <div id="overloaded-users" class="space-y-1 text-sm">
+              </div>
+              <div id="no-overloaded" class="text-gray-500 dark:text-gray-400 text-sm">
+                Ninguno
+              </div>
+            </div>
+
+            <!-- Underloaded -->
+            <div>
+              <h4 class="text-sm font-medium text-blue-600 mb-2">💡 Usuarios con Poca Carga</h4>
+              <div id="underloaded-users" class="space-y-1 text-sm">
+              </div>
+              <div id="no-underloaded" class="text-gray-500 dark:text-gray-400 text-sm">
+                Ninguno
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Export Button -->
+      <section class="flex justify-end">
+        <a href="reports.html" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:from-blue-600 hover:to-cyan-600 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Exportar Reportes
+        </a>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { auth, database } from './firebase.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+    import { ref, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+    import {
+      calculateGeneralStats,
+      calculateOverdueTasks,
+      calculateUpcomingDeadlines,
+      calculateWorkloadBalance,
+      formatStatusChartData,
+      formatPriorityChartData,
+      formatProductivityChartData,
+      formatUserWorkloadChartData,
+      formatClientComparisonChartData,
+      formatProjectStatusChartData
+    } from './src/analytics/analytics-service.js';
+
+    // Charts references
+    let charts = {};
+
+    // Initialize on auth
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      loadData();
+    });
+
+    // Load data from Firebase
+    function loadData() {
+      const clientsRef = ref(database, 'clients');
+      const usersRef = ref(database, 'users');
+
+      let clients = [];
+      let usersByUid = {};
+
+      onValue(clientsRef, (snapshot) => {
+        const data = snapshot.val() || {};
+        clients = Object.entries(data).map(([clientId, client]) => ({
+          clientId,
+          ...client
+        }));
+
+        updateDashboard(clients, usersByUid);
+      });
+
+      onValue(usersRef, (snapshot) => {
+        usersByUid = snapshot.val() || {};
+        updateDashboard(clients, usersByUid);
+      });
+    }
+
+    // Update dashboard with data
+    function updateDashboard(clients, usersByUid) {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+
+      // General stats
+      const stats = calculateGeneralStats(clients);
+      document.getElementById('stat-clients').textContent = stats.totalClients;
+      document.getElementById('stat-projects').textContent = stats.totalProjects;
+      document.getElementById('stat-products').textContent = stats.totalProducts;
+      document.getElementById('stat-tasks').textContent = stats.totalTasks;
+      document.getElementById('stat-pending').textContent = stats.pendingTasks;
+      document.getElementById('stat-completion').textContent = stats.completionRate + '%';
+
+      // Update charts
+      updateCharts(clients, usersByUid, stats.completionRate);
+
+      // Update tables
+      updateTables(clients, usersByUid);
+    }
+
+    // Update all charts
+    function updateCharts(clients, usersByUid, completionRate) {
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#9CA3AF' : '#4B5563';
+
+      // Destroy existing charts
+      Object.values(charts).forEach(chart => chart?.destroy());
+
+      // Status donut
+      charts.status = new Chart(document.getElementById('chart-status'), {
+        type: 'doughnut',
+        data: formatStatusChartData(clients),
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor } }
+          }
+        }
+      });
+
+      // Priority donut
+      charts.priority = new Chart(document.getElementById('chart-priority'), {
+        type: 'doughnut',
+        data: formatPriorityChartData(clients),
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor } }
+          }
+        }
+      });
+
+      // Gauge
+      updateGauge(completionRate);
+
+      // Activity line chart
+      charts.activity = new Chart(document.getElementById('chart-activity'), {
+        type: 'line',
+        data: formatProductivityChartData(clients),
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { color: textColor } },
+            x: { ticks: { color: textColor, maxTicksLimit: 10 } }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { color: textColor } }
+          }
+        }
+      });
+
+      // Workload bar chart
+      charts.workload = new Chart(document.getElementById('chart-workload'), {
+        type: 'bar',
+        data: formatUserWorkloadChartData(clients, usersByUid),
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          scales: {
+            x: { stacked: true, ticks: { color: textColor } },
+            y: { stacked: true, ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { color: textColor } }
+          }
+        }
+      });
+
+      // Clients bar chart
+      charts.clients = new Chart(document.getElementById('chart-clients'), {
+        type: 'bar',
+        data: formatClientComparisonChartData(clients),
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { color: textColor } },
+            x: { ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+
+      // Projects bar chart
+      charts.projects = new Chart(document.getElementById('chart-projects'), {
+        type: 'bar',
+        data: formatProjectStatusChartData(clients),
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { color: textColor } },
+            x: { ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // Update gauge chart
+    function updateGauge(value) {
+      const canvas = document.getElementById('chart-gauge');
+      const ctx = canvas.getContext('2d');
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 70;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Background arc
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0.75 * Math.PI, 0.25 * Math.PI);
+      ctx.strokeStyle = '#E5E7EB';
+      ctx.lineWidth = 15;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Value arc
+      const endAngle = 0.75 * Math.PI + (1.5 * Math.PI * value / 100);
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0.75 * Math.PI, endAngle);
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      gradient.addColorStop(0, '#3B82F6');
+      gradient.addColorStop(1, '#10B981');
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = 15;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      document.getElementById('gauge-value').textContent = value + '%';
+    }
+
+    // Update tables
+    function updateTables(clients, usersByUid) {
+      // Overdue tasks
+      const overdueTasks = calculateOverdueTasks(clients);
+      const overdueTable = document.getElementById('table-overdue');
+      const noOverdue = document.getElementById('no-overdue');
+
+      if (overdueTasks.length === 0) {
+        overdueTable.innerHTML = '';
+        noOverdue.classList.remove('hidden');
+      } else {
+        noOverdue.classList.add('hidden');
+        overdueTable.innerHTML = overdueTasks.slice(0, 10).map(task => `
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td class="px-3 py-2 text-gray-800 dark:text-gray-200">${escapeHtml(task.name)}</td>
+            <td class="px-3 py-2 text-gray-500 dark:text-gray-400 text-xs">${escapeHtml(task.path)}</td>
+            <td class="px-3 py-2 text-center">
+              <span class="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded text-xs">
+                ${task.daysOverdue} días
+              </span>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      // Upcoming deadlines
+      const upcomingTasks = calculateUpcomingDeadlines(clients);
+      const upcomingTable = document.getElementById('table-upcoming');
+      const noUpcoming = document.getElementById('no-upcoming');
+
+      if (upcomingTasks.length === 0) {
+        upcomingTable.innerHTML = '';
+        noUpcoming.classList.remove('hidden');
+      } else {
+        noUpcoming.classList.add('hidden');
+        upcomingTable.innerHTML = upcomingTasks.slice(0, 10).map(task => `
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td class="px-3 py-2 text-gray-800 dark:text-gray-200">${escapeHtml(task.name)}</td>
+            <td class="px-3 py-2 text-gray-500 dark:text-gray-400 text-xs">${escapeHtml(task.path)}</td>
+            <td class="px-3 py-2 text-center">
+              <span class="px-2 py-1 ${task.isToday ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300' : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'} rounded text-xs">
+                ${task.isToday ? 'Hoy' : task.isTomorrow ? 'Mañana' : task.daysUntilDue + ' días'}
+              </span>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      // Workload balance
+      const workload = calculateWorkloadBalance(clients, usersByUid);
+      document.getElementById('workload-avg').textContent = workload.average;
+      document.getElementById('workload-max').textContent = workload.max;
+      document.getElementById('workload-min').textContent = workload.min;
+
+      const overloadedContainer = document.getElementById('overloaded-users');
+      const noOverloaded = document.getElementById('no-overloaded');
+      if (workload.overloaded.length > 0) {
+        noOverloaded.classList.add('hidden');
+        overloadedContainer.innerHTML = workload.overloaded.map(u => `
+          <div class="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
+            <span class="text-gray-700 dark:text-gray-300">${escapeHtml(u.username)}</span>
+            <span class="text-red-600">${u.activeTasks} tareas activas</span>
+          </div>
+        `).join('');
+      } else {
+        noOverloaded.classList.remove('hidden');
+        overloadedContainer.innerHTML = '';
+      }
+
+      const underloadedContainer = document.getElementById('underloaded-users');
+      const noUnderloaded = document.getElementById('no-underloaded');
+      if (workload.underloaded.length > 0) {
+        noUnderloaded.classList.add('hidden');
+        underloadedContainer.innerHTML = workload.underloaded.map(u => `
+          <div class="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+            <span class="text-gray-700 dark:text-gray-300">${escapeHtml(u.username)}</span>
+            <span class="text-blue-600">${u.activeTasks} tareas activas</span>
+          </div>
+        `).join('');
+      } else {
+        noUnderloaded.classList.remove('hidden');
+        underloadedContainer.innerHTML = '';
+      }
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Refresh button
+    document.getElementById('refresh-btn').addEventListener('click', loadData);
+
+    // Check dark mode
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</body>
+</html>

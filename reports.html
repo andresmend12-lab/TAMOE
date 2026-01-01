@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reportes - TAMOE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      body { background: white !important; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      .report-container {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+    }
+    .print-only { display: none; }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
+  <!-- Header -->
+  <header class="bg-white dark:bg-gray-800 shadow-sm no-print">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="maindashboard.html" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          ← Volver al Dashboard
+        </a>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Generador de Reportes</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="print-btn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+          </svg>
+          Imprimir / PDF
+        </button>
+        <button id="export-csv-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Exportar CSV
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Report Configuration -->
+    <section class="mb-6 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 no-print">
+      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Configuración del Reporte</h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Report Type -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo de Reporte</label>
+          <select id="report-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+            <option value="general">Resumen General</option>
+            <option value="client">Por Cliente</option>
+            <option value="user">Por Usuario</option>
+            <option value="overdue">Tareas Vencidas</option>
+          </select>
+        </div>
+
+        <!-- Client Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Cliente</label>
+          <select id="filter-client" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+            <option value="">Todos los clientes</option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Estado</label>
+          <select id="filter-status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+            <option value="">Todos los estados</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="En proceso">En proceso</option>
+            <option value="Finalizado">Finalizado</option>
+          </select>
+        </div>
+
+        <!-- Date Range -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Período</label>
+          <select id="filter-period" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+            <option value="all">Todo el tiempo</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <button id="generate-btn" class="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-medium">
+          Generar Vista Previa
+        </button>
+      </div>
+    </section>
+
+    <!-- Report Container -->
+    <div id="report-container" class="report-container bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+      <!-- Print Header -->
+      <div class="print-only mb-6">
+        <h1 class="text-2xl font-bold">TAMOE - Reporte</h1>
+        <p class="text-gray-500">Generado el: <span id="report-date"></span></p>
+      </div>
+
+      <!-- Report Content -->
+      <div id="report-content">
+        <div class="text-center py-20 text-gray-500 dark:text-gray-400">
+          Configura las opciones y haz clic en "Generar Vista Previa"
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { auth, database } from './firebase.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+    import { ref, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+    import {
+      extractAllTasks,
+      extractAllProjects,
+      calculateGeneralStats,
+      calculateTasksPerClient,
+      calculateTasksPerProject,
+      calculateTasksPerUser,
+      calculateOverdueTasks,
+      calculateUpcomingDeadlines
+    } from './src/analytics/analytics-service.js';
+
+    let clients = [];
+    let usersByUid = {};
+
+    // Initialize on auth
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      loadData();
+    });
+
+    // Load data
+    function loadData() {
+      const clientsRef = ref(database, 'clients');
+      const usersRef = ref(database, 'users');
+
+      onValue(clientsRef, (snapshot) => {
+        const data = snapshot.val() || {};
+        clients = Object.entries(data).map(([clientId, client]) => ({
+          clientId,
+          ...client
+        }));
+
+        populateClientFilter();
+      });
+
+      onValue(usersRef, (snapshot) => {
+        usersByUid = snapshot.val() || {};
+      });
+    }
+
+    // Populate client filter
+    function populateClientFilter() {
+      const select = document.getElementById('filter-client');
+      select.innerHTML = '<option value="">Todos los clientes</option>';
+      clients.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client.clientId;
+        option.textContent = client.name;
+        select.appendChild(option);
+      });
+    }
+
+    // Generate report
+    function generateReport() {
+      const reportType = document.getElementById('report-type').value;
+      const clientFilter = document.getElementById('filter-client').value;
+      const statusFilter = document.getElementById('filter-status').value;
+      const periodFilter = document.getElementById('filter-period').value;
+
+      // Filter clients if needed
+      let filteredClients = clients;
+      if (clientFilter) {
+        filteredClients = clients.filter(c => c.clientId === clientFilter);
+      }
+
+      // Update report date
+      document.getElementById('report-date').textContent = new Date().toLocaleString('es-ES');
+
+      // Generate report based on type
+      let html = '';
+      switch (reportType) {
+        case 'general':
+          html = generateGeneralReport(filteredClients, statusFilter);
+          break;
+        case 'client':
+          html = generateClientReport(filteredClients, statusFilter);
+          break;
+        case 'user':
+          html = generateUserReport(filteredClients, statusFilter);
+          break;
+        case 'overdue':
+          html = generateOverdueReport(filteredClients);
+          break;
+      }
+
+      document.getElementById('report-content').innerHTML = html;
+    }
+
+    // General report
+    function generateGeneralReport(clientsData, statusFilter) {
+      const stats = calculateGeneralStats(clientsData);
+      const projectStats = calculateTasksPerProject(clientsData);
+
+      return `
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Resumen General</h2>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+            <div class="text-3xl font-bold text-blue-600">${stats.totalClients}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Clientes</div>
+          </div>
+          <div class="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
+            <div class="text-3xl font-bold text-purple-600">${stats.totalProjects}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Proyectos</div>
+          </div>
+          <div class="p-4 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg text-center">
+            <div class="text-3xl font-bold text-cyan-600">${stats.totalTasks}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Tareas</div>
+          </div>
+          <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+            <div class="text-3xl font-bold text-green-600">${stats.completionRate}%</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Completado</div>
+          </div>
+        </div>
+
+        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Desglose por Estado</h3>
+        <div class="grid grid-cols-3 gap-4 mb-8">
+          <div class="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-center">
+            <div class="text-2xl font-bold text-yellow-600">${stats.pendingTasks}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Pendientes</div>
+          </div>
+          <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+            <div class="text-2xl font-bold text-blue-600">${stats.inProgressTasks}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">En Proceso</div>
+          </div>
+          <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+            <div class="text-2xl font-bold text-green-600">${stats.completedTasks}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Finalizados</div>
+          </div>
+        </div>
+
+        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Rendimiento por Proyecto</h3>
+        <table class="w-full text-sm border-collapse">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="p-3 text-left border dark:border-gray-600">Proyecto</th>
+              <th class="p-3 text-left border dark:border-gray-600">Cliente</th>
+              <th class="p-3 text-center border dark:border-gray-600">Tareas</th>
+              <th class="p-3 text-center border dark:border-gray-600">Completado</th>
+              <th class="p-3 border dark:border-gray-600">Progreso</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${projectStats.map(p => `
+              <tr class="border-b dark:border-gray-700">
+                <td class="p-3 border dark:border-gray-600">${escapeHtml(p.projectName)}</td>
+                <td class="p-3 border dark:border-gray-600 text-gray-500">${escapeHtml(p.clientName)}</td>
+                <td class="p-3 text-center border dark:border-gray-600">${p.totalTasks}</td>
+                <td class="p-3 text-center border dark:border-gray-600">${p.completionRate}%</td>
+                <td class="p-3 border dark:border-gray-600">
+                  <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                    <div class="progress-bar bg-green-500 h-2 rounded-full" style="width: ${p.completionRate}%"></div>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Client report
+    function generateClientReport(clientsData, statusFilter) {
+      const clientStats = calculateTasksPerClient(clientsData);
+
+      return `
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Reporte por Cliente</h2>
+
+        ${clientStats.map(client => `
+          <div class="mb-8 p-4 border dark:border-gray-700 rounded-lg">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-white">${escapeHtml(client.clientName)}</h3>
+              <span class="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm">
+                ${client.completionRate}% completado
+              </span>
+            </div>
+
+            <div class="grid grid-cols-4 gap-4 mb-4">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-gray-700 dark:text-gray-300">${client.totalTasks}</div>
+                <div class="text-xs text-gray-500">Total</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-yellow-600">${client.pendingTasks}</div>
+                <div class="text-xs text-gray-500">Pendientes</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600">${client.inProgressTasks}</div>
+                <div class="text-xs text-gray-500">En Proceso</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">${client.completedTasks}</div>
+                <div class="text-xs text-gray-500">Finalizados</div>
+              </div>
+            </div>
+
+            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3">
+              <div class="progress-bar bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full" style="width: ${client.completionRate}%"></div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    // User report
+    function generateUserReport(clientsData, statusFilter) {
+      const userStats = calculateTasksPerUser(clientsData, usersByUid);
+
+      return `
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Reporte por Usuario</h2>
+
+        <table class="w-full text-sm border-collapse">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="p-3 text-left border dark:border-gray-600">Usuario</th>
+              <th class="p-3 text-left border dark:border-gray-600">Departamento</th>
+              <th class="p-3 text-center border dark:border-gray-600">Total</th>
+              <th class="p-3 text-center border dark:border-gray-600">Pendiente</th>
+              <th class="p-3 text-center border dark:border-gray-600">En Proceso</th>
+              <th class="p-3 text-center border dark:border-gray-600">Finalizado</th>
+              <th class="p-3 text-center border dark:border-gray-600">% Completado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${userStats.map(u => `
+              <tr class="border-b dark:border-gray-700">
+                <td class="p-3 border dark:border-gray-600 font-medium">${escapeHtml(u.username)}</td>
+                <td class="p-3 border dark:border-gray-600 text-gray-500">${escapeHtml(u.department || '-')}</td>
+                <td class="p-3 text-center border dark:border-gray-600">${u.totalTasks}</td>
+                <td class="p-3 text-center border dark:border-gray-600 text-yellow-600">${u.pendingTasks}</td>
+                <td class="p-3 text-center border dark:border-gray-600 text-blue-600">${u.inProgressTasks}</td>
+                <td class="p-3 text-center border dark:border-gray-600 text-green-600">${u.completedTasks}</td>
+                <td class="p-3 text-center border dark:border-gray-600">
+                  <span class="px-2 py-1 rounded ${u.completionRate >= 70 ? 'bg-green-100 text-green-700' : u.completionRate >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+                    ${u.completionRate}%
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Overdue report
+    function generateOverdueReport(clientsData) {
+      const overdueTasks = calculateOverdueTasks(clientsData);
+      const upcomingTasks = calculateUpcomingDeadlines(clientsData);
+
+      return `
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Tareas Vencidas y Próximos Vencimientos</h2>
+
+        <div class="mb-8">
+          <h3 class="text-lg font-semibold text-red-600 mb-4 flex items-center gap-2">
+            <span>⚠️</span> Tareas Vencidas (${overdueTasks.length})
+          </h3>
+          ${overdueTasks.length === 0 ? `
+            <p class="text-gray-500 dark:text-gray-400 italic">¡No hay tareas vencidas!</p>
+          ` : `
+            <table class="w-full text-sm border-collapse">
+              <thead class="bg-red-50 dark:bg-red-900/30">
+                <tr>
+                  <th class="p-3 text-left border dark:border-gray-600">Tarea</th>
+                  <th class="p-3 text-left border dark:border-gray-600">Ruta</th>
+                  <th class="p-3 text-center border dark:border-gray-600">Fecha Venc.</th>
+                  <th class="p-3 text-center border dark:border-gray-600">Días Vencido</th>
+                  <th class="p-3 text-center border dark:border-gray-600">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${overdueTasks.map(t => `
+                  <tr class="border-b dark:border-gray-700">
+                    <td class="p-3 border dark:border-gray-600 font-medium">${escapeHtml(t.name)}</td>
+                    <td class="p-3 border dark:border-gray-600 text-gray-500 text-xs">${escapeHtml(t.path)}</td>
+                    <td class="p-3 text-center border dark:border-gray-600">${t.dueDateFormatted}</td>
+                    <td class="p-3 text-center border dark:border-gray-600">
+                      <span class="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
+                        ${t.daysOverdue} días
+                      </span>
+                    </td>
+                    <td class="p-3 text-center border dark:border-gray-600">${t.status}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold text-blue-600 mb-4 flex items-center gap-2">
+            <span>📅</span> Próximos Vencimientos - 7 días (${upcomingTasks.length})
+          </h3>
+          ${upcomingTasks.length === 0 ? `
+            <p class="text-gray-500 dark:text-gray-400 italic">No hay vencimientos próximos</p>
+          ` : `
+            <table class="w-full text-sm border-collapse">
+              <thead class="bg-blue-50 dark:bg-blue-900/30">
+                <tr>
+                  <th class="p-3 text-left border dark:border-gray-600">Tarea</th>
+                  <th class="p-3 text-left border dark:border-gray-600">Ruta</th>
+                  <th class="p-3 text-center border dark:border-gray-600">Vence</th>
+                  <th class="p-3 text-center border dark:border-gray-600">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${upcomingTasks.map(t => `
+                  <tr class="border-b dark:border-gray-700">
+                    <td class="p-3 border dark:border-gray-600 font-medium">${escapeHtml(t.name)}</td>
+                    <td class="p-3 border dark:border-gray-600 text-gray-500 text-xs">${escapeHtml(t.path)}</td>
+                    <td class="p-3 text-center border dark:border-gray-600">
+                      <span class="px-2 py-1 rounded ${t.isToday ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">
+                        ${t.isToday ? 'Hoy' : t.isTomorrow ? 'Mañana' : t.dueDateFormatted}
+                      </span>
+                    </td>
+                    <td class="p-3 text-center border dark:border-gray-600">${t.status}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
+      `;
+    }
+
+    // Export to CSV
+    function exportCSV() {
+      const reportType = document.getElementById('report-type').value;
+      const clientFilter = document.getElementById('filter-client').value;
+
+      let filteredClients = clients;
+      if (clientFilter) {
+        filteredClients = clients.filter(c => c.clientId === clientFilter);
+      }
+
+      let csvContent = '';
+      let filename = '';
+
+      switch (reportType) {
+        case 'general':
+        case 'client':
+          const clientStats = calculateTasksPerClient(filteredClients);
+          csvContent = 'Cliente,Total Tareas,Pendientes,En Proceso,Finalizadas,% Completado\n';
+          clientStats.forEach(c => {
+            csvContent += `"${c.clientName}",${c.totalTasks},${c.pendingTasks},${c.inProgressTasks},${c.completedTasks},${c.completionRate}%\n`;
+          });
+          filename = 'reporte_clientes.csv';
+          break;
+
+        case 'user':
+          const userStats = calculateTasksPerUser(filteredClients, usersByUid);
+          csvContent = 'Usuario,Departamento,Total Tareas,Pendientes,En Proceso,Finalizadas,% Completado\n';
+          userStats.forEach(u => {
+            csvContent += `"${u.username}","${u.department || ''}",${u.totalTasks},${u.pendingTasks},${u.inProgressTasks},${u.completedTasks},${u.completionRate}%\n`;
+          });
+          filename = 'reporte_usuarios.csv';
+          break;
+
+        case 'overdue':
+          const overdueTasks = calculateOverdueTasks(filteredClients);
+          csvContent = 'Tarea,Ruta,Fecha Vencimiento,Días Vencido,Estado\n';
+          overdueTasks.forEach(t => {
+            csvContent += `"${t.name}","${t.path}","${t.dueDateFormatted}",${t.daysOverdue},"${t.status}"\n`;
+          });
+          filename = 'tareas_vencidas.csv';
+          break;
+      }
+
+      // Download CSV
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Event listeners
+    document.getElementById('generate-btn').addEventListener('click', generateReport);
+    document.getElementById('print-btn').addEventListener('click', () => window.print());
+    document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+
+    // Dark mode
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</body>
+</html>
