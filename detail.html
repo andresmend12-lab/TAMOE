@@ -1456,6 +1456,90 @@
             return button;
         };
 
+        const SORT_OPTIONS = [
+            { value: 'created-desc', label: 'Fecha de creación (más reciente)' },
+            { value: 'created-asc', label: 'Fecha de creación (más antigua)' },
+            { value: 'alpha-asc', label: 'Nombre (A–Z)' },
+            { value: 'alpha-desc', label: 'Nombre (Z–A)' },
+        ];
+        const SORT_VALUES = new Set(SORT_OPTIONS.map(option => option.value));
+        const DEFAULT_SORT_MODE = 'created-desc';
+
+        const normalizeSortMode = (value) => (SORT_VALUES.has(value) ? value : DEFAULT_SORT_MODE);
+
+        const parseSortTimestamp = (value) => {
+            if (!value) return null;
+            if (typeof value === 'number' && Number.isFinite(value)) return value;
+            if (typeof value === 'string') {
+                const parsed = Date.parse(value);
+                return Number.isFinite(parsed) ? parsed : null;
+            }
+            if (typeof value === 'object') {
+                if (typeof value.toMillis === 'function') return value.toMillis();
+                if (typeof value.seconds === 'number') return value.seconds * 1000;
+                if (typeof value.timestamp === 'number') return value.timestamp;
+            }
+            return null;
+        };
+
+        const compareActivities = (a, b, sortMode) => {
+            const mode = normalizeSortMode(sortMode);
+            const nameCompare = String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' });
+
+            if (mode === 'alpha-asc') return nameCompare;
+            if (mode === 'alpha-desc') return -nameCompare;
+
+            const timeA = parseSortTimestamp(a?.createdAt);
+            const timeB = parseSortTimestamp(b?.createdAt);
+            const hasA = Number.isFinite(timeA);
+            const hasB = Number.isFinite(timeB);
+
+            if (hasA && hasB) {
+                const direction = mode === 'created-asc' ? 1 : -1;
+                const timeDiff = (timeA - timeB) * direction;
+                if (timeDiff !== 0) return timeDiff;
+            } else if (hasA !== hasB) {
+                return hasA ? -1 : 1;
+            }
+
+            return nameCompare;
+        };
+
+        const sortActivities = (items, sortMode) => {
+            const list = Array.isArray(items) ? [...items] : [];
+            list.sort((a, b) => compareActivities(a, b, sortMode));
+            return list;
+        };
+
+        const getDetailSortStorageKey = (sectionKey) => `tamoe.detailSortMode.${sectionKey}`;
+
+        const loadDetailSortMode = (sectionKey) => {
+            try {
+                return normalizeSortMode(localStorage.getItem(getDetailSortStorageKey(sectionKey)));
+            } catch (error) {
+                return DEFAULT_SORT_MODE;
+            }
+        };
+
+        const detailSortModes = {
+            projects: loadDetailSortMode('projects'),
+            projectTasks: loadDetailSortMode('projectTasks'),
+            projectProducts: loadDetailSortMode('projectProducts'),
+            productTasks: loadDetailSortMode('productTasks'),
+            taskSubtasks: loadDetailSortMode('taskSubtasks'),
+        };
+
+        const getDetailSortMode = (sectionKey) => normalizeSortMode(detailSortModes[sectionKey]);
+
+        const mapEntriesToItems = (entries) => (
+            entries.map(([id, value]) => ({
+                id,
+                name: value?.name || '',
+                createdAt: value?.createdAt || '',
+                ref: value,
+            }))
+        );
+
         // Guardar estado de todos los <details> abiertos
         const saveDetailsState = () => {
             const openDetails = [];
@@ -1497,6 +1581,63 @@
                     }
                 });
             }, 50);
+        };
+
+        const persistDetailSortMode = (sectionKey, mode) => {
+            try {
+                localStorage.setItem(getDetailSortStorageKey(sectionKey), mode);
+            } catch (error) {
+                // Ignore storage failures.
+            }
+        };
+
+        const setDetailSortMode = (sectionKey, nextMode) => {
+            const mode = normalizeSortMode(nextMode);
+            detailSortModes[sectionKey] = mode;
+            persistDetailSortMode(sectionKey, mode);
+
+            if (currentResult) {
+                const openDetailsState = saveDetailsState();
+                renderActivities(currentResult);
+                restoreDetailsState(openDetailsState);
+            }
+        };
+
+        const createSortSelect = (sectionKey) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'relative';
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]';
+            icon.textContent = 'sort';
+
+            const select = document.createElement('select');
+            select.className = 'h-8 rounded-md border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-7 focus:border-primary focus:ring-1 focus:ring-primary';
+            SORT_OPTIONS.forEach((option) => {
+                const opt = document.createElement('option');
+                opt.value = option.value;
+                opt.textContent = option.label;
+                select.appendChild(opt);
+            });
+            select.value = getDetailSortMode(sectionKey);
+            select.addEventListener('change', (event) => {
+                setDetailSortMode(sectionKey, event.target.value);
+            });
+
+            wrapper.append(icon, select);
+            return wrapper;
+        };
+
+        const makeGroupHeader = (label, sectionKey, { className = '', labelClass = '' } = {}) => {
+            const header = document.createElement('div');
+            header.className = `flex items-center justify-between gap-2 ${className}`.trim();
+
+            const title = document.createElement('p');
+            title.className = labelClass || 'text-text-muted text-xs font-semibold uppercase tracking-wide px-1';
+            title.textContent = label;
+
+            header.append(title, createSortSelect(sectionKey));
+            return header;
         };
 
         const createChildActivity = async ({ label, path, type }) => {
@@ -2177,7 +2318,7 @@
             const subArray = Object.entries(subtasks || {})
                 .map(([id, sub]) => ({ id: sub?.subtaskId || id, ...sub }))
                 .filter(entry => entry && entry.id);
-            subArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            const sortedSubtasks = sortActivities(subArray, getDetailSortMode('taskSubtasks'));
 
             const safeTaskPath = String(taskPath || '').trim();
             const onTaskStatusChange = safeTaskPath
@@ -2236,13 +2377,17 @@
             }));
             content.appendChild(taskActionRow);
 
-            if (!subArray.length) {
+            if (!sortedSubtasks.length) {
                 const msg = document.createElement('p');
                 msg.className = 'text-text-muted text-sm';
                 msg.textContent = 'No hay subtareas en esta tarea.';
                 content.appendChild(msg);
             } else {
-                subArray.forEach(sub => {
+                content.appendChild(makeGroupHeader('Subtareas', 'taskSubtasks', {
+                    className: 'mt-1',
+                    labelClass: 'text-text-muted text-xs px-1'
+                }));
+                sortedSubtasks.forEach(sub => {
                     const subPath = safeTaskPath ? `${safeTaskPath}/subtasks/${sub.id}` : '';
                     const onSubStatusChange = subPath
                         ? async (nextStatus) => {
@@ -2326,15 +2471,21 @@
                 addActions();
                 const clientItem = clientRoot || item;
                 const projects = clientItem?.projects || {};
-                const projectArray = Object.entries(projects || {}).filter(([, proj]) => proj);
-                projectArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
+                const projectItems = sortActivities(
+                    mapEntriesToItems(Object.entries(projects || {}).filter(([, proj]) => proj)),
+                    getDetailSortMode('projects')
+                );
 
-                if (!projectArray.length) {
+                if (!projectItems.length) {
                     empty('No hay proyectos');
                     return;
                 }
 
-                projectArray.forEach(([projectId, proj]) => {
+                activitiesList.appendChild(makeGroupHeader('Proyectos', 'projects', { className: 'mb-2' }));
+
+                projectItems.forEach((projectItem) => {
+                    const projectId = projectItem.id;
+                    const proj = projectItem.ref;
                     const projPath = clientId ? `clients/${clientId}/projects/${projectId}` : '';
                     const onProjStatusChange = projPath
                         ? async (nextStatus) => {
@@ -2401,29 +2552,37 @@
                     projContent.appendChild(projActionRow);
 
                     const projTasks = proj.tasks || {};
-                    const projTaskArray = Object.entries(projTasks || {}).filter(([, t]) => t);
-                    projTaskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
-                    if (projTaskArray.length) {
-                        const taskLabel = document.createElement('p');
-                        taskLabel.className = 'text-text-muted text-xs px-1';
-                        taskLabel.textContent = 'Tareas (sin producto)';
-                        projContent.appendChild(taskLabel);
-                        projTaskArray.forEach(([taskId, task]) => {
+                    const projTaskItems = sortActivities(
+                        mapEntriesToItems(Object.entries(projTasks || {}).filter(([, t]) => t)),
+                        getDetailSortMode('projectTasks')
+                    );
+                    if (projTaskItems.length) {
+                        projContent.appendChild(makeGroupHeader('Tareas (sin producto)', 'projectTasks', {
+                            className: 'mt-1',
+                            labelClass: 'text-text-muted text-xs px-1'
+                        }));
+                        projTaskItems.forEach((taskItem) => {
+                            const taskId = taskItem.id;
+                            const task = taskItem.ref;
                             const taskPath = projPath ? `${projPath}/tasks/${taskId}` : '';
                             projContent.appendChild(makeTaskBlock(task, taskPath));
                         });
                     }
 
                     const products = proj.products || {};
-                    const productArray = Object.entries(products || {}).filter(([, prod]) => prod);
-                    productArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
-                    if (productArray.length) {
-                        const prodLabel = document.createElement('p');
-                        prodLabel.className = 'text-text-muted text-xs px-1';
-                        prodLabel.textContent = 'Productos';
-                        projContent.appendChild(prodLabel);
+                    const productItems = sortActivities(
+                        mapEntriesToItems(Object.entries(products || {}).filter(([, prod]) => prod)),
+                        getDetailSortMode('projectProducts')
+                    );
+                    if (productItems.length) {
+                        projContent.appendChild(makeGroupHeader('Productos', 'projectProducts', {
+                            className: 'mt-1',
+                            labelClass: 'text-text-muted text-xs px-1'
+                        }));
 
-                        productArray.forEach(([productId, prod]) => {
+                        productItems.forEach((productItem) => {
+                            const productId = productItem.id;
+                            const prod = productItem.ref;
                             const prodPath = projPath ? `${projPath}/products/${productId}` : '';
                             const onProdStatusChange = prodPath
                                 ? async (nextStatus) => {
@@ -2473,16 +2632,24 @@
                             prodContent.appendChild(prodActionRow);
 
                             const tasks = prod.tasks || {};
-                            const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
-                            taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
+                            const taskItems = sortActivities(
+                                mapEntriesToItems(Object.entries(tasks || {}).filter(([, t]) => t)),
+                                getDetailSortMode('productTasks')
+                            );
 
-                            if (!taskArray.length) {
+                            if (!taskItems.length) {
                                 const msg = document.createElement('p');
                                 msg.className = 'text-text-muted text-sm';
                                 msg.textContent = 'No hay tareas en este producto.';
                                 prodContent.appendChild(msg);
                             } else {
-                                taskArray.forEach(([taskId, task]) => {
+                                prodContent.appendChild(makeGroupHeader('Tareas', 'productTasks', {
+                                    className: 'mt-1',
+                                    labelClass: 'text-text-muted text-xs px-1'
+                                }));
+                                taskItems.forEach((taskItem) => {
+                                    const taskId = taskItem.id;
+                                    const task = taskItem.ref;
                                     const taskPath = prodPath ? `${prodPath}/tasks/${taskId}` : '';
                                     prodContent.appendChild(makeTaskBlock(task, taskPath));
                                 });
@@ -2493,7 +2660,7 @@
                         });
                     }
 
-                    if (!projTaskArray.length && !productArray.length) {
+                    if (!projTaskItems.length && !productItems.length) {
                         const msg = document.createElement('p');
                         msg.className = 'text-text-muted text-sm';
                         msg.textContent = 'No hay actividades en este proyecto.';
@@ -2533,29 +2700,37 @@
                 addActions();
 
                 const projTasks = projectItem?.tasks || {};
-                const projTaskArray = Object.entries(projTasks || {}).filter(([, t]) => t);
-                projTaskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
-                if (projTaskArray.length) {
-                    const taskLabel = document.createElement('p');
-                    taskLabel.className = 'text-text-muted text-xs px-1';
-                    taskLabel.textContent = 'Tareas (sin producto)';
-                    activitiesList.appendChild(taskLabel);
-                    projTaskArray.forEach(([taskId, task]) => {
+                const projTaskItems = sortActivities(
+                    mapEntriesToItems(Object.entries(projTasks || {}).filter(([, t]) => t)),
+                    getDetailSortMode('projectTasks')
+                );
+                if (projTaskItems.length) {
+                    activitiesList.appendChild(makeGroupHeader('Tareas (sin producto)', 'projectTasks', {
+                        className: 'mb-2',
+                        labelClass: 'text-text-muted text-xs px-1'
+                    }));
+                    projTaskItems.forEach((taskItem) => {
+                        const taskId = taskItem.id;
+                        const task = taskItem.ref;
                         const taskPath = projPath ? `${projPath}/tasks/${taskId}` : '';
                         activitiesList.appendChild(makeTaskBlock(task, taskPath));
                     });
                 }
 
                 const products = projectItem?.products || {};
-                const productArray = Object.entries(products || {}).filter(([, prod]) => prod);
-                productArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
-                if (productArray.length) {
-                    const prodLabel = document.createElement('p');
-                    prodLabel.className = 'text-text-muted text-xs px-1 pt-2';
-                    prodLabel.textContent = 'Productos';
-                    activitiesList.appendChild(prodLabel);
+                const productItems = sortActivities(
+                    mapEntriesToItems(Object.entries(products || {}).filter(([, prod]) => prod)),
+                    getDetailSortMode('projectProducts')
+                );
+                if (productItems.length) {
+                    activitiesList.appendChild(makeGroupHeader('Productos', 'projectProducts', {
+                        className: 'mb-2 pt-2',
+                        labelClass: 'text-text-muted text-xs px-1'
+                    }));
 
-                    productArray.forEach(([productId, prod]) => {
+                    productItems.forEach((productItem) => {
+                        const productId = productItem.id;
+                        const prod = productItem.ref;
                         const prodPath = projPath ? `${projPath}/products/${productId}` : '';
                         const onProdStatusChange = prodPath
                             ? async (nextStatus) => {
@@ -2605,15 +2780,23 @@
                         prodContent.appendChild(prodActionRow);
 
                         const tasks = prod.tasks || {};
-                        const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
-                        taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
-                        if (!taskArray.length) {
+                        const taskItems = sortActivities(
+                            mapEntriesToItems(Object.entries(tasks || {}).filter(([, t]) => t)),
+                            getDetailSortMode('productTasks')
+                        );
+                        if (!taskItems.length) {
                             const msg = document.createElement('p');
                             msg.className = 'text-text-muted text-sm';
                             msg.textContent = 'No hay tareas en este producto.';
                             prodContent.appendChild(msg);
                         } else {
-                            taskArray.forEach(([taskId, task]) => {
+                            prodContent.appendChild(makeGroupHeader('Tareas', 'productTasks', {
+                                className: 'mt-1',
+                                labelClass: 'text-text-muted text-xs px-1'
+                            }));
+                            taskItems.forEach((taskItem) => {
+                                const taskId = taskItem.id;
+                                const task = taskItem.ref;
                                 const taskPath = prodPath ? `${prodPath}/tasks/${taskId}` : '';
                                 prodContent.appendChild(makeTaskBlock(task, taskPath));
                             });
@@ -2624,7 +2807,7 @@
                     });
                 }
 
-                if (!projTaskArray.length && !productArray.length) {
+                if (!projTaskItems.length && !productItems.length) {
                     empty('No hay actividades en este proyecto.');
                 }
                 return;
@@ -2649,13 +2832,21 @@
 
                 const productItem = clientRoot?.projects?.[projectId]?.products?.[productId] || item;
                 const tasks = productItem?.tasks || {};
-                const taskArray = Object.entries(tasks || {}).filter(([, t]) => t);
-                taskArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
-                if (!taskArray.length) {
+                const taskItems = sortActivities(
+                    mapEntriesToItems(Object.entries(tasks || {}).filter(([, t]) => t)),
+                    getDetailSortMode('productTasks')
+                );
+                if (!taskItems.length) {
                     empty('No hay tareas en este producto.');
                     return;
                 }
-                taskArray.forEach(([taskId, task]) => {
+                activitiesList.appendChild(makeGroupHeader('Tareas', 'productTasks', {
+                    className: 'mb-2',
+                    labelClass: 'text-text-muted text-xs px-1'
+                }));
+                taskItems.forEach((taskItem) => {
+                    const taskId = taskItem.id;
+                    const task = taskItem.ref;
                     const taskPath = prodPath ? `${prodPath}/tasks/${taskId}` : '';
                     activitiesList.appendChild(makeTaskBlock(task, taskPath));
                 });
@@ -2680,13 +2871,21 @@
                     }));
                 }
                 addActions();
-                const subArray = Object.entries(subtasks || {}).filter(([, s]) => s);
-                subArray.sort((a, b) => (a[1]?.name || '').localeCompare(b[1]?.name || ''));
-                if (!subArray.length) {
+                const subItems = sortActivities(
+                    mapEntriesToItems(Object.entries(subtasks || {}).filter(([, s]) => s)),
+                    getDetailSortMode('taskSubtasks')
+                );
+                if (!subItems.length) {
                     empty('No hay subtareas en esta tarea.');
                     return;
                 }
-                subArray.forEach(([subtaskId, sub]) => {
+                activitiesList.appendChild(makeGroupHeader('Subtareas', 'taskSubtasks', {
+                    className: 'mb-2',
+                    labelClass: 'text-text-muted text-xs px-1'
+                }));
+                subItems.forEach((subItem) => {
+                    const subtaskId = subItem.id;
+                    const sub = subItem.ref;
                     const subPath = taskPath ? `${taskPath}/subtasks/${subtaskId}` : '';
                     const onSubStatusChange = subPath
                         ? async (nextStatus) => {

@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusFilterStatus = document.getElementById('status-filter-status');
     const statusFilterAssignee = document.getElementById('status-filter-assignee');
     const statusFilterSearch = document.getElementById('status-filter-search');
+    const activitySortSelectors = Array.from(document.querySelectorAll('[data-activity-sort]'));
     const myTasksList = document.getElementById('my-tasks-list');
     const myTasksEmpty = document.getElementById('my-tasks-empty');
     const myTasksSummary = document.getElementById('my-tasks-summary');
@@ -133,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let sidebarAutoOpenKeys = new Set();
     let taskCreationContext = null;
     let productCreationContext = null;
-    const projectChildSort = new Map();
     let clientSearchQuery = '';
     let clientsLoading = false;
     let calendarItems = [];
@@ -157,6 +157,111 @@ document.addEventListener('DOMContentLoaded', () => {
     // helpers to show/hide elements
     const showEl = el => el && el.classList.remove('hidden');
     const hideEl = el => el && el.classList.add('hidden');
+
+    const SORT_STORAGE_KEY = 'tamoe.activitySortMode';
+    const SORT_MODES = new Set(['created-desc', 'created-asc', 'alpha-asc', 'alpha-desc']);
+    const DEFAULT_SORT_MODE = 'created-desc';
+    let currentSortMode = DEFAULT_SORT_MODE;
+
+    const parseTimestamp = (value) => {
+        if (!value) return null;
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        if (typeof value === 'string') {
+            const parsed = Date.parse(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+        if (typeof value === 'object') {
+            if (typeof value.toMillis === 'function') return value.toMillis();
+            if (typeof value.seconds === 'number') return value.seconds * 1000;
+            if (typeof value.timestamp === 'number') return value.timestamp;
+        }
+        return null;
+    };
+
+    const normalizeSortMode = (value) => (SORT_MODES.has(value) ? value : DEFAULT_SORT_MODE);
+
+    const loadSortMode = () => {
+        try {
+            return normalizeSortMode(localStorage.getItem(SORT_STORAGE_KEY));
+        } catch (error) {
+            return DEFAULT_SORT_MODE;
+        }
+    };
+
+    const persistSortMode = (value) => {
+        try {
+            localStorage.setItem(SORT_STORAGE_KEY, value);
+        } catch (error) {
+            // Ignore storage failures.
+        }
+    };
+
+    const syncSortSelectors = () => {
+        activitySortSelectors.forEach((select) => {
+            if (!select) return;
+            select.value = currentSortMode;
+        });
+    };
+
+    const getSortName = (item) => String(item?.name || '').trim();
+    const getSortCreatedAt = (item) => parseTimestamp(item?.createdAt);
+
+    const compareActivities = (a, b, mode = currentSortMode) => {
+        const nameCompare = getSortName(a).localeCompare(getSortName(b), 'es', { sensitivity: 'base' });
+
+        if (mode === 'alpha-asc') return nameCompare;
+        if (mode === 'alpha-desc') return -nameCompare;
+
+        const timeA = getSortCreatedAt(a);
+        const timeB = getSortCreatedAt(b);
+        const hasA = Number.isFinite(timeA);
+        const hasB = Number.isFinite(timeB);
+
+        if (hasA && hasB) {
+            const direction = mode === 'created-asc' ? 1 : -1;
+            const timeDiff = (timeA - timeB) * direction;
+            if (timeDiff !== 0) return timeDiff;
+        } else if (hasA !== hasB) {
+            return hasA ? -1 : 1;
+        }
+
+        return nameCompare;
+    };
+
+    const sortActivities = (items, mode = currentSortMode) => {
+        const list = Array.isArray(items) ? [...items] : [];
+        list.sort((a, b) => compareActivities(a, b, mode));
+        return list;
+    };
+
+    const refreshSortedViews = () => {
+        renderClients();
+        if (selectedClientId && projectListSection && !projectListSection.classList.contains('hidden')) {
+            renderProjects(selectedClientId);
+        }
+        if (selectedClientId && selectedProjectId && productListSection && !productListSection.classList.contains('hidden')) {
+            renderProducts(selectedClientId, selectedProjectId);
+        }
+        if (selectedClientId && selectedProjectId) {
+            renderTasks(selectedClientId, selectedProjectId, selectedProductId);
+            if (selectedTaskId) {
+                renderSubtasks(selectedClientId, selectedProjectId, selectedProductId, selectedTaskId);
+            }
+        }
+        renderTree();
+        renderStatusDashboard();
+        renderMyTasks();
+    };
+
+    const setSortMode = (nextMode, { persist = true, rerender = true } = {}) => {
+        const normalized = normalizeSortMode(nextMode);
+        currentSortMode = normalized;
+        if (persist) persistSortMode(normalized);
+        syncSortSelectors();
+        if (rerender) refreshSortedViews();
+    };
+
+    setSortMode(loadSortMode(), { persist: false, rerender: false });
 
     const updateActivityPath = () => {
         if (!activityPathEls.length) return;
@@ -220,20 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return text || fallback;
             };
 
-            const parseActivityTimestamp = (value) => {
-                if (!value) return 0;
-                if (typeof value === 'number') return value;
-                if (typeof value === 'string') {
-                    const t = Date.parse(value);
-                    return Number.isFinite(t) ? t : 0;
-                }
-                if (typeof value === 'object') {
-                    if (typeof value.toMillis === 'function') return value.toMillis();
-                    if (typeof value.seconds === 'number') return value.seconds * 1000;
-                    if (typeof value.timestamp === 'number') return value.timestamp;
-                }
-                return 0;
-            };
+            const parseActivityTimestamp = parseTimestamp;
 
             const RECENT_WINDOW_DAYS = 14;
             const recentCutoff = Date.now() - (RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
@@ -260,10 +352,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 clientName,
                 projectName,
                 productName,
-                activityValue
+                activityValue,
+                createdAt
             }) => {
                 const normalizedStatus = normalizeStatus(status);
-                const activityDate = parseActivityTimestamp(activityValue);
+                const activityDate = parseActivityTimestamp(activityValue) || 0;
                 const assignee = String(assigneeUid || '').trim();
                 const isUnassigned = Boolean(supportsAssignee) && !assignee;
                 const isBlocked = normalizedStatus === 'Bloqueada';
@@ -298,6 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     projectName,
                     productName,
                     context: buildContext(clientName, projectName, productName),
+                    createdAt: createdAt || '',
                     activityDate,
                     group,
                 });
@@ -325,6 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         projectName,
                         productName: '',
                         activityValue: project.updatedAt || project.createdAt || '',
+                        createdAt: project.createdAt || '',
                     });
 
                     Object.entries(project.tasks || {}).forEach(([taskId, task]) => {
@@ -344,6 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             projectName,
                             productName: '',
                             activityValue: task.updatedAt || task.createdAt || '',
+                            createdAt: task.createdAt || '',
                         });
 
                         Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
@@ -361,6 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 projectName,
                                 productName: '',
                                 activityValue: subtask.updatedAt || subtask.createdAt || '',
+                                createdAt: subtask.createdAt || '',
                             });
                         });
                     });
@@ -382,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             projectName,
                             productName,
                             activityValue: product.updatedAt || product.createdAt || '',
+                            createdAt: product.createdAt || '',
                         });
 
                         Object.entries(product.tasks || {}).forEach(([taskId, task]) => {
@@ -401,6 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 projectName,
                                 productName,
                                 activityValue: task.updatedAt || task.createdAt || '',
+                                createdAt: task.createdAt || '',
                             });
 
                             Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
@@ -418,6 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     projectName,
                                     productName,
                                     activityValue: subtask.updatedAt || subtask.createdAt || '',
+                                    createdAt: subtask.createdAt || '',
                                 });
                             });
                         });
@@ -498,13 +598,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const groupRank = { blocked: 0, in_progress: 1, unassigned: 2, recent: 3 };
-            filtered.sort((a, b) => {
+            const sortedAttention = [...filtered].sort((a, b) => {
                 const rankA = groupRank[a.group] ?? 99;
                 const rankB = groupRank[b.group] ?? 99;
                 if (rankA !== rankB) return rankA - rankB;
-                const dateDiff = (b.activityDate || 0) - (a.activityDate || 0);
-                if (dateDiff !== 0) return dateDiff;
-                return String(a.name || '').localeCompare(String(b.name || ''));
+                return compareActivities(a, b);
             });
 
             const typeIcons = {
@@ -602,12 +700,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 items.forEach((item) => listEl.appendChild(buildRow(item, listEl !== statusAttentionList)));
             };
 
-            renderList(filtered, statusAttentionList, statusAttentionEmpty, statusAttentionCount, 'elementos');
+            renderList(sortedAttention, statusAttentionList, statusAttentionEmpty, statusAttentionCount, 'elementos');
 
-            const blockedItems = filtered.filter((item) => item.status === 'Bloqueada');
+            const blockedItems = sortActivities(filtered.filter((item) => item.status === 'Bloqueada'));
             renderList(blockedItems, statusBlockedList, statusBlockedEmpty, statusBlockedCount);
 
-            const unassignedItems = filtered.filter((item) => item.supportsAssignee && !item.assigneeUid);
+            const unassignedItems = sortActivities(filtered.filter((item) => item.supportsAssignee && !item.assigneeUid));
             renderList(unassignedItems, statusUnassignedList, statusUnassignedEmpty, statusUnassignedCount);
         } catch (error) {
             console.error('Error rendering status dashboard:', error);
@@ -935,10 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rankA = statusRank[a.status] ?? 99;
             const rankB = statusRank[b.status] ?? 99;
             if (rankA !== rankB) return rankA - rankB;
-            const dateA = Date.parse(String(a.createdAt || '')) || 0;
-            const dateB = Date.parse(String(b.createdAt || '')) || 0;
-            if (dateA !== dateB) return dateB - dateA;
-            return String(a.name || '').localeCompare(String(b.name || ''));
+            return compareActivities(a, b);
         });
 
         myTasksSummary.textContent = assignments.length === 1
@@ -2834,7 +2929,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         noClientsMessage?.classList.add('hidden');
         // Sidebar tree mode (clients -> projects -> products)
-        const sortedClients = [...visibleClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const sortedClients = sortActivities(visibleClients);
 
         const makeChevron = (isOpen) => {
             const chevron = document.createElement('span');
@@ -2983,8 +3078,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientChildren.className = 'pl-3 mt-2 flex flex-col gap-2';
 
             const projects = client?.projects || {};
-            const projectArray = Object.keys(projects || {}).map(id => ({ id, ...projects[id] }));
-            projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            const projectArray = sortActivities(Object.keys(projects || {}).map(id => ({ id, ...projects[id] })));
 
             if (projectArray.length === 0) {
                 const empty = document.createElement('p');
@@ -3091,8 +3185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     projectChildren.className = 'pl-3 mt-2 flex flex-col gap-2';
 
                     const products = proj?.products || {};
-                    const productArray = Object.keys(products || {}).map(id => ({ id, ...products[id] }));
-                    productArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    const productArray = sortActivities(Object.keys(products || {}).map(id => ({ id, ...products[id] })));
 
                     if (productArray.length === 0) {
                         const empty = document.createElement('p');
@@ -3538,14 +3631,13 @@ document.addEventListener('DOMContentLoaded', () => {
         projectListNav.appendChild(noProjectsMessage);
         const client = allClients.find(c => c.id === clientId);
         const projects = client?.projects || {};
-        const projectArray = Object.keys(projects || {}).map(key => ({ id: key, ...projects[key] }));
+        const projectArray = sortActivities(Object.keys(projects || {}).map(key => ({ id: key, ...projects[key] })));
         if (projectArray.length === 0) {
             noProjectsMessage.textContent = 'No hay proyectos.';
             noProjectsMessage.classList.remove('hidden');
             return;
         }
         noProjectsMessage.classList.add('hidden');
-        projectArray.sort((a, b) => a.name.localeCompare(b.name));
         projectArray.forEach(proj => {
             const row = document.createElement('div');
             row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
@@ -3649,7 +3741,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const client = allClients.find(c => c.id === clientId);
         const project = client?.projects?.[projectId];
         const products = project?.products || {};
-        const productArray = Object.keys(products || {}).map(key => ({ id: key, ...products[key] }));
+        const productArray = sortActivities(Object.keys(products || {}).map(key => ({ id: key, ...products[key] })));
 
         if (productArray.length === 0) {
             noProductsMessage.textContent = 'No hay productos.';
@@ -3658,7 +3750,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         noProductsMessage.classList.add('hidden');
-        productArray.sort((a, b) => a.name.localeCompare(b.name));
         productArray.forEach(prod => {
             const row = document.createElement('div');
             row.className = 'group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-text-muted dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors';
@@ -3778,7 +3869,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : (project?.tasks || {});
         const task = tasks?.[taskId];
         const subtasks = task?.subtasks || {};
-        const subtaskArray = Object.keys(subtasks || {}).map(key => ({ id: key, ...subtasks[key] }));
+        const subtaskArray = sortActivities(Object.keys(subtasks || {}).map(key => ({ id: key, ...subtasks[key] })));
 
         if (!task) {
             noSubtasksMessage.textContent = 'Selecciona una tarea para ver sus subtareas.';
@@ -3793,8 +3884,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         noSubtasksMessage.classList.add('hidden');
-        subtaskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
         const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_32px]';
 
         const headerRow = document.createElement('div');
@@ -4005,7 +4094,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const baseClients = selectionClientId
             ? allClients.filter(c => c.id === selectionClientId)
             : visibleClients;
-        const clientsToRender = [...baseClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const clientsToRender = sortActivities(baseClients);
 
         const treeGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_220px] items-center gap-1';
 
@@ -4067,26 +4156,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 progress.total += productProgress.total;
             }
             return progress;
-        };
-
-        const getProjectSortMode = (clientId, projectId) => {
-            const key = `${clientId}:${projectId}`;
-            return projectChildSort.get(key) || 'alpha';
-        };
-
-        const setProjectSortMode = (clientId, projectId, mode) => {
-            const key = `${clientId}:${projectId}`;
-            projectChildSort.set(key, mode);
-        };
-
-        const compareBySortMode = (a, b, mode) => {
-            const nameCompare = String(a?.name || '').localeCompare(String(b?.name || ''));
-            if (mode !== 'created') return nameCompare;
-            const timeA = Date.parse(String(a?.createdAt || ''));
-            const timeB = Date.parse(String(b?.createdAt || ''));
-            const dateA = Number.isFinite(timeA) ? timeA : 0;
-            const dateB = Number.isFinite(timeB) ? timeB : 0;
-            return dateA - dateB || nameCompare;
         };
 
         const makeSummary = (icon, name, manageId, status = null, onStatusChange = null, progressInfo = null, depth = 0, kind = '', options = {}) => {
@@ -4166,14 +4235,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const assigneeCell = document.createElement('div');
             assigneeCell.className = 'min-w-0';
-            if (kind === 'project' && options.sortControl) {
-                const sortMenu = createSortMenu({
-                    value: options.sortControl.value,
-                    onChange: options.sortControl.onChange,
-                });
-                assigneeCell.className = 'flex items-center justify-end';
-                assigneeCell.appendChild(sortMenu);
-            }
             applyDepthPadding(statusCell, depth);
             applyDepthPadding(metaCell, depth);
             applyDepthPadding(assigneeCell, depth);
@@ -4321,15 +4382,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const renderInlineSubtasks = () => {
                 list.innerHTML = '';
-                const subtasks = Object.entries(task?.subtasks || {}).filter(([, sub]) => sub);
-                if (!subtasks.length) {
+                const subtasks = Object.entries(task?.subtasks || {})
+                    .filter(([, sub]) => sub)
+                    .map(([subId, sub]) => ({ id: subId, ...sub }));
+                const sortedSubtasks = sortActivities(subtasks);
+                if (!sortedSubtasks.length) {
                     const empty = document.createElement('p');
                     empty.className = 'text-text-muted text-sm';
                     empty.textContent = 'No hay elementos.';
                     list.appendChild(empty);
                     return;
                 }
-                subtasks.forEach(([subId, sub]) => {
+                sortedSubtasks.forEach((sub) => {
+                    const subId = sub.id;
                     const rowEl = document.createElement('div');
                     rowEl.className = `${treeGrid} items-center rounded-md border border-border-dark bg-white dark:bg-surface-darker px-3 py-2 subtask-row`;
 
@@ -4532,10 +4597,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const projects = client.projects || {};
             const rawProjectArray = Object.keys(projects).map(id => ({ id, ...projects[id] }));
-            const projectArray = selectionProjectId
-                ? rawProjectArray.filter(p => p.id === selectionProjectId)
-                : rawProjectArray;
-            projectArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            const projectArray = sortActivities(
+                selectionProjectId ? rawProjectArray.filter(p => p.id === selectionProjectId) : rawProjectArray
+            );
 
             if (projectArray.length === 0) {
                 const empty = document.createElement('p');
@@ -4549,7 +4613,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     projDetails.dataset.manageId = proj.manageId || `project:${client.id}:${proj.id}`;
                     if (selectionProjectId && proj.id === selectionProjectId) projDetails.open = true;
                     const projProgress = computeProjectProgress(proj);
-                    const projectSortMode = getProjectSortMode(client.id, proj.id);
                     projDetails.appendChild(makeSummary(
                         'layers',
                         proj.name || 'Proyecto',
@@ -4565,16 +4628,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         },
                         projProgress,
                         1,
-                        'project',
-                        {
-                            sortControl: {
-                                value: projectSortMode,
-                                onChange: (nextMode) => {
-                                    setProjectSortMode(client.id, proj.id, nextMode);
-                                    renderTree();
-                                }
-                            }
-                        }
+                        'project'
                     ));
 
                     const projContent = document.createElement('div');
@@ -4582,8 +4636,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Tareas sin producto (solo si no hay un producto seleccionado)
                     const projTasks = proj.tasks || {};
-                    const projTaskArray = Object.keys(projTasks).map(id => ({ id, ...projTasks[id] }));
-                    projTaskArray.sort((a, b) => compareBySortMode(a, b, projectSortMode));
+                    const projTaskArray = sortActivities(Object.keys(projTasks).map(id => ({ id, ...projTasks[id] })));
                     if (!selectionProductId && projTaskArray.length) {
                         projTaskArray.forEach(t => {
                             const taskPath = `clients/${client.id}/projects/${proj.id}/tasks/${t.id}`;
@@ -4617,10 +4670,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const products = proj.products || {};
                     const rawProductArray = Object.keys(products).map(id => ({ id, ...products[id] }));
                     const hasProducts = rawProductArray.length > 0;
-                    const productArray = selectionProductId
-                        ? rawProductArray.filter(p => p.id === selectionProductId)
-                        : rawProductArray;
-                    productArray.sort((a, b) => compareBySortMode(a, b, projectSortMode));
+                    const productArray = sortActivities(
+                        selectionProductId ? rawProductArray.filter(p => p.id === selectionProductId) : rawProductArray
+                    );
 
                     if (productArray.length === 0 && (!projTaskArray.length || selectionProductId)) {
                         const emptyP = document.createElement('p');
@@ -4661,8 +4713,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             prodContent.className = 'pt-2 pr-2 pb-2 flex flex-col gap-1';
 
                             const prodTasks = prod.tasks || {};
-                            const prodTaskArray = Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] }));
-                            prodTaskArray.sort((a, b) => compareBySortMode(a, b, projectSortMode));
+                            const prodTaskArray = sortActivities(Object.keys(prodTasks).map(id => ({ id, ...prodTasks[id] })));
 
                             if (prodTaskArray.length === 0) {
                                 const emptyT = document.createElement('p');
@@ -4787,7 +4838,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? (project.products?.[productId]?.tasks || {})
             : (project.tasks || {});
 
-        const taskArray = Object.keys(tasks || {}).map(key => ({ id: key, ...tasks[key] }));
+        const taskArray = sortActivities(Object.keys(tasks || {}).map(key => ({ id: key, ...tasks[key] })));
 
         if (taskArray.length === 0) {
             selectedTaskId = null;
@@ -4798,8 +4849,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         noTasksMessage.classList.add('hidden');
-        taskArray.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
         const activityGrid = 'grid grid-cols-[minmax(0,1fr)_140px_260px_32px]';
 
         const headerRow = document.createElement('div');
@@ -5558,6 +5607,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideSearchResults();
                 clientSearchInput.blur();
             }
+        });
+        activitySortSelectors.forEach((select) => {
+            select.addEventListener('change', (event) => {
+                setSortMode(event.target.value);
+            });
         });
         document.addEventListener('click', (event) => {
             if (!searchRoot) return;
