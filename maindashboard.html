@@ -283,6 +283,10 @@
                         <span class="material-symbols-outlined text-[18px]">settings_suggest</span>
                         Automatizaciones
                     </button>
+                    <a href="analytics.html" class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 transition-all">
+                        <span class="material-symbols-outlined text-[18px]">analytics</span>
+                        Analytics
+                    </a>
                 </nav>
             </div>
         </div>
@@ -430,11 +434,11 @@
 </section>
 
                 <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
-                    <div class="flex items-center gap-2 mb-2">
+                    <div class="flex items-center gap-2 mb-4">
                         <span class="material-symbols-outlined text-primary">timeline</span>
                         <h2 class="text-gray-900 dark:text-white text-xl font-bold">Cronograma</h2>
                     </div>
-                    <p class="text-text-muted text-sm">Próximamente.</p>
+                    <div id="timeline-container"></div>
                 </section>
 
                 <section id="tab-panel-calendar" data-tab-panel="calendar" role="tabpanel" aria-labelledby="tab-calendar" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
@@ -725,6 +729,7 @@
 
 <script src="automations.js" type="module"></script>
 <script src="notifications.js" type="module"></script>
+<script src="timeline-integration.js" type="module"></script>
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const sidebar = document.getElementById("sidebar");
