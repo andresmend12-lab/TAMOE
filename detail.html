@@ -1055,40 +1055,90 @@
             }
         };
 
-        // Update progress bar
-        const updateTimeProgressBar = () => {
-            const progressContainer = qs('time-progress-container');
-            const progressBar = qs('time-progress-bar');
-            const progressText = qs('time-progress-text');
+        /**
+         * Agregación recursiva de minutos estimados y empleados desde todos los descendientes
+         * @param {Object} item - Nodo a agregar (cliente, proyecto, producto, tarea)
+         * @param {string} type - Tipo de nodo ('client', 'project', 'product', 'task', 'subtask')
+         * @returns {{ estimatedChildren: number, spentChildren: number }} - Suma de minutos de todos los descendientes
+         */
+        const aggregateMinutesFromNode = (item, type) => {
+            let estimatedChildren = 0;
+            let spentChildren = 0;
 
-            if (!progressContainer || !progressBar || !progressText) return;
+            // Función recursiva para agregar desde los hijos
+            const aggregateChildren = (children, childType) => {
+                if (!children || typeof children !== 'object') return;
+                Object.values(children).forEach(child => {
+                    if (!child) return;
 
-            const estimatedMinutes = detailFieldsSnapshot.estimatedMinutes || 0;
-            const spentMinutes = detailFieldsSnapshot.spentMinutes || 0;
+                    // Obtener minutos manuales del hijo
+                    let childEstimated = 0;
+                    let childSpent = 0;
 
-            if (estimatedMinutes <= 0) {
-                progressContainer.classList.add('hidden');
-                return;
+                    if (child.estimatedMinutes != null) {
+                        childEstimated = Number(child.estimatedMinutes) || 0;
+                    } else if (child.estimatedHours != null) {
+                        childEstimated = hoursToMinutes(parseFloat(child.estimatedHours));
+                    }
+
+                    if (child.spentMinutes != null) {
+                        childSpent = Number(child.spentMinutes) || 0;
+                    } else if (child.actualHours != null) {
+                        childSpent = hoursToMinutes(parseFloat(child.actualHours));
+                    }
+
+                    estimatedChildren += childEstimated;
+                    spentChildren += childSpent;
+
+                    // Verificar si necesitamos calcular recursivamente
+                    const hasEstimatedRollup = child.estimatedMinutesRollup != null;
+                    const hasSpentRollup = child.spentMinutesRollup != null;
+
+                    // Si el hijo tiene rollup persistido, usarlo directamente
+                    if (hasEstimatedRollup) {
+                        estimatedChildren += Number(child.estimatedMinutesRollup) || 0;
+                    }
+                    if (hasSpentRollup) {
+                        spentChildren += Number(child.spentMinutesRollup) || 0;
+                    }
+
+                    // Si no tiene rollup, calcular recursivamente (una sola vez)
+                    if (!hasEstimatedRollup || !hasSpentRollup) {
+                        const grandchildAgg = aggregateMinutesFromNode(child, childType);
+                        if (!hasEstimatedRollup) {
+                            estimatedChildren += grandchildAgg.estimatedChildren;
+                        }
+                        if (!hasSpentRollup) {
+                            spentChildren += grandchildAgg.spentChildren;
+                        }
+                    }
+                });
+            };
+
+            switch(type) {
+                case 'client':
+                    aggregateChildren(item.projects, 'project');
+                    break;
+                case 'project':
+                    aggregateChildren(item.products, 'product');
+                    aggregateChildren(item.tasks, 'task');
+                    break;
+                case 'product':
+                    aggregateChildren(item.tasks, 'task');
+                    break;
+                case 'task':
+                    aggregateChildren(item.subtasks, 'subtask');
+                    break;
+                case 'subtask':
+                default:
+                    break;
             }
 
-            progressContainer.classList.remove('hidden');
-            const percent = Math.min((spentMinutes / estimatedMinutes) * 100, 100);
-            progressBar.style.width = `${percent}%`;
-
-            // Color based on progress
-            progressBar.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
-            if (percent <= 75) {
-                progressBar.classList.add('bg-green-500');
-            } else if (percent <= 100) {
-                progressBar.classList.add('bg-yellow-500');
-            } else {
-                progressBar.classList.add('bg-red-500');
-            }
-
-            const estimatedHours = minutesToHours(estimatedMinutes);
-            const spentHours = minutesToHours(spentMinutes);
-            progressText.textContent = `${Math.round(percent)}% del tiempo estimado (${spentHours.toFixed(1)}h de ${estimatedHours.toFixed(1)}h)`;
+            return { estimatedChildren, spentChildren };
         };
+
+        // Estado para mantener la agregación actual (para actualizaciones en caliente)
+        let currentAggregation = { estimatedChildren: 0, spentChildren: 0 };
 
         // Actualizar resumen de rollup de tiempo estimado (IDÉNTICO a Mis tareas)
         const updateEstimatedTimeRollupSummary = (manualMinutes, rollupMinutes) => {
@@ -1131,6 +1181,75 @@
             }
         };
 
+        // Actualizar resumen de rollup de tiempo empleado (NUEVO - igual formato que estimado)
+        const updateSpentTimeRollupSummary = (manualMinutes, rollupMinutes) => {
+            const summaryEl = document.getElementById('spent-time-rollup-summary');
+            if (!summaryEl) return;
+
+            const totalMinutes = manualMinutes + rollupMinutes;
+
+            // Formatear minutos a horas/minutos legibles
+            const formatMinutes = (mins) => {
+                if (mins === 0) return '0m';
+                const hours = Math.floor(mins / 60);
+                const minutes = mins % 60;
+                if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+                if (hours > 0) return `${hours}h`;
+                return `${minutes}m`;
+            };
+
+            const parts = [];
+
+            if (rollupMinutes === 0) {
+                parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+            } else {
+                if (manualMinutes > 0) parts.push(`Manual: ${formatMinutes(manualMinutes)}`);
+                parts.push(`Hijos: ${formatMinutes(rollupMinutes)}`);
+                parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+            }
+
+            summaryEl.textContent = parts.join(' · ');
+
+            if (parts.length === 0) {
+                summaryEl.textContent = '';
+            }
+        };
+
+        // Update progress bar
+        const updateTimeProgressBar = () => {
+            const progressContainer = qs('time-progress-container');
+            const progressBar = qs('time-progress-bar');
+            const progressText = qs('time-progress-text');
+
+            if (!progressContainer || !progressBar || !progressText) return;
+
+            const estimatedMinutes = detailFieldsSnapshot.estimatedMinutes || 0;
+            const spentMinutes = detailFieldsSnapshot.spentMinutes || 0;
+
+            if (estimatedMinutes <= 0) {
+                progressContainer.classList.add('hidden');
+                return;
+            }
+
+            progressContainer.classList.remove('hidden');
+            const percent = Math.min((spentMinutes / estimatedMinutes) * 100, 100);
+            progressBar.style.width = `${percent}%`;
+
+            // Color based on progress
+            progressBar.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
+            if (percent <= 75) {
+                progressBar.classList.add('bg-green-500');
+            } else if (percent <= 100) {
+                progressBar.classList.add('bg-yellow-500');
+            } else {
+                progressBar.classList.add('bg-red-500');
+            }
+
+            const estimatedHours = minutesToHours(estimatedMinutes);
+            const spentHours = minutesToHours(spentMinutes);
+            progressText.textContent = `${Math.round(percent)}% del tiempo estimado (${spentHours.toFixed(1)}h de ${estimatedHours.toFixed(1)}h)`;
+        };
+
         const setDetailFields = (item = {}) => {
             const workDate = String(item.workDate || '').trim();
             if (workDateInput) workDateInput.value = workDate;
@@ -1143,30 +1262,27 @@
                 estimatedMinutes = hoursToMinutes(parseFloat(item.estimatedHours));
             }
 
-            // Calcular rollup desde subtareas (si es una tarea)
-            let estimatedMinutesRollup = 0;
-            if (currentItemType === 'task') {
-                // Prioridad 1: leer rollup persistido
-                if (item.estimatedMinutesRollup != null) {
-                    estimatedMinutesRollup = parseInt(item.estimatedMinutesRollup) || 0;
-                } else if (item.subtasks) {
-                    // Prioridad 2: calcular desde subtareas si no está persistido
-                    Object.values(item.subtasks || {}).forEach(subtask => {
-                        if (subtask && subtask.estimatedMinutes != null) {
-                            estimatedMinutesRollup += Number(subtask.estimatedMinutes) || 0;
-                        }
-                    });
-                }
-            }
-
-            const estimatedMinutesTotal = estimatedMinutes + estimatedMinutesRollup;
-
             let spentMinutes = 0;
             if (item.spentMinutes != null) {
                 spentMinutes = parseInt(item.spentMinutes) || 0;
             } else if (item.actualHours != null) {
                 spentMinutes = hoursToMinutes(parseFloat(item.actualHours));
             }
+
+            // NUEVO: Calcular agregación desde todos los descendientes para TODOS los tipos
+            // Usa aggregateMinutesFromNode que recorre recursivamente la jerarquía
+            const aggregation = aggregateMinutesFromNode(item, currentItemType);
+            const estimatedMinutesRollup = aggregation.estimatedChildren;
+            const spentMinutesRollup = aggregation.spentChildren;
+
+            // Guardar en estado para actualizaciones en caliente
+            currentAggregation = aggregation;
+
+            const estimatedMinutesTotal = estimatedMinutes + estimatedMinutesRollup;
+            const spentMinutesTotal = spentMinutes + spentMinutesRollup;
+
+            // Check if item has children
+            const itemHasChildren = hasChildren(item, currentItemType);
 
             // Crear inputs de duración si no existen
             if (!estimatedTimeInput && estimatedTimeContainer) {
@@ -1179,22 +1295,18 @@
                         saveDetailFields(minutes, null);
                         updateTimeProgressBar();
                         // Actualizar resumen de rollup
-                        updateEstimatedTimeRollupSummary(minutes, estimatedMinutesRollup);
+                        updateEstimatedTimeRollupSummary(minutes, currentAggregation.estimatedChildren);
                     }
                 });
                 estimatedTimeContainer.innerHTML = '';
                 estimatedTimeContainer.appendChild(estimatedTimeInput);
 
-                // Añadir resumen de rollup debajo del input (EXACTO como en Mis tareas)
-                if (currentItemType === 'task') {
-                    const rollupSummary = document.createElement('div');
-                    rollupSummary.id = 'estimated-time-rollup-summary';
-                    rollupSummary.className = 'text-xs text-text-muted mt-1';
-                    estimatedTimeContainer.appendChild(rollupSummary);
-
-                    // Actualizar resumen inicialmente
-                    updateEstimatedTimeRollupSummary(estimatedMinutes, estimatedMinutesRollup);
-                }
+                // Añadir resumen de rollup debajo del input para TODOS los tipos con hijos
+                // (no solo tareas, sino también cliente/proyecto/producto)
+                const rollupSummary = document.createElement('div');
+                rollupSummary.id = 'estimated-time-rollup-summary';
+                rollupSummary.className = 'text-xs text-text-muted mt-1';
+                estimatedTimeContainer.appendChild(rollupSummary);
             }
 
             if (!timeSpentInput && timeSpentContainer) {
@@ -1206,30 +1318,32 @@
                         // NO modificar detailFieldsSnapshot aquí, pasar el nuevo valor directamente
                         saveDetailFields(null, minutes);
                         updateTimeProgressBar();
+                        // Actualizar resumen de rollup de tiempo empleado
+                        updateSpentTimeRollupSummary(minutes, currentAggregation.spentChildren);
                     }
                 });
                 timeSpentContainer.innerHTML = '';
                 timeSpentContainer.appendChild(timeSpentInput);
+
+                // Añadir resumen de rollup debajo del input para tiempo empleado
+                const spentRollupSummary = document.createElement('div');
+                spentRollupSummary.id = 'spent-time-rollup-summary';
+                spentRollupSummary.className = 'text-xs text-text-muted mt-1';
+                timeSpentContainer.appendChild(spentRollupSummary);
             }
 
-            // Check if item has children and should show total time
-            const itemHasChildren = hasChildren(item, currentItemType);
-
             if (itemHasChildren) {
-                // Calculate total time from children (en horas, luego convertir)
-                const totalHours = calculateTotalTimeSpent(item, currentItemType);
-                const totalMinutes = hoursToMinutes(totalHours);
                 const childrenText = getChildrenCountText(item, currentItemType);
 
-                // Show as read-only with total
+                // Para tiempo empleado: mostrar como read-only si hay hijos
                 if (timeSpentInput) {
-                    timeSpentInput.setDurationValue(totalMinutes);
+                    timeSpentInput.setDurationValue(spentMinutes);
                     timeSpentInput.disabled = true;
                     timeSpentInput.classList.add('opacity-75', 'cursor-not-allowed');
-                    timeSpentInput.title = `Suma de ${childrenText}`;
+                    timeSpentInput.title = `Manual del nodo. Acumulado de ${childrenText} mostrado abajo.`;
                 }
 
-                detailFieldsSnapshot = { estimatedMinutes, spentMinutes: totalMinutes, workDate };
+                detailFieldsSnapshot = { estimatedMinutes, spentMinutes, workDate };
             } else {
                 // Show as editable
                 if (timeSpentInput) {
@@ -1247,10 +1361,9 @@
                 estimatedTimeInput.setDurationValue(estimatedMinutes);
             }
 
-            // Actualizar resumen de rollup si es una tarea
-            if (currentItemType === 'task') {
-                updateEstimatedTimeRollupSummary(estimatedMinutes, estimatedMinutesRollup);
-            }
+            // Actualizar resúmenes de rollup para TODOS los tipos (no solo tareas)
+            updateEstimatedTimeRollupSummary(estimatedMinutes, estimatedMinutesRollup);
+            updateSpentTimeRollupSummary(spentMinutes, spentMinutesRollup);
 
             if (detailFieldsStatus) detailFieldsStatus.textContent = '';
             updateTimeProgressBar();
@@ -3493,9 +3606,10 @@
             if (descriptionInput) descriptionInput.value = descText;
             setDescriptionView(descText);
             setDescriptionEditing(false);
-            setDetailFields(item);
 
+            // IMPORTANTE: Asignar currentItemType ANTES de setDetailFields para que aggregateMinutesFromNode funcione
             currentItemType = type;
+            setDetailFields(item);
             currentItemStatus = normalizeStatus(item.status);
             if (statusSave) statusSave.textContent = '';
             renderStatusFlow();
