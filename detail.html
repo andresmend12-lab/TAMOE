@@ -1056,78 +1056,111 @@
         };
 
         /**
-         * Agregación recursiva de minutos estimados y empleados desde todos los descendientes
+         * Detecta si una tarea tiene subtareas
+         * @param {Object} task - Nodo tarea
+         * @returns {boolean} - true si tiene subtareas
+         */
+        const hasSubtasks = (task) => {
+            if (!task) return false;
+            const subtasks = task.subtasks;
+            if (!subtasks || typeof subtasks !== 'object') return false;
+            return Object.keys(subtasks).length > 0;
+        };
+
+        /**
+         * Agregación recursiva de tiempos SOLO desde tareas hoja (sin subtareas) y subtareas
+         * NUEVA LÓGICA: No cuenta tiempos manuales de tareas que tienen subtareas
          * @param {Object} item - Nodo a agregar (cliente, proyecto, producto, tarea)
          * @param {string} type - Tipo de nodo ('client', 'project', 'product', 'task', 'subtask')
-         * @returns {{ estimatedChildren: number, spentChildren: number }} - Suma de minutos de todos los descendientes
+         * @returns {{ estimatedChildren: number, spentChildren: number }} - Suma de minutos de descendientes válidos
          */
         const aggregateMinutesFromNode = (item, type) => {
             let estimatedChildren = 0;
             let spentChildren = 0;
 
-            // Función recursiva para agregar desde los hijos
-            const aggregateChildren = (children, childType) => {
-                if (!children || typeof children !== 'object') return;
-                Object.values(children).forEach(child => {
-                    if (!child) return;
+            if (!item) return { estimatedChildren, spentChildren };
 
-                    // Obtener minutos manuales del hijo
-                    let childEstimated = 0;
-                    let childSpent = 0;
+            /**
+             * Obtiene minutos estimados de un nodo
+             */
+            const getEstimatedMinutes = (node) => {
+                if (node.estimatedMinutes != null) return Number(node.estimatedMinutes) || 0;
+                if (node.estimatedHours != null) return hoursToMinutes(parseFloat(node.estimatedHours));
+                return 0;
+            };
 
-                    if (child.estimatedMinutes != null) {
-                        childEstimated = Number(child.estimatedMinutes) || 0;
-                    } else if (child.estimatedHours != null) {
-                        childEstimated = hoursToMinutes(parseFloat(child.estimatedHours));
-                    }
+            /**
+             * Obtiene minutos empleados de un nodo
+             */
+            const getSpentMinutes = (node) => {
+                if (node.spentMinutes != null) return Number(node.spentMinutes) || 0;
+                if (node.actualHours != null) return hoursToMinutes(parseFloat(node.actualHours));
+                return 0;
+            };
 
-                    if (child.spentMinutes != null) {
-                        childSpent = Number(child.spentMinutes) || 0;
-                    } else if (child.actualHours != null) {
-                        childSpent = hoursToMinutes(parseFloat(child.actualHours));
-                    }
+            /**
+             * Agrega tiempos desde tareas (solo hojas) y subtareas
+             */
+            const aggregateFromTasks = (tasks) => {
+                if (!tasks || typeof tasks !== 'object') return;
+                Object.values(tasks).forEach(task => {
+                    if (!task) return;
+                    const taskHasSubtasks = hasSubtasks(task);
 
-                    estimatedChildren += childEstimated;
-                    spentChildren += childSpent;
-
-                    // Verificar si necesitamos calcular recursivamente
-                    const hasEstimatedRollup = child.estimatedMinutesRollup != null;
-                    const hasSpentRollup = child.spentMinutesRollup != null;
-
-                    // Si el hijo tiene rollup persistido, usarlo directamente
-                    if (hasEstimatedRollup) {
-                        estimatedChildren += Number(child.estimatedMinutesRollup) || 0;
-                    }
-                    if (hasSpentRollup) {
-                        spentChildren += Number(child.spentMinutesRollup) || 0;
-                    }
-
-                    // Si no tiene rollup, calcular recursivamente (una sola vez)
-                    if (!hasEstimatedRollup || !hasSpentRollup) {
-                        const grandchildAgg = aggregateMinutesFromNode(child, childType);
-                        if (!hasEstimatedRollup) {
-                            estimatedChildren += grandchildAgg.estimatedChildren;
-                        }
-                        if (!hasSpentRollup) {
-                            spentChildren += grandchildAgg.spentChildren;
-                        }
+                    if (taskHasSubtasks) {
+                        // Tarea con subtareas: SOLO sumar tiempos de las subtareas
+                        // Ignorar tiempos manuales de la tarea
+                        Object.values(task.subtasks).forEach(subtask => {
+                            if (!subtask) return;
+                            estimatedChildren += getEstimatedMinutes(subtask);
+                            spentChildren += getSpentMinutes(subtask);
+                        });
+                    } else {
+                        // Tarea hoja (sin subtareas): sumar sus tiempos
+                        estimatedChildren += getEstimatedMinutes(task);
+                        spentChildren += getSpentMinutes(task);
                     }
                 });
             };
 
             switch(type) {
                 case 'client':
-                    aggregateChildren(item.projects, 'project');
+                    // Recorrer proyectos
+                    if (item.projects) {
+                        Object.values(item.projects).forEach(project => {
+                            if (!project) return;
+                            aggregateFromTasks(project.tasks);
+                            if (project.products) {
+                                Object.values(project.products).forEach(product => {
+                                    if (!product) return;
+                                    aggregateFromTasks(product.tasks);
+                                });
+                            }
+                        });
+                    }
                     break;
                 case 'project':
-                    aggregateChildren(item.products, 'product');
-                    aggregateChildren(item.tasks, 'task');
+                    aggregateFromTasks(item.tasks);
+                    if (item.products) {
+                        Object.values(item.products).forEach(product => {
+                            if (!product) return;
+                            aggregateFromTasks(product.tasks);
+                        });
+                    }
                     break;
                 case 'product':
-                    aggregateChildren(item.tasks, 'task');
+                    aggregateFromTasks(item.tasks);
                     break;
                 case 'task':
-                    aggregateChildren(item.subtasks, 'subtask');
+                    // Si la tarea tiene subtareas, sumar solo de subtareas
+                    if (hasSubtasks(item)) {
+                        Object.values(item.subtasks).forEach(subtask => {
+                            if (!subtask) return;
+                            estimatedChildren += getEstimatedMinutes(subtask);
+                            spentChildren += getSpentMinutes(subtask);
+                        });
+                    }
+                    // Si no tiene subtareas, no agregamos nada
                     break;
                 case 'subtask':
                 default:
@@ -1281,7 +1314,14 @@
             const estimatedMinutesTotal = estimatedMinutes + estimatedMinutesRollup;
             const spentMinutesTotal = spentMinutes + spentMinutesRollup;
 
-            // Check if item has children
+            // NUEVA LÓGICA: Determinar si los tiempos son editables
+            // Solo editable para: subtareas Y tareas SIN subtareas
+            // NO editable para: clientes, proyectos, productos, y tareas CON subtareas
+            const isEditable = (
+                currentItemType === 'subtask' ||
+                (currentItemType === 'task' && !hasSubtasks(item))
+            );
+
             const itemHasChildren = hasChildren(item, currentItemType);
 
             // Crear inputs de duración si no existen
@@ -1291,18 +1331,16 @@
                     placeholder: 'Ej: 1h 30m',
                     className: 'w-full h-8 focus:ring-2 focus:ring-primary focus:border-transparent',
                     onCommit: (minutes) => {
-                        // NO modificar detailFieldsSnapshot aquí, pasar el nuevo valor directamente
+                        // Solo guardar si es editable
+                        if (!isEditable) return;
                         saveDetailFields(minutes, null);
                         updateTimeProgressBar();
-                        // Actualizar resumen de rollup
                         updateEstimatedTimeRollupSummary(minutes, currentAggregation.estimatedChildren);
                     }
                 });
                 estimatedTimeContainer.innerHTML = '';
                 estimatedTimeContainer.appendChild(estimatedTimeInput);
 
-                // Añadir resumen de rollup debajo del input para TODOS los tipos con hijos
-                // (no solo tareas, sino también cliente/proyecto/producto)
                 const rollupSummary = document.createElement('div');
                 rollupSummary.id = 'estimated-time-rollup-summary';
                 rollupSummary.className = 'text-xs text-text-muted mt-1';
@@ -1315,55 +1353,74 @@
                     placeholder: 'Ej: 1h 30m',
                     className: 'w-full h-8 focus:ring-2 focus:ring-primary focus:border-transparent',
                     onCommit: (minutes) => {
-                        // NO modificar detailFieldsSnapshot aquí, pasar el nuevo valor directamente
+                        // Solo guardar si es editable
+                        if (!isEditable) return;
                         saveDetailFields(null, minutes);
                         updateTimeProgressBar();
-                        // Actualizar resumen de rollup de tiempo empleado
                         updateSpentTimeRollupSummary(minutes, currentAggregation.spentChildren);
                     }
                 });
                 timeSpentContainer.innerHTML = '';
                 timeSpentContainer.appendChild(timeSpentInput);
 
-                // Añadir resumen de rollup debajo del input para tiempo empleado
                 const spentRollupSummary = document.createElement('div');
                 spentRollupSummary.id = 'spent-time-rollup-summary';
                 spentRollupSummary.className = 'text-xs text-text-muted mt-1';
                 timeSpentContainer.appendChild(spentRollupSummary);
             }
 
-            if (itemHasChildren) {
-                const childrenText = getChildrenCountText(item, currentItemType);
-
-                // Para tiempo empleado: mostrar como read-only si hay hijos
-                if (timeSpentInput) {
-                    timeSpentInput.setDurationValue(spentMinutes);
-                    timeSpentInput.disabled = true;
-                    timeSpentInput.classList.add('opacity-75', 'cursor-not-allowed');
-                    timeSpentInput.title = `Manual del nodo. Acumulado de ${childrenText} mostrado abajo.`;
+            // Aplicar estado de edición según la nueva lógica
+            if (isEditable) {
+                // EDITABLE: Subtareas y tareas sin subtareas
+                if (estimatedTimeInput) {
+                    estimatedTimeInput.setDurationValue(estimatedMinutes);
+                    estimatedTimeInput.disabled = false;
+                    estimatedTimeInput.classList.remove('opacity-75', 'cursor-not-allowed', 'bg-gray-100', 'dark:bg-gray-700/50');
+                    estimatedTimeInput.title = '';
                 }
-
-                detailFieldsSnapshot = { estimatedMinutes, spentMinutes, workDate };
-            } else {
-                // Show as editable
                 if (timeSpentInput) {
                     timeSpentInput.setDurationValue(spentMinutes);
                     timeSpentInput.disabled = false;
-                    timeSpentInput.classList.remove('opacity-75', 'cursor-not-allowed');
+                    timeSpentInput.classList.remove('opacity-75', 'cursor-not-allowed', 'bg-gray-100', 'dark:bg-gray-700/50');
                     timeSpentInput.title = '';
                 }
+            } else {
+                // NO EDITABLE: Clientes, proyectos, productos, y tareas con subtareas
+                // Mostrar el acumulado total (no el valor manual que podría estar ahí por error)
+                const displayEstimated = estimatedMinutesRollup; // Solo acumulado
+                const displaySpent = spentMinutesRollup; // Solo acumulado
 
-                detailFieldsSnapshot = { estimatedMinutes, spentMinutes, workDate };
+                const childrenText = getChildrenCountText(item, currentItemType);
+                const tooltipText = currentItemType === 'task' && hasSubtasks(item)
+                    ? 'Acumulado de subtareas (no editable)'
+                    : `Acumulado de ${childrenText} (no editable)`;
+
+                if (estimatedTimeInput) {
+                    estimatedTimeInput.setDurationValue(displayEstimated);
+                    estimatedTimeInput.disabled = true;
+                    estimatedTimeInput.classList.add('opacity-75', 'cursor-not-allowed', 'bg-gray-100', 'dark:bg-gray-700/50');
+                    estimatedTimeInput.title = tooltipText;
+                }
+                if (timeSpentInput) {
+                    timeSpentInput.setDurationValue(displaySpent);
+                    timeSpentInput.disabled = true;
+                    timeSpentInput.classList.add('opacity-75', 'cursor-not-allowed', 'bg-gray-100', 'dark:bg-gray-700/50');
+                    timeSpentInput.title = tooltipText;
+                }
             }
 
-            // Actualizar input de tiempo estimado
-            if (estimatedTimeInput) {
-                estimatedTimeInput.setDurationValue(estimatedMinutes);
-            }
+            detailFieldsSnapshot = { estimatedMinutes, spentMinutes, workDate };
 
-            // Actualizar resúmenes de rollup para TODOS los tipos (no solo tareas)
-            updateEstimatedTimeRollupSummary(estimatedMinutes, estimatedMinutesRollup);
-            updateSpentTimeRollupSummary(spentMinutes, spentMinutesRollup);
+            // Actualizar resúmenes de rollup
+            if (isEditable) {
+                // Para items editables, mostrar "Total: X"
+                updateEstimatedTimeRollupSummary(estimatedMinutes, 0);
+                updateSpentTimeRollupSummary(spentMinutes, 0);
+            } else {
+                // Para items no editables, mostrar acumulado de descendientes
+                updateEstimatedTimeRollupSummary(0, estimatedMinutesRollup);
+                updateSpentTimeRollupSummary(0, spentMinutesRollup);
+            }
 
             if (detailFieldsStatus) detailFieldsStatus.textContent = '';
             updateTimeProgressBar();
@@ -3548,19 +3605,43 @@
             }
 
             const canEditDetails = canEdit && !detailFieldsSaving;
-            const itemHasChildren = currentResult?.item && hasChildren(currentResult.item, currentItemType);
 
-            // Actualizar estado de los inputs de duración y fecha
-            [estimatedTimeInput, workDateInput].forEach(el => {
-                if (!el) return;
-                el.disabled = !canEditDetails;
-                el.classList.toggle('opacity-60', !canEditDetails);
-            });
+            // NUEVA LÓGICA: Solo editable para subtareas y tareas SIN subtareas
+            const item = currentResult?.item;
+            const isTimeEditable = (
+                currentItemType === 'subtask' ||
+                (currentItemType === 'task' && item && !hasSubtasks(item))
+            );
 
-            // Handle timeSpentInput separately because it might be disabled due to children
-            if (timeSpentInput && !itemHasChildren) {
-                timeSpentInput.disabled = !canEditDetails;
-                timeSpentInput.classList.toggle('opacity-60', !canEditDetails);
+            // Actualizar estado del input de fecha (siempre editable si hay permiso)
+            if (workDateInput) {
+                workDateInput.disabled = !canEditDetails;
+                workDateInput.classList.toggle('opacity-60', !canEditDetails);
+            }
+
+            // Actualizar inputs de tiempo según la nueva lógica
+            const canEditTime = canEditDetails && isTimeEditable;
+
+            if (estimatedTimeInput) {
+                if (!isTimeEditable) {
+                    // Mantener deshabilitado para niveles no editables
+                    estimatedTimeInput.disabled = true;
+                    estimatedTimeInput.classList.add('opacity-75', 'cursor-not-allowed');
+                } else {
+                    estimatedTimeInput.disabled = !canEditDetails;
+                    estimatedTimeInput.classList.toggle('opacity-60', !canEditDetails);
+                }
+            }
+
+            if (timeSpentInput) {
+                if (!isTimeEditable) {
+                    // Mantener deshabilitado para niveles no editables
+                    timeSpentInput.disabled = true;
+                    timeSpentInput.classList.add('opacity-75', 'cursor-not-allowed');
+                } else {
+                    timeSpentInput.disabled = !canEditDetails;
+                    timeSpentInput.classList.toggle('opacity-60', !canEditDetails);
+                }
             }
 
             const canEditStatus = canEdit && STATUS_TYPES.has(currentItemType) && !statusSaving;
