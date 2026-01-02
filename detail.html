@@ -1089,6 +1089,44 @@
             progressText.textContent = `${Math.round(percent)}% del tiempo estimado (${spentHours.toFixed(1)}h de ${estimatedHours.toFixed(1)}h)`;
         };
 
+        // Actualizar resumen de rollup de tiempo estimado (IDÉNTICO a Mis tareas)
+        const updateEstimatedTimeRollupSummary = (manualMinutes, rollupMinutes) => {
+            const summaryEl = document.getElementById('estimated-time-rollup-summary');
+            if (!summaryEl) return;
+
+            const totalMinutes = manualMinutes + rollupMinutes;
+
+            // Formatear minutos a horas/minutos legibles (MISMO formato que Mis tareas)
+            const formatMinutes = (mins) => {
+                if (mins === 0) return '0m';
+                const hours = Math.floor(mins / 60);
+                const minutes = mins % 60;
+                if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+                if (hours > 0) return `${hours}h`;
+                return `${minutes}m`;
+            };
+
+            const parts = [];
+
+            // Condiciones EXACTAS como en Mis tareas
+            if (rollupMinutes > 0) {
+                // Si hay rollup, mostrar desglose completo
+                if (manualMinutes > 0) parts.push(`Manual: ${formatMinutes(manualMinutes)}`);
+                parts.push(`Subtareas: ${formatMinutes(rollupMinutes)}`);
+                if (totalMinutes > 0) parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+            } else if (totalMinutes > 0) {
+                // Si no hay rollup pero hay total, mostrar solo total
+                parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+            }
+
+            summaryEl.textContent = parts.join(' · ');
+
+            // Si no hay nada que mostrar, ocultar el elemento
+            if (parts.length === 0) {
+                summaryEl.textContent = '';
+            }
+        };
+
         const setDetailFields = (item = {}) => {
             const workDate = String(item.workDate || '').trim();
             if (workDateInput) workDateInput.value = workDate;
@@ -1100,6 +1138,24 @@
             } else if (item.estimatedHours != null) {
                 estimatedMinutes = hoursToMinutes(parseFloat(item.estimatedHours));
             }
+
+            // Calcular rollup desde subtareas (si es una tarea)
+            let estimatedMinutesRollup = 0;
+            if (currentItemType === 'task') {
+                // Prioridad 1: leer rollup persistido
+                if (item.estimatedMinutesRollup != null) {
+                    estimatedMinutesRollup = parseInt(item.estimatedMinutesRollup) || 0;
+                } else if (item.subtasks) {
+                    // Prioridad 2: calcular desde subtareas si no está persistido
+                    Object.values(item.subtasks || {}).forEach(subtask => {
+                        if (subtask && subtask.estimatedMinutes != null) {
+                            estimatedMinutesRollup += Number(subtask.estimatedMinutes) || 0;
+                        }
+                    });
+                }
+            }
+
+            const estimatedMinutesTotal = estimatedMinutes + estimatedMinutesRollup;
 
             let spentMinutes = 0;
             if (item.spentMinutes != null) {
@@ -1118,10 +1174,23 @@
                         // NO modificar detailFieldsSnapshot aquí, pasar el nuevo valor directamente
                         saveDetailFields(minutes, null);
                         updateTimeProgressBar();
+                        // Actualizar resumen de rollup
+                        updateEstimatedTimeRollupSummary(minutes, estimatedMinutesRollup);
                     }
                 });
                 estimatedTimeContainer.innerHTML = '';
                 estimatedTimeContainer.appendChild(estimatedTimeInput);
+
+                // Añadir resumen de rollup debajo del input (EXACTO como en Mis tareas)
+                if (currentItemType === 'task') {
+                    const rollupSummary = document.createElement('div');
+                    rollupSummary.id = 'estimated-time-rollup-summary';
+                    rollupSummary.className = 'text-xs text-text-muted mt-1';
+                    estimatedTimeContainer.appendChild(rollupSummary);
+
+                    // Actualizar resumen inicialmente
+                    updateEstimatedTimeRollupSummary(estimatedMinutes, estimatedMinutesRollup);
+                }
             }
 
             if (!timeSpentInput && timeSpentContainer) {
@@ -1172,6 +1241,11 @@
             // Actualizar input de tiempo estimado
             if (estimatedTimeInput) {
                 estimatedTimeInput.setDurationValue(estimatedMinutes);
+            }
+
+            // Actualizar resumen de rollup si es una tarea
+            if (currentItemType === 'task') {
+                updateEstimatedTimeRollupSummary(estimatedMinutes, estimatedMinutesRollup);
             }
 
             if (detailFieldsStatus) detailFieldsStatus.textContent = '';
