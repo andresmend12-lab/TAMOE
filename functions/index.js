@@ -345,26 +345,130 @@ async function sendAutomationNotification(action, context) {
 
   sgMail.setApiKey(mailSettings.apiKey);
 
-  // TODO: Mejorar destinatarios - por ahora usar un destinatario hardcoded o del context
-  const recipientEmail = action.recipientEmail || mailSettings.sender;
-  const message = action.message || `Automatización ejecutada: ${context.triggerLabel || 'evento'}`;
-
-  const msg = {
-    to: recipientEmail,
-    from: mailSettings.sender,
-    subject: `Automatización TAMOE: ${context.automationName || 'Notificación'}`,
-    text: message,
-    html: `<p>${message}</p><p><small>Generado automáticamente por TAMOE</small></p>`
-  };
-
-  try {
-    await sgMail.send(msg);
-    console.log(`Notification sent to ${recipientEmail}`);
-    return { sent: true, recipient: recipientEmail };
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    return { sent: false, error: error.message };
+  // Parse recipients - support single email or array
+  let recipients = [];
+  if (action.recipients) {
+    recipients = Array.isArray(action.recipients) ? action.recipients : [action.recipients];
+  } else if (action.recipientEmail) {
+    recipients = [action.recipientEmail];
+  } else {
+    // Default to sender as fallback
+    recipients = [mailSettings.sender];
   }
+
+  // Build email content
+  const entityData = context.entityData || {};
+  const entityType = entityData.type || 'Actividad';
+  const entityName = entityData.name || 'Sin nombre';
+  const customMessage = action.message || '';
+
+  // Create HTML email template
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #4F46E5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+        .entity-info { background: white; padding: 15px; margin: 15px 0; border-left: 4px solid #4F46E5; }
+        .footer { background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
+        .label { font-weight: bold; color: #6b7280; font-size: 12px; text-transform: uppercase; }
+        .value { color: #1f2937; margin-top: 5px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2 style="margin: 0;">🔔 Notificación de Automatización</h2>
+          <p style="margin: 5px 0 0 0; opacity: 0.9;">${context.automationName || 'TAMOE Automation'}</p>
+        </div>
+        <div class="content">
+          <p><strong>Evento:</strong> ${context.triggerLabel || 'Automatización ejecutada'}</p>
+
+          ${customMessage ? `<p style="background: white; padding: 15px; border-radius: 4px; margin: 15px 0;">${customMessage}</p>` : ''}
+
+          <div class="entity-info">
+            <div class="label">Tipo de Actividad</div>
+            <div class="value">${entityType}</div>
+
+            <div class="label" style="margin-top: 10px;">Nombre</div>
+            <div class="value">${entityName}</div>
+
+            ${entityData.status ? `
+              <div class="label" style="margin-top: 10px;">Estado</div>
+              <div class="value">${entityData.status}</div>
+            ` : ''}
+
+            ${entityData.assignedTo ? `
+              <div class="label" style="margin-top: 10px;">Asignado a</div>
+              <div class="value">${entityData.assignedTo}</div>
+            ` : ''}
+
+            ${entityData.estimatedHours ? `
+              <div class="label" style="margin-top: 10px;">Tiempo Estimado</div>
+              <div class="value">${entityData.estimatedHours} horas</div>
+            ` : ''}
+          </div>
+
+          <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+            <strong>Ruta:</strong> ${context.entityPath || 'N/A'}
+          </p>
+        </div>
+        <div class="footer">
+          <p style="margin: 0;">Generado automáticamente por TAMOE</p>
+          <p style="margin: 5px 0 0 0;">Sistema de Gestión de Proyectos</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Plain text version
+  const textContent = `
+NOTIFICACIÓN DE AUTOMATIZACIÓN
+${context.automationName || 'TAMOE Automation'}
+
+Evento: ${context.triggerLabel || 'Automatización ejecutada'}
+
+${customMessage ? `Mensaje:\n${customMessage}\n` : ''}
+Tipo: ${entityType}
+Nombre: ${entityName}
+${entityData.status ? `Estado: ${entityData.status}\n` : ''}${entityData.assignedTo ? `Asignado a: ${entityData.assignedTo}\n` : ''}
+Ruta: ${context.entityPath || 'N/A'}
+
+---
+Generado automáticamente por TAMOE
+  `.trim();
+
+  // Send to all recipients
+  const results = [];
+  for (const recipient of recipients) {
+    const msg = {
+      to: recipient.trim(),
+      from: mailSettings.sender,
+      subject: `TAMOE: ${context.automationName || 'Notificación'} - ${entityName}`,
+      text: textContent,
+      html: htmlContent
+    };
+
+    try {
+      await sgMail.send(msg);
+      console.log(`Notification sent to ${recipient}`);
+      results.push({ recipient, sent: true });
+    } catch (error) {
+      console.error(`Error sending notification to ${recipient}:`, error);
+      results.push({ recipient, sent: false, error: error.message });
+    }
+  }
+
+  return {
+    sent: results.some(r => r.sent),
+    totalRecipients: recipients.length,
+    successCount: results.filter(r => r.sent).length,
+    results
+  };
 }
 
 /**
@@ -518,6 +622,138 @@ exports.onTaskCreated = functions
         await logAutomationExecution(automationId, {
           trigger: matchingTrigger,
           entityPath: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`,
+          actionResults,
+          status: actionResults.some(r => r.status === 'error') ? 'partial_success' : 'success'
+        });
+
+      } catch (error) {
+        console.error(`Error executing automation ${automationId}:`, error);
+        await logAutomationExecution(automationId, {
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+
+    return null;
+  });
+
+/**
+ * Trigger: Execute automations when product is created
+ */
+exports.onProductCreated = functions
+  .region(REGION)
+  .database.ref("/clients/{clientId}/projects/{projectId}/products/{productId}")
+  .onCreate(async (snapshot, context) => {
+    const { clientId, projectId, productId } = context.params;
+    const productData = snapshot.val();
+
+    console.log(`New product created: ${productData.name}`);
+
+    // Get all enabled automations
+    const automationsSnapshot = await db.ref('automations').orderByChild('enabled').equalTo(true).once('value');
+    const automations = automationsSnapshot.val();
+
+    if (!automations) return null;
+
+    // Execute matching automations
+    for (const [automationId, automation] of Object.entries(automations)) {
+      try {
+        if (!isInAutomationScope(automation, clientId, projectId, productId)) {
+          continue;
+        }
+
+        const triggers = Array.isArray(automation.triggers) ? automation.triggers : [automation.triggers];
+        const matchingTrigger = triggers.find(t =>
+          t.activityType === 'Product' && t.triggerType === 'created'
+        );
+
+        if (!matchingTrigger) continue;
+
+        console.log(`Executing automation ${automationId}: ${automation.name}`);
+
+        const actions = Array.isArray(automation.actions) ? automation.actions : [automation.actions];
+        const actionResults = await executeAutomationActions(automation, {
+          automationId,
+          automationName: automation.name,
+          actions,
+          clientId,
+          projectId,
+          productId,
+          taskId: null,
+          entityData: { ...productData, type: 'Product' },
+          triggerLabel: `Nuevo producto creado: ${productData.name}`
+        });
+
+        await logAutomationExecution(automationId, {
+          trigger: matchingTrigger,
+          entityPath: `clients/${clientId}/projects/${projectId}/products/${productId}`,
+          actionResults,
+          status: actionResults.some(r => r.status === 'error') ? 'partial_success' : 'success'
+        });
+
+      } catch (error) {
+        console.error(`Error executing automation ${automationId}:`, error);
+        await logAutomationExecution(automationId, {
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+
+    return null;
+  });
+
+/**
+ * Trigger: Execute automations when project is created
+ */
+exports.onProjectCreated = functions
+  .region(REGION)
+  .database.ref("/clients/{clientId}/projects/{projectId}")
+  .onCreate(async (snapshot, context) => {
+    const { clientId, projectId } = context.params;
+    const projectData = snapshot.val();
+
+    console.log(`New project created: ${projectData.name}`);
+
+    // Get all enabled automations
+    const automationsSnapshot = await db.ref('automations').orderByChild('enabled').equalTo(true).once('value');
+    const automations = automationsSnapshot.val();
+
+    if (!automations) return null;
+
+    // Execute matching automations
+    for (const [automationId, automation] of Object.entries(automations)) {
+      try {
+        if (!isInAutomationScope(automation, clientId, projectId, null)) {
+          continue;
+        }
+
+        const triggers = Array.isArray(automation.triggers) ? automation.triggers : [automation.triggers];
+        const matchingTrigger = triggers.find(t =>
+          t.activityType === 'Project' && t.triggerType === 'created'
+        );
+
+        if (!matchingTrigger) continue;
+
+        console.log(`Executing automation ${automationId}: ${automation.name}`);
+
+        const actions = Array.isArray(automation.actions) ? automation.actions : [automation.actions];
+        const actionResults = await executeAutomationActions(automation, {
+          automationId,
+          automationName: automation.name,
+          actions,
+          clientId,
+          projectId,
+          productId: null,
+          taskId: null,
+          entityData: { ...projectData, type: 'Project' },
+          triggerLabel: `Nuevo proyecto creado: ${projectData.name}`
+        });
+
+        await logAutomationExecution(automationId, {
+          trigger: matchingTrigger,
+          entityPath: `clients/${clientId}/projects/${projectId}`,
           actionResults,
           status: actionResults.some(r => r.status === 'error') ? 'partial_success' : 'success'
         });
