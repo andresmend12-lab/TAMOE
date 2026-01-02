@@ -39,6 +39,141 @@ async function recomputeParentTaskRollup(parentTaskPath) {
     return recomputeRollup(parentTaskPath, 'subtasks');
 }
 
+/**
+ * Detecta si un nodo tarea tiene subtareas
+ * @param {Object} taskOrItem - Objeto tarea o item con subtasks/entityRef
+ * @returns {boolean} - true si tiene subtareas con claves válidas
+ */
+function hasSubtasks(taskOrItem) {
+    if (!taskOrItem) return false;
+    // Primero intentar acceder a subtasks directamente
+    const subtasks = taskOrItem.subtasks || (taskOrItem.entityRef?.subtasks);
+    if (!subtasks || typeof subtasks !== 'object') return false;
+    return Object.keys(subtasks).length > 0;
+}
+
+/**
+ * Convierte horas a minutos
+ * @param {number} hours - Horas en formato decimal
+ * @returns {number} - Minutos totales
+ */
+function hoursToMinutes(hours) {
+    if (hours == null || isNaN(hours)) return 0;
+    return Math.round(parseFloat(hours) * 60);
+}
+
+/**
+ * Agregación recursiva de tiempos SOLO desde tareas hoja (sin subtareas) y subtareas
+ * Para niveles superiores (cliente/proyecto/producto) y tareas con subtareas
+ * NO cuenta tiempos manuales de tareas que tienen subtareas (esos se ignoran)
+ * @param {Object} item - Nodo a agregar
+ * @param {string} type - Tipo de nodo ('client', 'project', 'product', 'task', 'subtask')
+ * @returns {{ estimated: number, spent: number }} - Suma de minutos de descendientes válidos
+ */
+function aggregateLeafTimes(item, type) {
+    let estimated = 0;
+    let spent = 0;
+
+    if (!item) return { estimated, spent };
+
+    /**
+     * Obtiene minutos estimados de un nodo
+     */
+    const getEstimatedMinutes = (node) => {
+        if (node.estimatedMinutes != null) return Number(node.estimatedMinutes) || 0;
+        if (node.estimatedHours != null) return hoursToMinutes(parseFloat(node.estimatedHours));
+        return 0;
+    };
+
+    /**
+     * Obtiene minutos empleados de un nodo
+     */
+    const getSpentMinutes = (node) => {
+        if (node.spentMinutes != null) return Number(node.spentMinutes) || 0;
+        if (node.actualHours != null) return hoursToMinutes(parseFloat(node.actualHours));
+        return 0;
+    };
+
+    /**
+     * Agrega tiempos desde tareas (solo hojas) y subtareas
+     */
+    const aggregateFromTasks = (tasks) => {
+        if (!tasks || typeof tasks !== 'object') return;
+        Object.values(tasks).forEach(task => {
+            if (!task) return;
+            const taskHasSubtasks = task.subtasks && Object.keys(task.subtasks).length > 0;
+
+            if (taskHasSubtasks) {
+                // Tarea con subtareas: SOLO sumar tiempos de las subtareas, ignorar tiempos manuales de la tarea
+                Object.values(task.subtasks).forEach(subtask => {
+                    if (!subtask) return;
+                    estimated += getEstimatedMinutes(subtask);
+                    spent += getSpentMinutes(subtask);
+                });
+            } else {
+                // Tarea hoja (sin subtareas): sumar sus tiempos
+                estimated += getEstimatedMinutes(task);
+                spent += getSpentMinutes(task);
+            }
+        });
+    };
+
+    switch (type) {
+        case 'client':
+            // Recorrer proyectos
+            if (item.projects) {
+                Object.values(item.projects).forEach(project => {
+                    if (!project) return;
+                    // Tareas directas del proyecto
+                    aggregateFromTasks(project.tasks);
+                    // Productos del proyecto
+                    if (project.products) {
+                        Object.values(project.products).forEach(product => {
+                            if (!product) return;
+                            aggregateFromTasks(product.tasks);
+                        });
+                    }
+                });
+            }
+            break;
+
+        case 'project':
+            // Tareas directas del proyecto
+            aggregateFromTasks(item.tasks);
+            // Productos del proyecto
+            if (item.products) {
+                Object.values(item.products).forEach(product => {
+                    if (!product) return;
+                    aggregateFromTasks(product.tasks);
+                });
+            }
+            break;
+
+        case 'product':
+            aggregateFromTasks(item.tasks);
+            break;
+
+        case 'task':
+            // Si la tarea tiene subtareas, sumar solo de subtareas
+            if (item.subtasks && Object.keys(item.subtasks).length > 0) {
+                Object.values(item.subtasks).forEach(subtask => {
+                    if (!subtask) return;
+                    estimated += getEstimatedMinutes(subtask);
+                    spent += getSpentMinutes(subtask);
+                });
+            }
+            // Si no tiene subtareas, no agregamos nada (la tarea misma es editable)
+            break;
+
+        case 'subtask':
+        default:
+            // Subtareas no tienen hijos, no se agrega nada
+            break;
+    }
+
+    return { estimated, spent };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
     const addClientBtn = document.getElementById('add-client-btn');
@@ -1136,6 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (isAssignedToUser(task.assigneeUid)) {
                         const taskPath = `clients/${clientId}/projects/${projectId}/tasks/${taskId}`;
                         const parentProjectPath = `clients/${clientId}/projects/${projectId}`;
+                        const taskHasSubtasks = hasSubtasks(task);
 
                         pushAssignment({
                             type: 'task',
@@ -1149,7 +1285,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             estimatedMinutesRollup: task.estimatedMinutesRollup ?? null, // suma de subtareas
                             estimatedHours: task.estimatedHours ?? null, // legacy fallback
                             spentMinutes: task.spentMinutes ?? null,
+                            spentMinutesRollup: task.spentMinutesRollup ?? null, // suma de subtareas empleado
                             actualHours: task.actualHours ?? null, // legacy fallback
+                            // Nuevo: flag para bloquear edición de tiempos
+                            hasSubtasks: taskHasSubtasks,
+                            subtasks: task.subtasks || null, // Para calcular acumulados
+                            // Campo de fecha para "Mis tareas"
+                            date: task.date || null,
                             context: buildContext(clientName, projectName, 'Sin producto'),
                             clientId,
                             clientName,
@@ -1176,6 +1318,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 estimatedHours: subtask.estimatedHours ?? null, // legacy fallback
                                 spentMinutes: subtask.spentMinutes ?? null,
                                 actualHours: subtask.actualHours ?? null, // legacy fallback
+                                // Campo de fecha para "Mis tareas"
+                                date: subtask.date || null,
                                 context: buildContext(clientName, projectName, 'Sin producto'),
                                 clientId,
                                 clientName,
@@ -1197,6 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (isAssignedToUser(task.assigneeUid)) {
                             const taskPath = `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`;
                             const parentProductPath = `clients/${clientId}/projects/${projectId}/products/${productId}`;
+                            const taskHasSubtasks = hasSubtasks(task);
 
                             pushAssignment({
                                 type: 'task',
@@ -1210,7 +1355,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 estimatedMinutesRollup: task.estimatedMinutesRollup ?? null, // suma de subtareas
                                 estimatedHours: task.estimatedHours ?? null, // legacy fallback
                                 spentMinutes: task.spentMinutes ?? null,
+                                spentMinutesRollup: task.spentMinutesRollup ?? null, // suma de subtareas empleado
                                 actualHours: task.actualHours ?? null, // legacy fallback
+                                // Nuevo: flag para bloquear edición de tiempos
+                                hasSubtasks: taskHasSubtasks,
+                                subtasks: task.subtasks || null, // Para calcular acumulados
+                                // Campo de fecha para "Mis tareas"
+                                date: task.date || null,
                                 context: buildContext(clientName, projectName, productName),
                                 clientId,
                                 clientName,
@@ -1237,6 +1388,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     estimatedHours: subtask.estimatedHours ?? null, // legacy fallback
                                     spentMinutes: subtask.spentMinutes ?? null,
                                     actualHours: subtask.actualHours ?? null, // legacy fallback
+                                    // Campo de fecha para "Mis tareas"
+                                    date: subtask.date || null,
                                     context: buildContext(clientName, projectName, productName),
                                     clientId,
                                     clientName,
@@ -1520,6 +1673,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
             centerCol.append(titleRow, context);
 
+            // ===== COLUMNA FECHA =====
+            const dateCol = document.createElement('div');
+            dateCol.className = 'flex flex-col items-center gap-1';
+
+            const dateLabel = document.createElement('label');
+            dateLabel.className = 'text-xs text-text-muted whitespace-nowrap';
+            dateLabel.textContent = 'Fecha';
+
+            const dateWrapper = document.createElement('div');
+            dateWrapper.className = 'flex items-center gap-1';
+
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.className = 'bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-2 py-1 text-sm w-32 focus:border-primary focus:ring-1 focus:ring-primary';
+            dateInput.value = item.date || '';
+
+            // Botón para limpiar fecha
+            const clearDateBtn = document.createElement('button');
+            clearDateBtn.type = 'button';
+            clearDateBtn.className = 'p-1 text-text-muted hover:text-red-500 transition-colors';
+            clearDateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>';
+            clearDateBtn.title = 'Limpiar fecha';
+            clearDateBtn.classList.toggle('hidden', !item.date);
+
+            // Status para fecha
+            const dateStatus = document.createElement('div');
+            dateStatus.className = 'text-[10px] h-3 transition-opacity opacity-0';
+
+            const saveDateToDb = async (newDate) => {
+                if (!item.path) return;
+                dateStatus.textContent = 'Guardando...';
+                dateStatus.className = 'text-[10px] h-3 text-blue-600 dark:text-blue-400 opacity-100';
+                try {
+                    await updateActivityFields(item.path, { date: newDate || null });
+                    item.date = newDate || null;
+                    if (item.entityRef) item.entityRef.date = newDate || null;
+                    clearDateBtn.classList.toggle('hidden', !newDate);
+                    dateStatus.textContent = '✓ Guardado';
+                    dateStatus.className = 'text-[10px] h-3 text-green-600 dark:text-green-400 opacity-100';
+                    setTimeout(() => { dateStatus.className = 'text-[10px] h-3 opacity-0'; }, 2000);
+                } catch (error) {
+                    console.error('Error al guardar fecha:', error);
+                    dateStatus.textContent = '✗ Error';
+                    dateStatus.className = 'text-[10px] h-3 text-red-600 dark:text-red-400 opacity-100';
+                    setTimeout(() => { dateStatus.className = 'text-[10px] h-3 opacity-0'; }, 4000);
+                }
+            };
+
+            dateInput.addEventListener('change', () => saveDateToDb(dateInput.value));
+            clearDateBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                dateInput.value = '';
+                saveDateToDb(null);
+            });
+
+            dateWrapper.append(dateInput, clearDateBtn);
+            dateCol.append(dateLabel, dateWrapper, dateStatus);
+
             // ===== COLUMNA DERECHA: Tiempo Estimado =====
             const rightCol = document.createElement('div');
             rightCol.className = 'flex flex-col items-center gap-1 ml-auto';
@@ -1528,162 +1739,145 @@ document.addEventListener('DOMContentLoaded', () => {
             timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
             timeLabel.textContent = 'Tiempo estimado';
 
-            // Parsear estimatedMinutes (fuente de verdad) o estimatedHours legacy como fallback
-            const getEstimatedMinutes = (item) => {
-                // PRIORIDAD 1: estimatedMinutes (formato nuevo, única fuente de verdad)
-                if (item.estimatedMinutes != null) return parseInt(item.estimatedMinutes) || 0;
-                // PRIORIDAD 2: legacy fallback (solo lectura inicial)
-                if (item.estimatedHours != null) return Math.round((parseFloat(item.estimatedHours) || 0) * 60);
-                return 0;
+            // Helper para formatear minutos
+            const formatMinutes = (mins) => {
+                if (mins === 0) return '0m';
+                const hours = Math.floor(mins / 60);
+                const minutes = mins % 60;
+                if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+                if (hours > 0) return `${hours}h`;
+                return `${minutes}m`;
             };
 
-            const manualMinutes = getEstimatedMinutes(item);
-            const rollupMinutes = (item.type === 'task' && item.estimatedMinutesRollup != null)
-                ? parseInt(item.estimatedMinutesRollup) || 0
-                : 0;
-            const totalMinutes = manualMinutes + rollupMinutes;
-
-            // Contenedor para input + indicador de estado + rollup info
+            // Contenedor para input/display + indicador de estado
             const inputWrapper = document.createElement('div');
             inputWrapper.className = 'flex flex-col items-center gap-1';
 
-            // Usar el nuevo componente de duración unificado
-            // Para tareas: editar solo la estimación manual (no el rollup)
-            // Para subtareas: editar su propio valor
-            const durationInput = createDurationInput({
-                valueMinutes: manualMinutes, // Siempre editar la estimación manual/propia
-                placeholder: 'Ej: 1h 30m',
-                className: 'w-24 focus:border-primary focus:ring-1 focus:ring-primary',
-                onCommit: async (minutes) => {
-                    // Validar que existe el path correcto antes de intentar guardar
-                    if (!item.path) {
-                        console.error('No se puede actualizar: item.path no disponible', { item });
-                        alert('Error: No se puede guardar (ruta de Firebase no disponible)');
-                        durationInput.setDurationValue(getEstimatedMinutes(item));
-                        return;
-                    }
+            // NUEVA LÓGICA: Detectar si es tarea con subtareas → NO editable
+            const isTaskWithSubtasks = item.type === 'task' && item.hasSubtasks === true;
 
-                    // Crear indicador de estado si no existe
-                    let statusIndicator = inputWrapper.querySelector('[data-save-status]');
-                    if (!statusIndicator) {
-                        statusIndicator = document.createElement('div');
-                        statusIndicator.setAttribute('data-save-status', '');
-                        statusIndicator.className = 'text-[10px] h-3 transition-opacity';
-                        inputWrapper.appendChild(statusIndicator);
-                    }
+            if (isTaskWithSubtasks) {
+                // TAREA CON SUBTAREAS: Mostrar solo acumulado de subtareas (READ-ONLY)
+                // Calcular el acumulado usando aggregateLeafTimes
+                const aggregated = aggregateLeafTimes(item, 'task');
+                const totalEstimated = aggregated.estimated;
+                const totalSpent = aggregated.spent;
 
-                    // Mostrar "Guardando..."
-                    statusIndicator.textContent = 'Guardando...';
-                    statusIndicator.className = 'text-[10px] h-3 text-blue-600 dark:text-blue-400 opacity-100';
+                // Display de tiempo estimado (read-only)
+                const readOnlyDisplay = document.createElement('div');
+                readOnlyDisplay.className = 'bg-gray-100 dark:bg-gray-700/50 border border-border-light dark:border-border-dark rounded px-3 py-1 text-sm text-center w-24 text-text-muted';
+                readOnlyDisplay.textContent = formatMinutes(totalEstimated);
+                readOnlyDisplay.title = 'Acumulado de subtareas (no editable)';
 
-                    try {
-                        // Usar el helper unificado con el path correcto
-                        await updateActivityFields(item.path, {
-                            estimatedMinutes: minutes
-                        });
+                inputWrapper.appendChild(readOnlyDisplay);
 
-                        // Actualizar referencias locales INMEDIATAMENTE (optimistic UI)
-                        item.estimatedMinutes = minutes;
-                        if (item.entityRef) {
-                            item.entityRef.estimatedMinutes = minutes;
-                            item.entityRef.updatedAt = new Date().toISOString();
-                        }
-
-                        // Propagar rollup jerárquico completo
-                        try {
-                            await propagateRollupHierarchy(item.path);
-                            console.log(`✓ Rollup jerárquico propagado desde ${item.path}`);
-                        } catch (rollupError) {
-                            console.error('Error al propagar rollup jerárquico (no crítico):', rollupError);
-                            // No bloquear el guardado si falla el rollup
-                        }
-
-                        // Mostrar "Guardado" con checkmark
-                        statusIndicator.textContent = '✓ Guardado';
-                        statusIndicator.className = 'text-[10px] h-3 text-green-600 dark:text-green-400 opacity-100';
-
-                        // Ocultar después de 2 segundos
-                        setTimeout(() => {
-                            statusIndicator.className = 'text-[10px] h-3 opacity-0';
-                        }, 2000);
-
-                        console.log(`✓ Tiempo estimado actualizado: ${item.manageId || item.name} → ${minutes} min`, {
-                            path: item.path,
-                            minutes,
-                            isSubtask: item.type === 'subtask'
-                        });
-                    } catch (error) {
-                        // Mostrar el error real para diagnóstico
-                        console.error('Error al actualizar tiempo estimado:', {
-                            error,
-                            code: error.code,
-                            message: error.message,
-                            item: { path: item.path, manageId: item.manageId, name: item.name }
-                        });
-
-                        // Mostrar error visual
-                        statusIndicator.textContent = '✗ Error al guardar';
-                        statusIndicator.className = 'text-[10px] h-3 text-red-600 dark:text-red-400 opacity-100';
-
-                        const errorMsg = error.code
-                            ? `Error (${error.code}): ${error.message || 'Error desconocido'}`
-                            : `Error al actualizar: ${error.message || error}`;
-
-                        // Mostrar error en consola pero NO alert intrusivo
-                        console.error('No se pudo guardar el tiempo estimado:', errorMsg);
-
-                        // Revertir al valor anterior
-                        durationInput.setDurationValue(getEstimatedMinutes(item));
-
-                        // Ocultar indicador después de 4 segundos
-                        setTimeout(() => {
-                            statusIndicator.className = 'text-[10px] h-3 opacity-0';
-                        }, 4000);
-                    }
-                }
-            });
-
-            inputWrapper.appendChild(durationInput);
-
-            // Mostrar desglose de tiempo estimado (FORMATO UNIFICADO)
-            // Regla: Si es tarea (puede tener hijos), mostrar siempre el desglose
-            if (item.type === 'task') {
+                // Info de acumulado
                 const rollupInfo = document.createElement('div');
                 rollupInfo.className = 'text-xs text-text-muted text-center mt-1';
 
-                // Formatear minutos a horas/minutos legibles
-                const formatMinutes = (mins) => {
-                    if (mins === 0) return '0m';
-                    const hours = Math.floor(mins / 60);
-                    const minutes = mins % 60;
-                    if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
-                    if (hours > 0) return `${hours}h`;
-                    return `${minutes}m`;
+                const subtaskCount = Object.keys(item.subtasks || {}).length;
+                rollupInfo.textContent = `Acum. ${subtaskCount} subtarea(s)`;
+                inputWrapper.appendChild(rollupInfo);
+
+                // Mostrar también tiempo empleado acumulado
+                if (totalSpent > 0) {
+                    const spentInfo = document.createElement('div');
+                    spentInfo.className = 'text-xs text-text-muted text-center';
+                    spentInfo.textContent = `Empleado: ${formatMinutes(totalSpent)}`;
+                    inputWrapper.appendChild(spentInfo);
+                }
+            } else {
+                // TAREA SIN SUBTAREAS o SUBTAREA: Input editable
+                // Parsear estimatedMinutes (fuente de verdad) o estimatedHours legacy como fallback
+                const getEstimatedMinutes = (item) => {
+                    if (item.estimatedMinutes != null) return parseInt(item.estimatedMinutes) || 0;
+                    if (item.estimatedHours != null) return Math.round((parseFloat(item.estimatedHours) || 0) * 60);
+                    return 0;
                 };
 
-                // Formato: "Manual: X · Hijos: Y · Total: Z"
-                // Reglas condicionales:
-                // - Si Hijos === 0 → mostrar solo "Total: X"
-                // - Si Manual === 0 → ocultar Manual
-                const parts = [];
+                const manualMinutes = getEstimatedMinutes(item);
 
-                if (rollupMinutes === 0) {
-                    // Solo mostrar total si no hay hijos
-                    parts.push(`Total: ${formatMinutes(totalMinutes)}`);
-                } else {
-                    // Hay hijos: mostrar desglose completo
-                    if (manualMinutes > 0) parts.push(`Manual: ${formatMinutes(manualMinutes)}`);
-                    parts.push(`Hijos: ${formatMinutes(rollupMinutes)}`);
-                    parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+                const durationInput = createDurationInput({
+                    valueMinutes: manualMinutes,
+                    placeholder: 'Ej: 1h 30m',
+                    className: 'w-24 focus:border-primary focus:ring-1 focus:ring-primary',
+                    onCommit: async (minutes) => {
+                        if (!item.path) {
+                            console.error('No se puede actualizar: item.path no disponible', { item });
+                            alert('Error: No se puede guardar (ruta de Firebase no disponible)');
+                            durationInput.setDurationValue(getEstimatedMinutes(item));
+                            return;
+                        }
+
+                        let statusIndicator = inputWrapper.querySelector('[data-save-status]');
+                        if (!statusIndicator) {
+                            statusIndicator = document.createElement('div');
+                            statusIndicator.setAttribute('data-save-status', '');
+                            statusIndicator.className = 'text-[10px] h-3 transition-opacity';
+                            inputWrapper.appendChild(statusIndicator);
+                        }
+
+                        statusIndicator.textContent = 'Guardando...';
+                        statusIndicator.className = 'text-[10px] h-3 text-blue-600 dark:text-blue-400 opacity-100';
+
+                        try {
+                            await updateActivityFields(item.path, { estimatedMinutes: minutes });
+
+                            item.estimatedMinutes = minutes;
+                            if (item.entityRef) {
+                                item.entityRef.estimatedMinutes = minutes;
+                                item.entityRef.updatedAt = new Date().toISOString();
+                            }
+
+                            try {
+                                await propagateRollupHierarchy(item.path);
+                            } catch (rollupError) {
+                                console.error('Error al propagar rollup (no crítico):', rollupError);
+                            }
+
+                            statusIndicator.textContent = '✓ Guardado';
+                            statusIndicator.className = 'text-[10px] h-3 text-green-600 dark:text-green-400 opacity-100';
+                            setTimeout(() => { statusIndicator.className = 'text-[10px] h-3 opacity-0'; }, 2000);
+                        } catch (error) {
+                            console.error('Error al actualizar tiempo estimado:', error);
+                            statusIndicator.textContent = '✗ Error';
+                            statusIndicator.className = 'text-[10px] h-3 text-red-600 dark:text-red-400 opacity-100';
+                            durationInput.setDurationValue(getEstimatedMinutes(item));
+                            setTimeout(() => { statusIndicator.className = 'text-[10px] h-3 opacity-0'; }, 4000);
+                        }
+                    }
+                });
+
+                inputWrapper.appendChild(durationInput);
+
+                // Para subtareas, mostrar tiempo empleado si existe
+                if (item.type === 'subtask') {
+                    const getSpentMinutes = (item) => {
+                        if (item.spentMinutes != null) return parseInt(item.spentMinutes) || 0;
+                        if (item.actualHours != null) return Math.round((parseFloat(item.actualHours) || 0) * 60);
+                        return 0;
+                    };
+                    const spentMins = getSpentMinutes(item);
+                    if (spentMins > 0) {
+                        const spentInfo = document.createElement('div');
+                        spentInfo.className = 'text-xs text-text-muted text-center mt-1';
+                        spentInfo.textContent = `Empleado: ${formatMinutes(spentMins)}`;
+                        inputWrapper.appendChild(spentInfo);
+                    }
                 }
 
-                rollupInfo.textContent = parts.join(' · ');
-                inputWrapper.appendChild(rollupInfo);
+                // Para tareas sin subtareas, mostrar total si hay valor
+                if (item.type === 'task' && manualMinutes > 0) {
+                    const totalInfo = document.createElement('div');
+                    totalInfo.className = 'text-xs text-text-muted text-center mt-1';
+                    totalInfo.textContent = `Total: ${formatMinutes(manualMinutes)}`;
+                    inputWrapper.appendChild(totalInfo);
+                }
             }
 
             rightCol.append(timeLabel, inputWrapper);
 
-            mainRow.append(leftCol, centerCol, rightCol);
+            mainRow.append(leftCol, centerCol, dateCol, rightCol);
             card.appendChild(mainRow);
 
             return card;
