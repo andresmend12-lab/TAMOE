@@ -1097,6 +1097,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             manageId: normalizeText(task.manageId),
                             createdAt: task.createdAt || '',
                             updatedAt: task.updatedAt || '',
+                            // Campos de tiempo (estimado/empleado) - CRITICAL para mostrar en UI
+                            estimatedMinutes: task.estimatedMinutes ?? null,
+                            estimatedHours: task.estimatedHours ?? null, // legacy fallback
+                            spentMinutes: task.spentMinutes ?? null,
+                            actualHours: task.actualHours ?? null, // legacy fallback
                             context: buildContext(clientName, projectName, 'Sin producto'),
                             clientId,
                             clientName,
@@ -1114,6 +1119,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 manageId: normalizeText(subtask.manageId),
                                 createdAt: subtask.createdAt || '',
                                 updatedAt: subtask.updatedAt || '',
+                                // Campos de tiempo (estimado/empleado) - CRITICAL para mostrar en UI
+                                estimatedMinutes: subtask.estimatedMinutes ?? null,
+                                estimatedHours: subtask.estimatedHours ?? null, // legacy fallback
+                                spentMinutes: subtask.spentMinutes ?? null,
+                                actualHours: subtask.actualHours ?? null, // legacy fallback
                                 context: buildContext(clientName, projectName, 'Sin producto'),
                                 clientId,
                                 clientName,
@@ -1139,6 +1149,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 manageId: normalizeText(task.manageId),
                                 createdAt: task.createdAt || '',
                                 updatedAt: task.updatedAt || '',
+                                // Campos de tiempo (estimado/empleado) - CRITICAL para mostrar en UI
+                                estimatedMinutes: task.estimatedMinutes ?? null,
+                                estimatedHours: task.estimatedHours ?? null, // legacy fallback
+                                spentMinutes: task.spentMinutes ?? null,
+                                actualHours: task.actualHours ?? null, // legacy fallback
                                 context: buildContext(clientName, projectName, productName),
                                 clientId,
                                 clientName,
@@ -1156,6 +1171,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                     manageId: normalizeText(subtask.manageId),
                                     createdAt: subtask.createdAt || '',
                                     updatedAt: subtask.updatedAt || '',
+                                    // Campos de tiempo (estimado/empleado) - CRITICAL para mostrar en UI
+                                    estimatedMinutes: subtask.estimatedMinutes ?? null,
+                                    estimatedHours: subtask.estimatedHours ?? null, // legacy fallback
+                                    spentMinutes: subtask.spentMinutes ?? null,
+                                    actualHours: subtask.actualHours ?? null, // legacy fallback
                                     context: buildContext(clientName, projectName, productName),
                                     clientId,
                                     clientName,
