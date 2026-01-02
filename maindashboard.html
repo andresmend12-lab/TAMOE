@@ -717,67 +717,15 @@
                             <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                                 <div class="flex flex-col gap-2">
                                     <h1 class="text-gray-900 dark:text-white text-4xl font-extrabold tracking-tight">Automatizaciones</h1>
-                                    <p class="text-text-muted text-base font-normal max-w-2xl">Optimiza tu flujo de trabajo configurando reglas automáticas y disparadores personalizados.</p>
+                                    <p class="text-text-muted text-base font-normal max-w-2xl">Configura reglas que se ejecutan automáticamente cuando ocurren eventos en el sistema.</p>
                                 </div>
                                 <button id="create-automation-btn" class="group flex items-center justify-center gap-2 h-11 px-6 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-primary/20 active:scale-95">
                                     <span class="material-symbols-outlined text-[20px]">add</span>
-                                    <span>Crear Automatización</span>
+                                    <span>Nueva automatización</span>
                                 </button>
                             </div>
-                        </header>
 
-                        <!-- Plantilla de Proyecto por Defecto -->
-                        <div id="project-template-section" class="bg-white dark:bg-surface-dark border border-border-dark rounded-xl p-6 shadow-sm">
-                            <div class="flex items-start justify-between gap-4 mb-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                                        <span class="material-symbols-outlined">playlist_add</span>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-gray-900 dark:text-white font-bold text-lg">Plantilla de Proyecto</h3>
-                                        <p class="text-xs text-text-muted mt-0.5">Crear tareas automáticamente al crear un proyecto</p>
-                                    </div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="project-template-enabled" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-gray-200 dark:bg-surface-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                                    <span id="project-template-status" class="ms-2 text-sm font-medium text-text-muted">Desactivado</span>
-                                </label>
-                            </div>
-
-                            <div id="project-template-config" class="hidden mt-4 pt-4 border-t border-border-dark">
-                                <div class="flex items-center justify-between mb-3">
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-white">Tareas predefinidas</span>
-                                    <button id="add-template-task-btn" class="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-                                        <span class="material-symbols-outlined text-[16px]">add</span>
-                                        Añadir tarea
-                                    </button>
-                                </div>
-
-                                <div id="template-tasks-list" class="flex flex-col gap-2 mb-4">
-                                    <!-- Las tareas predefinidas se renderizarán aquí -->
-                                </div>
-
-                                <p id="template-tasks-empty" class="hidden text-sm text-text-muted text-center py-4">No hay tareas definidas. Añade al menos una tarea.</p>
-
-                                <div class="flex justify-end gap-2 mt-4">
-                                    <button id="save-template-btn" class="flex items-center gap-2 h-9 px-4 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg transition-all">
-                                        <span class="material-symbols-outlined text-[18px]">save</span>
-                                        Guardar plantilla
-                                    </button>
-                                </div>
-                                <p id="template-save-status" class="text-xs text-text-muted mt-2"></p>
-                            </div>
-                        </div>
-
-                        <!-- Separador -->
-                        <div class="flex items-center gap-4">
-                            <div class="flex-1 h-px bg-border-dark"></div>
-                            <span class="text-sm text-text-muted font-medium">Automatizaciones personalizadas</span>
-                            <div class="flex-1 h-px bg-border-dark"></div>
-                        </div>
-                
-                            <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between mt-2">
+                            <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
                                 <div id="automation-filter-buttons" class="flex gap-2 overflow-x-auto pb-1 max-w-full no-scrollbar">
                                     <button data-filter="all" class="flex h-9 items-center justify-center px-4 rounded-lg bg-white dark:bg-surface-dark text-gray-900 dark:text-white text-sm font-medium border border-primary text-primary shadow-[0_0_10px_rgba(230,25,161,0.2)]">
                                         Todos
