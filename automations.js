@@ -23,7 +23,7 @@ let automationsGrid, automationSearchInput, filterButtons, emptyState, paginatio
 
 // --- State ---
 let currentPage = 1;
-let itemsPerPage = 5;
+let itemsPerPage = 12;
 let currentSearch = '';
 
 /**
