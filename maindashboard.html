@@ -18,6 +18,7 @@
                         "primary-hover": "#c9168d",
                         "background-light": "#f7f3f5",
                         "background-dark": "#3a2a34",
+                        "surface-light": "#faf8f9",
                         "surface-dark": "#4a3242",
                         "surface-darker": "#402a3a",
                         "border-dark": "#7a4666",
@@ -103,6 +104,44 @@
         body.sidebar-resizing {
             cursor: col-resize;
             user-select: none;
+        }
+        /* Scrollbar thin para el timeline */
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(122, 70, 102, 0.3);
+            border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: rgba(122, 70, 102, 0.5);
+        }
+        .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(224, 185, 210, 0.3);
+        }
+        .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: rgba(224, 185, 210, 0.5);
+        }
+        /* Firefox */
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(122, 70, 102, 0.3) transparent;
+        }
+        .dark .scrollbar-thin {
+            scrollbar-color: rgba(224, 185, 210, 0.3) transparent;
+        }
+        /* Timeline row hover sync */
+        #timeline-left-scroll > div:hover,
+        #timeline-right-scroll > div > div:hover {
+            background-color: rgba(230, 25, 161, 0.05);
+        }
+        .dark #timeline-left-scroll > div:hover,
+        .dark #timeline-right-scroll > div > div:hover {
+            background-color: rgba(230, 25, 161, 0.1);
         }
     </style>
     <script src="auth-guard.js" type="module"></script>
@@ -550,59 +589,58 @@
                     </div>
                 </section>
 
-                <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden rounded-xl border border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/20">
-                    <div class="flex flex-col gap-4">
-                        <!-- Header -->
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">timeline</span>
-                            <h2 class="text-gray-900 dark:text-white text-xl font-bold">Cronograma</h2>
-                        </div>
-                        <p class="text-text-muted text-sm -mt-2">Visualiza la distribución temporal del trabajo con duración estimada.</p>
-
-                        <!-- Controles de navegación y vista -->
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-border-dark pb-4">
-                            <div>
-                                <p id="timeline-view-label" class="text-[11px] uppercase tracking-[0.2em] text-text-muted">Semana</p>
-                                <h3 id="timeline-range-label" class="text-lg font-bold text-gray-900 dark:text-white">-</h3>
+                <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden rounded-2xl border border-border-dark bg-white dark:bg-surface-darker p-5 shadow-lg shadow-black/20">
+                    <div class="flex flex-col gap-3">
+                        <!-- Header compacto -->
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-xl">timeline</span>
+                                <div>
+                                    <h2 class="text-gray-900 dark:text-white text-lg font-bold leading-tight">Cronograma</h2>
+                                    <p class="text-text-muted text-xs">Vista temporal del trabajo planificado</p>
+                                </div>
                             </div>
+                            <!-- Controles de navegación y vista -->
                             <div class="flex flex-wrap items-center gap-2">
-                                <!-- Navegación temporal -->
-                                <div class="flex items-center gap-2">
-                                    <button id="timeline-prev" type="button" class="size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Anterior">
-                                        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                                <div class="flex items-center gap-1">
+                                    <button id="timeline-prev" type="button" class="size-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center" aria-label="Anterior">
+                                        <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                                     </button>
-                                    <button id="timeline-today" type="button" class="h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-xs font-semibold text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                                    <button id="timeline-today" type="button" class="h-8 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-[11px] font-semibold text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                                         Hoy
                                     </button>
-                                    <button id="timeline-next" type="button" class="size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-darker text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" aria-label="Siguiente">
-                                        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                                    <button id="timeline-next" type="button" class="size-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center" aria-label="Siguiente">
+                                        <span class="material-symbols-outlined text-[18px]">chevron_right</span>
                                     </button>
                                 </div>
-                                <!-- Selector de vista -->
-                                <div class="flex items-center gap-1 rounded-lg border border-border-dark p-1 bg-white dark:bg-surface-darker">
-                                    <button data-timeline-view="week" class="h-7 px-3 rounded text-xs font-semibold transition-colors bg-primary text-white">Semana</button>
-                                    <button data-timeline-view="month" class="h-7 px-3 rounded text-xs font-semibold transition-colors text-text-muted hover:text-gray-900 dark:hover:text-white">Mes</button>
+                                <div class="flex items-center gap-0.5 rounded-lg border border-border-dark p-0.5 bg-white dark:bg-surface-dark">
+                                    <button data-timeline-view="week" class="h-7 px-3 rounded text-[11px] font-semibold transition-colors bg-primary text-white">Semana</button>
+                                    <button data-timeline-view="month" class="h-7 px-3 rounded text-[11px] font-semibold transition-colors text-text-muted hover:text-gray-900 dark:hover:text-white">Mes</button>
+                                </div>
+                                <div class="hidden sm:block text-right ml-2">
+                                    <p id="timeline-view-label" class="text-[10px] uppercase tracking-wider text-text-muted leading-tight">Semana</p>
+                                    <p id="timeline-range-label" class="text-sm font-bold text-gray-900 dark:text-white leading-tight">-</p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Filtros -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                        <!-- Filtros compactos -->
+                        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
                             <div class="relative">
-                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">apartment</span>
-                                <select id="timeline-filter-client" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
+                                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">apartment</span>
+                                <select id="timeline-filter-client" class="w-full h-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-2 focus:border-primary focus:ring-1 focus:ring-primary">
                                     <option value="all">Cliente: Todos</option>
                                 </select>
                             </div>
                             <div class="relative">
-                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">folder</span>
-                                <select id="timeline-filter-project" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
+                                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">folder</span>
+                                <select id="timeline-filter-project" class="w-full h-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-2 focus:border-primary focus:ring-1 focus:ring-primary">
                                     <option value="all">Proyecto: Todos</option>
                                 </select>
                             </div>
                             <div class="relative">
-                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">flag</span>
-                                <select id="timeline-filter-priority" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
+                                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">flag</span>
+                                <select id="timeline-filter-priority" class="w-full h-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-2 focus:border-primary focus:ring-1 focus:ring-primary">
                                     <option value="all">Prioridad: Todas</option>
                                     <option value="high">Alta</option>
                                     <option value="medium">Media</option>
@@ -611,25 +649,24 @@
                                 </select>
                             </div>
                             <div class="relative">
-                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">category</span>
-                                <select id="timeline-filter-type" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
+                                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">category</span>
+                                <select id="timeline-filter-type" class="w-full h-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-2 focus:border-primary focus:ring-1 focus:ring-primary">
                                     <option value="all">Tipo: Todos</option>
                                     <option value="task">Tarea</option>
                                     <option value="subtask">Subtarea</option>
                                 </select>
                             </div>
                             <div class="relative">
-                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">person</span>
-                                <select id="timeline-filter-assignee" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
+                                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">person</span>
+                                <select id="timeline-filter-assignee" class="w-full h-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-2 focus:border-primary focus:ring-1 focus:ring-primary">
                                     <option value="all">Asignado: Todos</option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- Contenedor principal: Jerarquía + Timeline -->
-                        <div id="timeline-container" class="rounded-lg border border-border-dark bg-white/70 dark:bg-surface-dark/70 overflow-hidden">
-                            <!-- Contenido renderizado dinámicamente -->
-                            <p id="timeline-empty" class="text-text-muted text-sm p-6">No hay actividades con fecha para mostrar en el cronograma.</p>
+                        <div id="timeline-container" class="rounded-xl border border-border-dark bg-surface-light dark:bg-surface-dark overflow-hidden">
+                            <p id="timeline-empty" class="text-text-muted text-sm p-6 text-center">No hay actividades con fecha para mostrar en el cronograma.</p>
                         </div>
                     </div>
                 </section>
