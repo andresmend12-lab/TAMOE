@@ -3163,7 +3163,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Filtrar items que estén dentro del rango visible
         const visibleItems = filteredItems.filter(item => {
-            const itemEnd = addDays(item.date, Math.max(1, Math.ceil(item.durationMinutes / 480))); // 8h = 1 día
+            const itemEnd = addDays(item.date, Math.max(1, Math.ceil(item.durationMinutes / 480)));
             return item.date <= range.end && itemEnd >= range.start;
         });
 
@@ -3182,7 +3182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (timelineEmpty) timelineEmpty.classList.add('hidden');
 
         // Agrupar por jerarquía
-        const hierarchy = new Map(); // clientId -> { name, projects: Map }
+        const hierarchy = new Map();
         visibleItems.forEach(item => {
             if (!hierarchy.has(item.clientId)) {
                 hierarchy.set(item.clientId, {
@@ -3213,83 +3213,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Construir la vista
-        const container = document.createElement('div');
-        container.className = 'flex';
+        // Constantes de diseño
+        const ROW_HEIGHT = 32; // Más compacto
+        const dayWidth = timelineState.view === 'week' ? 100 : 36;
+        const timelineWidth = range.days * dayWidth;
+        const todayKey = toDateKey(new Date());
 
-        // Columna izquierda: Jerarquía
-        const leftCol = document.createElement('div');
-        leftCol.className = 'w-64 shrink-0 border-r border-border-dark bg-white dark:bg-surface-darker';
-
-        // Header de columnas
-        const leftHeader = document.createElement('div');
-        leftHeader.className = 'h-10 border-b border-border-dark px-3 flex items-center';
-        leftHeader.innerHTML = '<span class="text-xs font-semibold text-text-muted uppercase">Actividad</span>';
-        leftCol.appendChild(leftHeader);
-
-        // Columna derecha: Timeline
-        const rightCol = document.createElement('div');
-        rightCol.className = 'flex-1 overflow-x-auto';
-
-        // Header de días
-        const timelineHeader = document.createElement('div');
-        timelineHeader.className = 'flex h-10 border-b border-border-dark';
-        const dayWidth = timelineState.view === 'week' ? 100 : 36; // px por día
-
+        // Encontrar índice del día "hoy" para la línea vertical
+        let todayIndex = -1;
         for (let i = 0; i < range.days; i++) {
-            const day = addDays(range.start, i);
-            const isToday = toDateKey(day) === toDateKey(new Date());
-            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-
-            const dayCell = document.createElement('div');
-            dayCell.className = `shrink-0 flex items-center justify-center text-xs font-medium border-r border-border-dark/50 ${
-                isToday ? 'bg-primary/10 text-primary font-bold' : isWeekend ? 'bg-gray-100 dark:bg-gray-800/50 text-text-muted' : 'text-gray-700 dark:text-gray-300'
-            }`;
-            dayCell.style.width = `${dayWidth}px`;
-
-            if (timelineState.view === 'week') {
-                dayCell.innerHTML = `<span>${day.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</span>`;
-            } else {
-                dayCell.textContent = day.getDate();
+            if (toDateKey(addDays(range.start, i)) === todayKey) {
+                todayIndex = i;
+                break;
             }
-            timelineHeader.appendChild(dayCell);
         }
-        rightCol.appendChild(timelineHeader);
-
-        // Contenido de filas
-        const leftContent = document.createElement('div');
-        const rightContent = document.createElement('div');
-        rightContent.className = 'relative';
-
-        let rowIndex = 0;
-        const ROW_HEIGHT = 36;
-
-        const createBarForItem = (item) => {
-            const daysDiff = Math.floor((item.date - range.start) / (1000 * 60 * 60 * 24));
-            const durationDays = Math.max(1, Math.ceil(item.durationMinutes / 480)); // 8h = 1 día laboral
-            const left = Math.max(0, daysDiff * dayWidth);
-            const width = Math.min(durationDays * dayWidth, (range.days - Math.max(0, daysDiff)) * dayWidth);
-
-            if (left >= range.days * dayWidth) return null; // Fuera de rango
-
-            const colors = TIMELINE_PRIORITY_COLORS[item.priority] || TIMELINE_PRIORITY_COLORS['none'];
-            const statusStyle = TIMELINE_STATUS_STYLES[item.status] || '';
-
-            const bar = document.createElement('button');
-            bar.type = 'button';
-            bar.className = `absolute h-6 rounded border ${colors.bg} ${colors.border} ${colors.text} ${statusStyle} flex items-center px-2 text-xs font-medium truncate cursor-pointer hover:shadow-md transition-shadow`;
-            bar.style.left = `${left}px`;
-            bar.style.width = `${Math.max(width, 24)}px`;
-            bar.style.top = `${rowIndex * ROW_HEIGHT + 5}px`;
-            bar.title = `${item.name} (${formatDurationMinutes(item.durationMinutes)}) - ${item.status}`;
-            bar.textContent = timelineState.view === 'week' ? item.name : '';
-
-            if (item.manageId) {
-                bar.addEventListener('click', () => openDetailPage(item.manageId));
-            }
-
-            return bar;
-        };
 
         const formatDurationMinutes = (mins) => {
             if (!mins) return '0m';
@@ -3300,18 +3237,134 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${m}m`;
         };
 
-        const createRow = (label, depth, icon, isGroup = false, groupId = null) => {
+        // Contenedor principal con estructura mejorada
+        const container = document.createElement('div');
+        container.className = 'flex flex-col h-[500px] max-h-[70vh]';
+
+        // ===== HEADER FIJO (sticky) =====
+        const headerWrapper = document.createElement('div');
+        headerWrapper.className = 'flex shrink-0 border-b border-border-dark bg-surface-light dark:bg-surface-darker';
+
+        // Header izquierdo (Actividad)
+        const leftHeader = document.createElement('div');
+        leftHeader.className = 'w-56 shrink-0 h-9 px-3 flex items-center border-r border-border-dark bg-surface-light dark:bg-surface-darker';
+        leftHeader.innerHTML = '<span class="text-[11px] font-semibold text-text-muted uppercase tracking-wide">Actividad</span>';
+        headerWrapper.appendChild(leftHeader);
+
+        // Header derecho (días del timeline) - con scroll horizontal
+        const rightHeaderScroll = document.createElement('div');
+        rightHeaderScroll.className = 'flex-1 overflow-x-auto scrollbar-thin';
+        rightHeaderScroll.id = 'timeline-header-scroll';
+
+        const timelineHeader = document.createElement('div');
+        timelineHeader.className = 'flex h-9';
+        timelineHeader.style.width = `${timelineWidth}px`;
+
+        for (let i = 0; i < range.days; i++) {
+            const day = addDays(range.start, i);
+            const isToday = toDateKey(day) === todayKey;
+            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
+            const dayCell = document.createElement('div');
+            dayCell.className = `shrink-0 flex items-center justify-center text-[11px] font-medium border-r border-border-dark/40 ${
+                isToday
+                    ? 'bg-primary/15 text-primary font-bold'
+                    : isWeekend
+                        ? 'bg-gray-100 dark:bg-gray-800/40 text-text-muted'
+                        : 'text-gray-600 dark:text-gray-400'
+            }`;
+            dayCell.style.width = `${dayWidth}px`;
+
+            if (timelineState.view === 'week') {
+                const weekday = day.toLocaleDateString('es-ES', { weekday: 'short' });
+                const dayNum = day.getDate();
+                dayCell.innerHTML = `<span class="capitalize">${weekday} ${dayNum}</span>`;
+            } else {
+                dayCell.textContent = day.getDate();
+            }
+            timelineHeader.appendChild(dayCell);
+        }
+        rightHeaderScroll.appendChild(timelineHeader);
+        headerWrapper.appendChild(rightHeaderScroll);
+        container.appendChild(headerWrapper);
+
+        // ===== CONTENIDO CON SCROLL SINCRONIZADO =====
+        const bodyWrapper = document.createElement('div');
+        bodyWrapper.className = 'flex flex-1 overflow-hidden';
+
+        // Columna izquierda (árbol) - scroll vertical solo
+        const leftCol = document.createElement('div');
+        leftCol.className = 'w-56 shrink-0 overflow-y-auto overflow-x-hidden border-r border-border-dark bg-white dark:bg-surface-darker scrollbar-thin';
+        leftCol.id = 'timeline-left-scroll';
+
+        // Columna derecha (timeline) - scroll horizontal y vertical
+        const rightCol = document.createElement('div');
+        rightCol.className = 'flex-1 overflow-auto scrollbar-thin';
+        rightCol.id = 'timeline-right-scroll';
+
+        // Contenedor interno del timeline con ancho fijo
+        const rightContent = document.createElement('div');
+        rightContent.className = 'relative';
+        rightContent.style.width = `${timelineWidth}px`;
+
+        // Arrays para construir filas
+        const rows = [];
+        let rowIndex = 0;
+
+        // Función para crear barra de item (posicionada dentro de cada fila)
+        const createBarForItem = (item) => {
+            const daysDiff = Math.floor((item.date - range.start) / (1000 * 60 * 60 * 24));
+            const durationDays = Math.max(1, Math.ceil(item.durationMinutes / 480));
+            const left = Math.max(0, daysDiff * dayWidth);
+            const width = Math.min(durationDays * dayWidth - 4, (range.days - Math.max(0, daysDiff)) * dayWidth - 4);
+
+            if (left >= timelineWidth) return null;
+
+            const colors = TIMELINE_PRIORITY_COLORS[item.priority] || TIMELINE_PRIORITY_COLORS['none'];
+            const statusStyle = TIMELINE_STATUS_STYLES[item.status] || '';
+
+            const bar = document.createElement('button');
+            bar.type = 'button';
+            bar.className = `absolute h-5 rounded-md border-l-[3px] ${colors.bg} ${colors.border} ${colors.text} ${statusStyle} flex items-center px-2 text-[11px] font-semibold truncate cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all z-10`;
+            bar.style.left = `${left + 2}px`;
+            bar.style.width = `${Math.max(width, 20)}px`;
+            bar.style.top = '50%';
+            bar.style.transform = 'translateY(-50%)';
+
+            // Tooltip mejorado
+            const priorityLabel = { none: 'Sin prioridad', low: 'Baja', medium: 'Media', high: 'Alta' }[item.priority] || 'Sin prioridad';
+            bar.title = `${item.name}\n⏱ ${formatDurationMinutes(item.durationMinutes)}\n📌 ${priorityLabel}\n📋 ${item.status}`;
+            bar.textContent = timelineState.view === 'week' ? item.name : '';
+
+            if (item.manageId) {
+                bar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openDetailPage(item.manageId);
+                });
+            }
+
+            return bar;
+        };
+
+        // Función para crear fila del árbol (izquierda)
+        const createTreeRow = (label, depth, icon, isGroup = false, groupId = null, item = null) => {
             const row = document.createElement('div');
-            row.className = 'h-9 flex items-center border-b border-border-dark/30 hover:bg-gray-50 dark:hover:bg-white/5';
-            row.style.paddingLeft = `${12 + depth * 16}px`;
+            row.className = `h-8 flex items-center border-b border-border-dark/20 transition-colors ${
+                isGroup
+                    ? 'bg-gray-50/80 dark:bg-white/[0.03] hover:bg-gray-100 dark:hover:bg-white/[0.06]'
+                    : 'hover:bg-primary/5 dark:hover:bg-primary/10'
+            }`;
+            row.style.paddingLeft = `${8 + depth * 12}px`;
+            row.style.height = `${ROW_HEIGHT}px`;
 
             if (isGroup && groupId) {
                 const collapsed = timelineCollapsedGroups.has(groupId);
                 const toggle = document.createElement('button');
                 toggle.type = 'button';
-                toggle.className = 'mr-1 text-text-muted hover:text-gray-900 dark:hover:text-white';
-                toggle.innerHTML = `<span class="material-symbols-outlined text-[16px]">${collapsed ? 'chevron_right' : 'expand_more'}</span>`;
-                toggle.addEventListener('click', () => {
+                toggle.className = 'mr-1 text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors';
+                toggle.innerHTML = `<span class="material-symbols-outlined text-[14px]">${collapsed ? 'chevron_right' : 'expand_more'}</span>`;
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     if (timelineCollapsedGroups.has(groupId)) {
                         timelineCollapsedGroups.delete(groupId);
                     } else {
@@ -3324,34 +3377,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (icon) {
                 const iconEl = document.createElement('span');
-                iconEl.className = 'material-symbols-outlined text-[16px] mr-2 text-text-muted';
+                iconEl.className = `material-symbols-outlined text-[14px] mr-1.5 ${isGroup ? 'text-text-muted' : 'text-primary/60'}`;
                 iconEl.textContent = icon;
                 row.appendChild(iconEl);
             }
 
             const text = document.createElement('span');
-            text.className = `text-sm truncate ${isGroup ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`;
+            text.className = `text-xs truncate flex-1 ${
+                isGroup
+                    ? 'font-semibold text-gray-800 dark:text-gray-200'
+                    : 'text-gray-700 dark:text-gray-300'
+            }`;
             text.textContent = label;
             text.title = label;
             row.appendChild(text);
 
+            // Click en fila hoja abre detail
+            if (!isGroup && item?.manageId) {
+                row.style.cursor = 'pointer';
+                row.addEventListener('click', () => openDetailPage(item.manageId));
+            }
+
             return row;
         };
 
+        // Función para crear fila del timeline (derecha)
         const createTimelineRow = () => {
             const row = document.createElement('div');
-            row.className = 'h-9 border-b border-border-dark/30 relative';
+            row.className = 'border-b border-border-dark/20 relative';
+            row.style.height = `${ROW_HEIGHT}px`;
+
             // Grid lines for days
             for (let i = 0; i < range.days; i++) {
                 const day = addDays(range.start, i);
-                const isToday = toDateKey(day) === toDateKey(new Date());
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                const line = document.createElement('div');
-                line.className = `absolute top-0 bottom-0 border-r border-border-dark/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-gray-100/50 dark:bg-gray-800/20' : ''}`;
-                line.style.left = `${i * dayWidth}px`;
-                line.style.width = `${dayWidth}px`;
-                row.appendChild(line);
+
+                const cell = document.createElement('div');
+                cell.className = `absolute top-0 bottom-0 border-r border-border-dark/15 ${
+                    isWeekend ? 'bg-gray-50/50 dark:bg-gray-800/20' : ''
+                }`;
+                cell.style.left = `${i * dayWidth}px`;
+                cell.style.width = `${dayWidth}px`;
+                row.appendChild(cell);
             }
+
             return row;
         };
 
@@ -3361,8 +3430,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientCollapsed = timelineCollapsedGroups.has(clientGroupId);
 
             // Cliente row
-            leftContent.appendChild(createRow(clientGroup.name, 0, 'apartment', true, clientGroupId));
-            rightContent.appendChild(createTimelineRow());
+            rows.push({
+                tree: createTreeRow(clientGroup.name, 0, 'apartment', true, clientGroupId),
+                timeline: createTimelineRow(),
+                item: null
+            });
             rowIndex++;
 
             if (clientCollapsed) return;
@@ -3371,9 +3443,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const projectGroupId = `project-${clientId}-${projectId}`;
                 const projectCollapsed = timelineCollapsedGroups.has(projectGroupId);
 
-                // Proyecto row
-                leftContent.appendChild(createRow(projectGroup.name, 1, 'folder', true, projectGroupId));
-                rightContent.appendChild(createTimelineRow());
+                rows.push({
+                    tree: createTreeRow(projectGroup.name, 1, 'folder', true, projectGroupId),
+                    timeline: createTimelineRow(),
+                    item: null
+                });
                 rowIndex++;
 
                 if (projectCollapsed) return;
@@ -3383,8 +3457,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const productGroupId = `product-${clientId}-${projectId}-${productId}`;
                     const productCollapsed = timelineCollapsedGroups.has(productGroupId);
 
-                    leftContent.appendChild(createRow(productGroup.name, 2, 'inventory_2', true, productGroupId));
-                    rightContent.appendChild(createTimelineRow());
+                    rows.push({
+                        tree: createTreeRow(productGroup.name, 2, 'inventory_2', true, productGroupId),
+                        timeline: createTimelineRow(),
+                        item: null
+                    });
                     rowIndex++;
 
                     if (productCollapsed) return;
@@ -3392,46 +3469,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Tareas del producto
                     productGroup.tasks.forEach(item => {
                         if (item.type === 'task') {
-                            leftContent.appendChild(createRow(item.name, 3, 'task_alt', false));
                             const timelineRow = createTimelineRow();
                             const bar = createBarForItem(item);
                             if (bar) timelineRow.appendChild(bar);
-                            rightContent.appendChild(timelineRow);
+
+                            rows.push({
+                                tree: createTreeRow(item.name, 3, 'task_alt', false, null, item),
+                                timeline: timelineRow,
+                                item
+                            });
                             rowIndex++;
 
-                            // Subtareas de esta tarea
-                            const subtasks = productGroup.tasks.filter(st => st.type === 'subtask' && st.parentTaskId === item.id.split('-').pop());
+                            // Subtareas
+                            const taskIdPart = item.id.split('-').pop();
+                            const subtasks = productGroup.tasks.filter(st => st.type === 'subtask' && st.parentTaskId === taskIdPart);
                             subtasks.forEach(subtask => {
-                                leftContent.appendChild(createRow(subtask.name, 4, 'subdirectory_arrow_right', false));
                                 const stRow = createTimelineRow();
                                 const stBar = createBarForItem(subtask);
                                 if (stBar) stRow.appendChild(stBar);
-                                rightContent.appendChild(stRow);
+
+                                rows.push({
+                                    tree: createTreeRow(subtask.name, 4, 'subdirectory_arrow_right', false, null, subtask),
+                                    timeline: stRow,
+                                    item: subtask
+                                });
                                 rowIndex++;
                             });
                         }
                     });
                 });
 
-                // Tareas directas del proyecto (sin producto)
+                // Tareas directas del proyecto
                 projectGroup.tasks.forEach(item => {
                     if (item.type === 'task') {
-                        leftContent.appendChild(createRow(item.name, 2, 'task_alt', false));
                         const timelineRow = createTimelineRow();
                         const bar = createBarForItem(item);
                         if (bar) timelineRow.appendChild(bar);
-                        rightContent.appendChild(timelineRow);
+
+                        rows.push({
+                            tree: createTreeRow(item.name, 2, 'task_alt', false, null, item),
+                            timeline: timelineRow,
+                            item
+                        });
                         rowIndex++;
 
                         // Subtareas
                         const taskIdPart = item.id.split('-').slice(-1)[0];
                         const subtasks = projectGroup.tasks.filter(st => st.type === 'subtask' && st.parentTaskId === taskIdPart);
                         subtasks.forEach(subtask => {
-                            leftContent.appendChild(createRow(subtask.name, 3, 'subdirectory_arrow_right', false));
                             const stRow = createTimelineRow();
                             const stBar = createBarForItem(subtask);
                             if (stBar) stRow.appendChild(stBar);
-                            rightContent.appendChild(stRow);
+
+                            rows.push({
+                                tree: createTreeRow(subtask.name, 3, 'subdirectory_arrow_right', false, null, subtask),
+                                timeline: stRow,
+                                item: subtask
+                            });
                             rowIndex++;
                         });
                     }
@@ -3439,12 +3533,73 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        leftCol.appendChild(leftContent);
+        // Construir contenido
+        rows.forEach(({ tree, timeline }) => {
+            leftCol.appendChild(tree);
+            rightContent.appendChild(timeline);
+        });
+
+        // Línea de "Hoy" prominente
+        if (todayIndex >= 0) {
+            const todayLine = document.createElement('div');
+            todayLine.className = 'absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none';
+            todayLine.style.left = `${todayIndex * dayWidth + dayWidth / 2}px`;
+
+            // Indicador superior "Hoy"
+            const todayLabel = document.createElement('div');
+            todayLabel.className = 'absolute -top-1 -translate-x-1/2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-b shadow-sm';
+            todayLabel.style.left = `${todayIndex * dayWidth + dayWidth / 2}px`;
+            todayLabel.textContent = 'HOY';
+
+            rightContent.appendChild(todayLine);
+            rightContent.appendChild(todayLabel);
+        }
+
         rightCol.appendChild(rightContent);
-        container.append(leftCol, rightCol);
+        bodyWrapper.appendChild(leftCol);
+        bodyWrapper.appendChild(rightCol);
+        container.appendChild(bodyWrapper);
 
         timelineContainer.innerHTML = '';
         timelineContainer.appendChild(container);
+
+        // ===== SINCRONIZACIÓN DE SCROLL =====
+        const leftScroll = document.getElementById('timeline-left-scroll');
+        const rightScroll = document.getElementById('timeline-right-scroll');
+        const headerScroll = document.getElementById('timeline-header-scroll');
+
+        let isSyncing = false;
+
+        // Sincronizar scroll vertical entre árbol y timeline
+        if (leftScroll && rightScroll) {
+            leftScroll.addEventListener('scroll', () => {
+                if (isSyncing) return;
+                isSyncing = true;
+                rightScroll.scrollTop = leftScroll.scrollTop;
+                requestAnimationFrame(() => { isSyncing = false; });
+            });
+
+            rightScroll.addEventListener('scroll', () => {
+                if (isSyncing) return;
+                isSyncing = true;
+                leftScroll.scrollTop = rightScroll.scrollTop;
+                // Sincronizar también scroll horizontal del header
+                if (headerScroll) {
+                    headerScroll.scrollLeft = rightScroll.scrollLeft;
+                }
+                requestAnimationFrame(() => { isSyncing = false; });
+            });
+        }
+
+        // Sincronizar scroll horizontal del header con timeline
+        if (headerScroll && rightScroll) {
+            headerScroll.addEventListener('scroll', () => {
+                if (isSyncing) return;
+                isSyncing = true;
+                rightScroll.scrollLeft = headerScroll.scrollLeft;
+                requestAnimationFrame(() => { isSyncing = false; });
+            });
+        }
     };
 
     // Cambiar vista del timeline
