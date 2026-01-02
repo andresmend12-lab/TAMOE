@@ -7554,16 +7554,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const executeAutomations = async (eventType, eventData, options = {}) => {
-        console.log('Executing automations for', eventType, eventData);
+        console.log('[AUTOMATIONS] Firing trigger:', eventType, '| Path:', eventData.path, '| Type:', eventData.type);
         const includeAutomationIds = normalizeAutomationIdList(options?.includeAutomationIds);
         const includeSet = includeAutomationIds.length > 0 ? new Set(includeAutomationIds) : null;
         const automationsRef = ref(database, 'automations');
         const snapshot = await get(automationsRef);
         if (!snapshot.exists()) {
+            console.log('[AUTOMATIONS] No automations found in database');
             return;
         }
 
         const allAutomations = snapshot.val();
+        const enabledCount = Object.values(allAutomations).filter(a => a.enabled).length;
+        console.log('[AUTOMATIONS] Loaded:', Object.keys(allAutomations).length, '| Enabled:', enabledCount);
+
+        let matchedCount = 0;
         for (const automationId in allAutomations) {
             const automation = { id: automationId, ...allAutomations[automationId] };
 
@@ -7596,24 +7601,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 if (triggerMet) {
-                    console.log('Trigger met for automation', automation.name);
+                    matchedCount++;
+                    console.log('[AUTOMATIONS] Trigger met for automation:', automation.name, '| Actions:', actions.length);
                     for (const action of actions) {
-                        executeAction(action, eventData, automation);
+                        await executeAction(action, eventData, automation);
                     }
                     // Stop checking other triggers for this automation
                     break;
                 }
             }
         }
+        console.log('[AUTOMATIONS] Execution complete. Matched automations:', matchedCount);
     };
 
     const isActivityInScope = (activityPath, scope) => {
         if (!scope || !scope.client) {
-            return false; // Invalid scope
+            console.log('[AUTOMATIONS] Scope check failed: invalid scope', { scope });
+            return false;
         }
 
         const pathParts = parseClientPath(activityPath);
         if (!pathParts) {
+            console.log('[AUTOMATIONS] Scope check failed: invalid path', { activityPath });
             return false;
         }
 
@@ -7624,7 +7633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (scope.projects && scope.projects.length > 0 && !scope.projects.includes(pathParts.projectId)) {
             return false; // Not in the right project
         }
-        
+
         if (scope.products && scope.products.length > 0) {
             const productInScope = scope.products.some(p => p.projectId === pathParts.projectId && p.productId === pathParts.productId);
             if (!productInScope) {
@@ -7636,11 +7645,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const executeAction = async (action, eventData, automation) => {
-        console.log('Executing action', action.type, 'for event', eventData);
+        console.log('[AUTOMATIONS] Executing action:', action.type, '| Parent:', eventData.path);
         if (action.type.startsWith('createChild_')) {
             await executeCreateChildAction(action, eventData, automation);
         } else if (action.type === 'notify') {
-            console.log('Notify action needs to be implemented');
+            console.log('[AUTOMATIONS] Notify action not yet implemented');
+        } else {
+            console.warn('[AUTOMATIONS] Unknown action type:', action.type);
         }
     };
 
@@ -7694,12 +7705,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 createdAt: new Date().toISOString(),
                 manageId,
             };
-            if (childType.toLowerCase() === 'product') childData.productId = newChildRef.key;
-            if (childType.toLowerCase() === 'task') childData.taskId = newChildRef.key;
-            if (childType.toLowerCase() === 'subtask') childData.subtaskId = newChildRef.key;
+            if (childTypeInfo.key === 'product') childData.productId = newChildRef.key;
+            if (childTypeInfo.key === 'task') childData.taskId = newChildRef.key;
+            if (childTypeInfo.key === 'subtask') childData.subtaskId = newChildRef.key;
 
             await set(newChildRef, childData);
-            console.log(`Created new ${childType} at ${childPath}`);
+            console.log(`[AUTOMATIONS] Created ${childTypeInfo.key}:`, { path: childPath, name: childName, id: newChildRef.key });
             
             await logActivity(
                 pathParts.clientId,
@@ -7708,7 +7719,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
         } catch (error) {
-            console.error(`Failed to create child ${childType}:`, error);
+            console.error(`[AUTOMATIONS] Failed to create child ${childTypeInfo?.key || 'unknown'}:`, error);
         }
     };
 
