@@ -389,15 +389,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clases para chip/pill de prioridad (elegante, con colores R/N/A/V)
     const priorityChipClass = (p) => {
-        const base = 'inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border transition-colors select-none cursor-pointer min-w-[100px]';
-        // Sin prioridad = verde sutil
-        if (p === 'none') return `${base} border-emerald-500/35 bg-emerald-500/12 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/18`;
-        // Baja = amarillo
-        if (p === 'low') return `${base} border-yellow-500/35 bg-yellow-500/12 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-500/18`;
-        // Media = naranja
-        if (p === 'medium') return `${base} border-orange-500/35 bg-orange-500/12 text-orange-800 dark:text-orange-200 hover:bg-orange-500/18`;
-        // Alta = rojo
-        return `${base} border-red-500/35 bg-red-500/12 text-red-800 dark:text-red-200 hover:bg-red-500/18`;
+        const base = 'inline-flex items-center justify-center px-3 py-1 h-7 rounded-full text-xs font-semibold border transition-colors select-none cursor-pointer min-w-[100px]';
+        // Sin prioridad = verde sutil con relleno suave
+        if (p === 'none') return `${base} border-emerald-500/50 bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/25`;
+        // Baja = amarillo con relleno suave
+        if (p === 'low') return `${base} border-yellow-500/50 bg-yellow-500/15 dark:bg-yellow-500/20 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-500/25`;
+        // Media = naranja con relleno suave
+        if (p === 'medium') return `${base} border-orange-500/50 bg-orange-500/15 dark:bg-orange-500/20 text-orange-800 dark:text-orange-200 hover:bg-orange-500/25`;
+        // Alta = rojo con relleno suave
+        return `${base} border-red-500/50 bg-red-500/15 dark:bg-red-500/20 text-red-800 dark:text-red-200 hover:bg-red-500/25`;
     };
     const PRIORITY_SORT_ORDER = { 'high': 3, 'medium': 2, 'low': 1, 'none': 0 };
 
@@ -1954,35 +1954,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4';
 
-            // Main layout: 4 columnas compactas [left: tipo+estado | main: título+breadcrumb | midRight: prioridad+fecha | right: tiempo]
+            // Main layout: 3 columnas [left: tipo+estado overlay | main: título+breadcrumb | right: prioridad+fecha+tiempo]
             const mainRow = document.createElement('div');
-            mainRow.className = 'grid grid-cols-1 gap-4 items-center sm:grid-cols-2 lg:grid-cols-[180px_1fr_auto_170px]';
+            mainRow.className = 'grid grid-cols-1 gap-3 items-center sm:grid-cols-2 lg:grid-cols-[160px_1fr_auto]';
 
-            // ===== COLUMNA IZQUIERDA: Tipo + Estado (horizontal, centrados) =====
+            // ===== COLUMNA IZQUIERDA: Tipo + Estado (overlay centrado) =====
             const leftCol = document.createElement('div');
-            leftCol.className = 'flex items-center gap-3';
+            leftCol.className = 'relative w-[160px] shrink-0 flex justify-end';
 
-            // Badge para Tarea o Subtarea (altura consistente con estado)
-            const badge = document.createElement('span');
-            const isSubtask = item.type === 'subtask';
-            badge.className = isSubtask
-                ? 'inline-flex items-center h-7 px-3 rounded-md text-xs font-semibold leading-none bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                : 'inline-flex items-center h-7 px-3 rounded-md text-xs font-semibold leading-none bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
-            badge.textContent = isSubtask ? 'Subtarea' : 'Tarea';
+            // Wrapper para overlay de badge y estado
+            const overlaySlot = document.createElement('div');
+            overlaySlot.className = 'relative h-[38px] w-[150px]';
 
-            // Control de estado
+            // Control de estado (capa inferior, clicable)
             const statusControl = createStatusControl({
                 status: item.status,
                 onChange: async (nextStatus) => {
                     await applyStatusChange(item, nextStatus);
                 },
             });
+            statusControl.classList.add('absolute', 'inset-0', 'flex', 'items-center', 'justify-center');
 
-            leftCol.append(badge, statusControl);
+            // Badge para Tarea o Subtarea (capa superior, sin capturar clicks)
+            const badge = document.createElement('span');
+            const isSubtask = item.type === 'subtask';
+            badge.className = isSubtask
+                ? 'absolute inset-0 flex items-center justify-center pointer-events-none h-7 px-3 rounded-md text-xs font-semibold leading-none bg-purple-100/90 dark:bg-purple-900/90 text-purple-800 dark:text-purple-200'
+                : 'absolute inset-0 flex items-center justify-center pointer-events-none h-7 px-3 rounded-md text-xs font-semibold leading-none bg-blue-100/90 dark:bg-blue-900/90 text-blue-800 dark:text-blue-200';
+            badge.textContent = isSubtask ? 'Subtarea' : 'Tarea';
 
-            // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable, más cerca del left) =====
+            overlaySlot.append(statusControl, badge);
+            leftCol.appendChild(overlaySlot);
+
+            // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable, pegado al left) =====
             const centerCol = document.createElement('div');
-            centerCol.className = 'min-w-0 flex flex-col gap-1';
+            centerCol.className = 'min-w-0 flex flex-col gap-1 pl-2';
 
             // Hacer el nombre clickable
             const titleRow = document.createElement('div');
@@ -2015,9 +2021,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             centerCol.append(titleRow, context);
 
-            // ===== COLUMNA MEDIA-DERECHA: Prioridad (chip) + Fecha (compactos) =====
-            const midRightCol = document.createElement('div');
-            midRightCol.className = 'flex items-center gap-3 justify-end shrink-0';
+            // ===== COLUMNA DERECHA: Prioridad + Fecha + Tiempo (gap uniforme) =====
+            const rightCol = document.createElement('div');
+            rightCol.className = 'flex items-center gap-3 justify-end shrink-0';
 
             // --- Prioridad como chip/pill clickable con menú contextual ---
             const priorityWrapper = document.createElement('div');
@@ -2162,11 +2168,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             dateCol.append(dateLabel, dateInput, dateStatus);
 
-            midRightCol.append(priorityWrapper, dateCol);
-
-            // ===== COLUMNA DERECHA: Tiempo Estimado =====
-            const rightCol = document.createElement('div');
-            rightCol.className = 'flex flex-col items-center gap-1';
+            // --- Tiempo Estimado ---
+            const timeCol = document.createElement('div');
+            timeCol.className = 'flex flex-col items-center gap-0.5 min-w-[120px]';
 
             const timeLabel = document.createElement('label');
             timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
@@ -2190,35 +2194,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const isTaskWithSubtasks = item.type === 'task' && item.hasSubtasks === true;
 
             if (isTaskWithSubtasks) {
-                // TAREA CON SUBTAREAS: Mostrar solo acumulado de subtareas (READ-ONLY)
-                // Calcular el acumulado usando aggregateLeafTimes
+                // TAREA CON SUBTAREAS: Mostrar solo acumulado de subtareas (READ-ONLY), SIN texto adicional
                 const aggregated = aggregateLeafTimes(item, 'task');
                 const totalEstimated = aggregated.estimated;
-                const totalSpent = aggregated.spent;
 
-                // Display de tiempo estimado (read-only)
+                // Display de tiempo estimado (read-only) - SIN texto debajo
                 const readOnlyDisplay = document.createElement('div');
                 readOnlyDisplay.className = 'bg-gray-100 dark:bg-gray-700/50 border border-border-light dark:border-border-dark rounded px-3 py-1 text-sm text-center w-24 text-text-muted';
                 readOnlyDisplay.textContent = formatMinutes(totalEstimated);
-                readOnlyDisplay.title = 'Acumulado de subtareas (no editable)';
+                readOnlyDisplay.title = `Acumulado de ${Object.keys(item.subtasks || {}).length} subtarea(s)`;
 
                 inputWrapper.appendChild(readOnlyDisplay);
-
-                // Info de acumulado
-                const rollupInfo = document.createElement('div');
-                rollupInfo.className = 'text-xs text-text-muted text-center mt-1';
-
-                const subtaskCount = Object.keys(item.subtasks || {}).length;
-                rollupInfo.textContent = `Acum. ${subtaskCount} subtarea(s)`;
-                inputWrapper.appendChild(rollupInfo);
-
-                // Mostrar también tiempo empleado acumulado
-                if (totalSpent > 0) {
-                    const spentInfo = document.createElement('div');
-                    spentInfo.className = 'text-xs text-text-muted text-center';
-                    spentInfo.textContent = `Empleado: ${formatMinutes(totalSpent)}`;
-                    inputWrapper.appendChild(spentInfo);
-                }
+                // NO añadir rollupInfo ni spentInfo según requisito
             } else {
                 // TAREA SIN SUBTAREAS o SUBTAREA: Input editable
                 // Parsear estimatedMinutes (fuente de verdad) o estimatedHours legacy como fallback
@@ -2308,9 +2295,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            rightCol.append(timeLabel, inputWrapper);
+            timeCol.append(timeLabel, inputWrapper);
 
-            mainRow.append(leftCol, centerCol, midRightCol, rightCol);
+            // Añadir prioridad, fecha y tiempo al bloque derecho con gap uniforme
+            rightCol.append(priorityWrapper, dateCol, timeCol);
+
+            mainRow.append(leftCol, centerCol, rightCol);
             card.appendChild(mainRow);
 
             return card;
