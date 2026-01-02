@@ -1,6 +1,7 @@
 import { auth, database } from './firebase.js';
 import { ref, push, onValue, query, set, update, remove, runTransaction, serverTimestamp, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+import { createDurationInput } from './src/utils/duration.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
@@ -1427,10 +1428,6 @@ document.addEventListener('DOMContentLoaded', () => {
             timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
             timeLabel.textContent = 'Tiempo estimado';
 
-            // Contenedor de inputs (horas y minutos)
-            const timeInputContainer = document.createElement('div');
-            timeInputContainer.className = 'flex items-center gap-2';
-
             // Parsear estimatedMinutes o estimatedHours legacy
             const getEstimatedMinutes = (item) => {
                 if (item.estimatedMinutes != null) return parseInt(item.estimatedMinutes) || 0;
@@ -1439,70 +1436,38 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const totalMinutes = getEstimatedMinutes(item);
-            const hours = Math.floor(totalMinutes / 60);
-            const minutes = totalMinutes % 60;
 
-            // Input de horas
-            const hoursInput = document.createElement('input');
-            hoursInput.type = 'number';
-            hoursInput.min = '0';
-            hoursInput.max = '999';
-            hoursInput.value = hours || '';
-            hoursInput.placeholder = '0';
-            hoursInput.className = 'w-12 px-2 py-1 text-center text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
-
-            const hLabel = document.createElement('span');
-            hLabel.className = 'text-xs text-text-muted';
-            hLabel.textContent = 'h';
-
-            // Input de minutos
-            const minutesInput = document.createElement('input');
-            minutesInput.type = 'number';
-            minutesInput.min = '0';
-            minutesInput.max = '59';
-            minutesInput.value = minutes || '';
-            minutesInput.placeholder = '0';
-            minutesInput.className = 'w-12 px-2 py-1 text-center text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
-
-            const mLabel = document.createElement('span');
-            mLabel.className = 'text-xs text-text-muted';
-            mLabel.textContent = 'm';
-
-            const saveEstimatedTime = async () => {
-                const h = parseInt(hoursInput.value) || 0;
-                const m = Math.min(59, Math.max(0, parseInt(minutesInput.value) || 0));
-                const totalMins = h * 60 + m;
-
-                if (item.manageId) {
-                    try {
-                        const updates = {
-                            estimatedMinutes: totalMins,
-                            updatedAt: new Date().toISOString()
-                        };
-                        const ref = database.ref(item.manageId);
-                        await ref.update(updates);
-                        item.estimatedMinutes = totalMins;
-                        if (item.entityRef) {
-                            item.entityRef.estimatedMinutes = totalMins;
-                            item.entityRef.updatedAt = updates.updatedAt;
+            // Usar el nuevo componente de duración unificado
+            const durationInput = createDurationInput({
+                valueMinutes: totalMinutes,
+                placeholder: 'Ej: 1h 30m',
+                className: 'w-24 focus:border-primary focus:ring-1 focus:ring-primary',
+                onCommit: async (minutes) => {
+                    if (item.manageId) {
+                        try {
+                            const updates = {
+                                estimatedMinutes: minutes,
+                                updatedAt: new Date().toISOString()
+                            };
+                            const ref = database.ref(item.manageId);
+                            await ref.update(updates);
+                            item.estimatedMinutes = minutes;
+                            if (item.entityRef) {
+                                item.entityRef.estimatedMinutes = minutes;
+                                item.entityRef.updatedAt = updates.updatedAt;
+                            }
+                            console.log(`Updated estimated time for ${item.manageId}: ${minutes} min`);
+                        } catch (error) {
+                            console.error('Error updating estimated time:', error);
+                            alert('Error al actualizar el tiempo estimado');
+                            // Revertir al valor anterior
+                            durationInput.setDurationValue(getEstimatedMinutes(item));
                         }
-                        console.log(`Updated estimated time for ${item.manageId}: ${h}h ${m}m (${totalMins} min)`);
-                    } catch (error) {
-                        console.error('Error updating estimated time:', error);
-                        alert('Error al actualizar el tiempo estimado');
-                        // Revertir valores
-                        const reverted = getEstimatedMinutes(item);
-                        hoursInput.value = Math.floor(reverted / 60) || '';
-                        minutesInput.value = reverted % 60 || '';
                     }
                 }
-            };
+            });
 
-            hoursInput.addEventListener('change', saveEstimatedTime);
-            minutesInput.addEventListener('change', saveEstimatedTime);
-
-            timeInputContainer.append(hoursInput, hLabel, minutesInput, mLabel);
-            rightCol.append(timeLabel, timeInputContainer);
+            rightCol.append(timeLabel, durationInput);
 
             mainRow.append(leftCol, centerCol, rightCol);
             card.appendChild(mainRow);
