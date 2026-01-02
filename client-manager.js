@@ -269,6 +269,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const calendarNextBtn = document.getElementById('calendar-next');
     const calendarTodayBtn = document.getElementById('calendar-today');
     const calendarViewButtons = Array.from(document.querySelectorAll('[data-calendar-view]'));
+
+    // Timeline/Cronograma elements
+    const timelineContainer = document.getElementById('timeline-container');
+    const timelineEmpty = document.getElementById('timeline-empty');
+    const timelineViewLabel = document.getElementById('timeline-view-label');
+    const timelineRangeLabel = document.getElementById('timeline-range-label');
+    const timelinePrevBtn = document.getElementById('timeline-prev');
+    const timelineNextBtn = document.getElementById('timeline-next');
+    const timelineTodayBtn = document.getElementById('timeline-today');
+    const timelineViewButtons = Array.from(document.querySelectorAll('[data-timeline-view]'));
+    const timelineFilterClient = document.getElementById('timeline-filter-client');
+    const timelineFilterProject = document.getElementById('timeline-filter-project');
+    const timelineFilterPriority = document.getElementById('timeline-filter-priority');
+    const timelineFilterType = document.getElementById('timeline-filter-type');
+    const timelineFilterAssignee = document.getElementById('timeline-filter-assignee');
+
     const projectAutomationToggle = document.getElementById('project-automation-toggle');
     const projectAutomationPanel = document.getElementById('project-automation-panel');
     const projectAutomationList = document.getElementById('project-automation-list');
@@ -339,6 +355,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let clientsLoading = false;
     let calendarItems = [];
     let calendarState = { view: 'month', date: new Date() };
+
+    // Timeline/Cronograma state
+    let timelineItems = [];
+    let timelineState = { view: 'week', date: new Date() };
+    const timelineFilters = { client: 'all', project: 'all', priority: 'all', type: 'all', assignee: 'all' };
+    let timelineFiltersInitialized = false;
+    let timelineCollapsedGroups = new Set(); // IDs de grupos colapsados
+
     let availableProjectAutomations = [];
     let selectedProjectAutomationIds = new Set();
     let projectAutomationLoading = false;
@@ -2826,6 +2850,678 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasCalendar()) return;
         calendarItems = buildCalendarItems();
         renderCalendar();
+    };
+
+    // ==========================================
+    // TIMELINE / CRONOGRAMA
+    // ==========================================
+
+    const hasTimeline = () => Boolean(timelineContainer);
+
+    // Colores de barra por prioridad (estilo Gantt)
+    const TIMELINE_PRIORITY_COLORS = {
+        'none': { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-700 dark:text-emerald-300' },
+        'low': { bg: 'bg-yellow-500/20', border: 'border-yellow-500/40', text: 'text-yellow-700 dark:text-yellow-300' },
+        'medium': { bg: 'bg-orange-500/20', border: 'border-orange-500/40', text: 'text-orange-700 dark:text-orange-300' },
+        'high': { bg: 'bg-red-500/20', border: 'border-red-500/40', text: 'text-red-700 dark:text-red-300' }
+    };
+
+    // Estilos por estado
+    const TIMELINE_STATUS_STYLES = {
+        'Pendiente': 'border-dashed opacity-70',
+        'En proceso': 'border-solid',
+        'Finalizado': 'opacity-40 grayscale'
+    };
+
+    // Construir items del timeline con jerarquía completa
+    const buildTimelineItems = () => {
+        const items = [];
+        const normalizeText = (value, fallback = '') => String(value || '').trim() || fallback;
+
+        const getEstimatedMinutes = (entity) => {
+            if (entity.estimatedMinutes != null) return parseInt(entity.estimatedMinutes) || 0;
+            if (entity.estimatedHours != null) return Math.round((parseFloat(entity.estimatedHours) || 0) * 60);
+            return 0;
+        };
+
+        const getSubtasksTotalMinutes = (subtasks) => {
+            if (!subtasks || typeof subtasks !== 'object') return 0;
+            return Object.values(subtasks).reduce((sum, st) => sum + getEstimatedMinutes(st), 0);
+        };
+
+        allClients.forEach((client) => {
+            if (!client) return;
+            const clientId = client.id || '';
+            const clientName = normalizeText(client.name, clientId || 'Cliente');
+            const projects = client.projects || {};
+
+            Object.entries(projects).forEach(([projectId, project]) => {
+                if (!project) return;
+                const projectName = normalizeText(project.name, projectId || 'Proyecto');
+
+                // Tareas directas del proyecto (sin producto)
+                Object.entries(project.tasks || {}).forEach(([taskId, task]) => {
+                    if (!task) return;
+                    const taskDate = parseWorkDate(task.date) || parseWorkDate(task.workDate);
+                    if (!taskDate) return; // Solo incluir si tiene fecha
+
+                    const hasSubtasksFlag = hasSubtasks(task);
+                    const taskMinutes = hasSubtasksFlag
+                        ? getSubtasksTotalMinutes(task.subtasks)
+                        : getEstimatedMinutes(task);
+
+                    items.push({
+                        id: `task-${clientId}-${projectId}-${taskId}`,
+                        type: 'task',
+                        name: normalizeText(task.name, 'Tarea'),
+                        manageId: task.manageId || '',
+                        status: normalizeStatus(task.status),
+                        priority: task.priority || 'none',
+                        date: taskDate,
+                        durationMinutes: taskMinutes,
+                        assigneeUid: task.assigneeUid || '',
+                        clientId,
+                        clientName,
+                        projectId,
+                        projectName,
+                        productId: null,
+                        productName: null,
+                        parentId: `project-${clientId}-${projectId}`,
+                        path: `clients/${clientId}/projects/${projectId}/tasks/${taskId}`
+                    });
+
+                    // Subtareas
+                    Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
+                        if (!subtask) return;
+                        const subtaskDate = parseWorkDate(subtask.date) || parseWorkDate(subtask.workDate);
+                        if (!subtaskDate) return;
+
+                        items.push({
+                            id: `subtask-${clientId}-${projectId}-${taskId}-${subtaskId}`,
+                            type: 'subtask',
+                            name: normalizeText(subtask.name, 'Subtarea'),
+                            manageId: subtask.manageId || '',
+                            status: normalizeStatus(subtask.status),
+                            priority: subtask.priority || 'none',
+                            date: subtaskDate,
+                            durationMinutes: getEstimatedMinutes(subtask),
+                            assigneeUid: subtask.assigneeUid || '',
+                            clientId,
+                            clientName,
+                            projectId,
+                            projectName,
+                            productId: null,
+                            productName: null,
+                            parentTaskId: taskId,
+                            parentTaskName: normalizeText(task.name, 'Tarea'),
+                            parentId: `task-${clientId}-${projectId}-${taskId}`,
+                            path: `clients/${clientId}/projects/${projectId}/tasks/${taskId}/subtasks/${subtaskId}`
+                        });
+                    });
+                });
+
+                // Productos y sus tareas
+                Object.entries(project.products || {}).forEach(([productId, product]) => {
+                    if (!product) return;
+                    const productName = normalizeText(product.name, productId || 'Producto');
+
+                    Object.entries(product.tasks || {}).forEach(([taskId, task]) => {
+                        if (!task) return;
+                        const taskDate = parseWorkDate(task.date) || parseWorkDate(task.workDate);
+                        if (!taskDate) return;
+
+                        const hasSubtasksFlag = hasSubtasks(task);
+                        const taskMinutes = hasSubtasksFlag
+                            ? getSubtasksTotalMinutes(task.subtasks)
+                            : getEstimatedMinutes(task);
+
+                        items.push({
+                            id: `task-${clientId}-${projectId}-${productId}-${taskId}`,
+                            type: 'task',
+                            name: normalizeText(task.name, 'Tarea'),
+                            manageId: task.manageId || '',
+                            status: normalizeStatus(task.status),
+                            priority: task.priority || 'none',
+                            date: taskDate,
+                            durationMinutes: taskMinutes,
+                            assigneeUid: task.assigneeUid || '',
+                            clientId,
+                            clientName,
+                            projectId,
+                            projectName,
+                            productId,
+                            productName,
+                            parentId: `product-${clientId}-${projectId}-${productId}`,
+                            path: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`
+                        });
+
+                        // Subtareas del producto
+                        Object.entries(task.subtasks || {}).forEach(([subtaskId, subtask]) => {
+                            if (!subtask) return;
+                            const subtaskDate = parseWorkDate(subtask.date) || parseWorkDate(subtask.workDate);
+                            if (!subtaskDate) return;
+
+                            items.push({
+                                id: `subtask-${clientId}-${projectId}-${productId}-${taskId}-${subtaskId}`,
+                                type: 'subtask',
+                                name: normalizeText(subtask.name, 'Subtarea'),
+                                manageId: subtask.manageId || '',
+                                status: normalizeStatus(subtask.status),
+                                priority: subtask.priority || 'none',
+                                date: subtaskDate,
+                                durationMinutes: getEstimatedMinutes(subtask),
+                                assigneeUid: subtask.assigneeUid || '',
+                                clientId,
+                                clientName,
+                                projectId,
+                                projectName,
+                                productId,
+                                productName,
+                                parentTaskId: taskId,
+                                parentTaskName: normalizeText(task.name, 'Tarea'),
+                                parentId: `task-${clientId}-${projectId}-${productId}-${taskId}`,
+                                path: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}/subtasks/${subtaskId}`
+                            });
+                        });
+                    });
+                });
+            });
+        });
+
+        return items;
+    };
+
+    // Obtener rango de fechas visible según la vista
+    const getTimelineRange = () => {
+        const base = timelineState.date;
+        if (timelineState.view === 'week') {
+            const start = startOfWeek(base);
+            const end = addDays(start, 6);
+            return { start, end, days: 7 };
+        } else {
+            // Mes: mostrar 4 semanas
+            const start = startOfWeek(new Date(base.getFullYear(), base.getMonth(), 1));
+            const end = addDays(start, 27);
+            return { start, end, days: 28 };
+        }
+    };
+
+    // Formatear rango para el header
+    const formatTimelineRange = (start, end) => {
+        const opts = { day: 'numeric', month: 'short' };
+        const startStr = start.toLocaleDateString('es-ES', opts);
+        const endStr = end.toLocaleDateString('es-ES', { ...opts, year: 'numeric' });
+        return `${startStr} – ${endStr}`;
+    };
+
+    // Actualizar header del timeline
+    const updateTimelineHeader = () => {
+        if (!timelineViewLabel || !timelineRangeLabel) return;
+        const range = getTimelineRange();
+        timelineViewLabel.textContent = timelineState.view === 'week' ? 'Semana' : 'Mes';
+        timelineRangeLabel.textContent = formatTimelineRange(range.start, range.end);
+    };
+
+    // Actualizar botones de vista
+    const updateTimelineViewButtons = () => {
+        timelineViewButtons.forEach((btn) => {
+            const isActive = btn.dataset.timelineView === timelineState.view;
+            if (isActive) {
+                btn.className = 'h-7 px-3 rounded text-xs font-semibold transition-colors bg-primary text-white';
+            } else {
+                btn.className = 'h-7 px-3 rounded text-xs font-semibold transition-colors text-text-muted hover:text-gray-900 dark:hover:text-white';
+            }
+        });
+    };
+
+    // Actualizar filtros dinámicos (clientes, proyectos, asignados)
+    const updateTimelineFilters = () => {
+        // Clientes
+        if (timelineFilterClient) {
+            const prev = timelineFilterClient.value || timelineFilters.client;
+            timelineFilterClient.innerHTML = '<option value="all">Cliente: Todos</option>';
+            const clientMap = new Map();
+            timelineItems.forEach(item => {
+                if (item.clientId) clientMap.set(item.clientId, item.clientName);
+            });
+            Array.from(clientMap.entries())
+                .sort((a, b) => a[1].localeCompare(b[1], 'es'))
+                .forEach(([id, name]) => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = name;
+                    timelineFilterClient.appendChild(opt);
+                });
+            timelineFilterClient.value = clientMap.has(prev) ? prev : 'all';
+            timelineFilters.client = timelineFilterClient.value;
+        }
+
+        // Proyectos (filtrados por cliente si aplica)
+        if (timelineFilterProject) {
+            const prev = timelineFilterProject.value || timelineFilters.project;
+            timelineFilterProject.innerHTML = '<option value="all">Proyecto: Todos</option>';
+            const projectMap = new Map();
+            timelineItems.forEach(item => {
+                if (timelineFilters.client !== 'all' && item.clientId !== timelineFilters.client) return;
+                if (item.projectId) projectMap.set(item.projectId, item.projectName);
+            });
+            Array.from(projectMap.entries())
+                .sort((a, b) => a[1].localeCompare(b[1], 'es'))
+                .forEach(([id, name]) => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = name;
+                    timelineFilterProject.appendChild(opt);
+                });
+            timelineFilterProject.value = projectMap.has(prev) ? prev : 'all';
+            timelineFilters.project = timelineFilterProject.value;
+        }
+
+        // Asignados
+        if (timelineFilterAssignee) {
+            const prev = timelineFilterAssignee.value || timelineFilters.assignee;
+            timelineFilterAssignee.innerHTML = '<option value="all">Asignado: Todos</option>';
+            const assigneeMap = new Map();
+            timelineItems.forEach(item => {
+                if (item.assigneeUid) {
+                    const user = usersByUid[item.assigneeUid];
+                    const name = user?.displayName || user?.email || item.assigneeUid;
+                    assigneeMap.set(item.assigneeUid, name);
+                }
+            });
+            Array.from(assigneeMap.entries())
+                .sort((a, b) => a[1].localeCompare(b[1], 'es'))
+                .forEach(([id, name]) => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = name;
+                    timelineFilterAssignee.appendChild(opt);
+                });
+            timelineFilterAssignee.value = assigneeMap.has(prev) ? prev : 'all';
+            timelineFilters.assignee = timelineFilterAssignee.value;
+        }
+    };
+
+    // Filtrar items del timeline
+    const filterTimelineItems = (items) => {
+        return items.filter(item => {
+            if (timelineFilters.client !== 'all' && item.clientId !== timelineFilters.client) return false;
+            if (timelineFilters.project !== 'all' && item.projectId !== timelineFilters.project) return false;
+            if (timelineFilters.priority !== 'all' && item.priority !== timelineFilters.priority) return false;
+            if (timelineFilters.type !== 'all' && item.type !== timelineFilters.type) return false;
+            if (timelineFilters.assignee !== 'all' && item.assigneeUid !== timelineFilters.assignee) return false;
+            return true;
+        });
+    };
+
+    // Renderizar el timeline
+    const renderTimeline = () => {
+        if (!hasTimeline()) return;
+
+        updateTimelineHeader();
+        updateTimelineViewButtons();
+        updateTimelineFilters();
+
+        const range = getTimelineRange();
+        const filteredItems = filterTimelineItems(timelineItems);
+
+        // Filtrar items que estén dentro del rango visible
+        const visibleItems = filteredItems.filter(item => {
+            const itemEnd = addDays(item.date, Math.max(1, Math.ceil(item.durationMinutes / 480))); // 8h = 1 día
+            return item.date <= range.end && itemEnd >= range.start;
+        });
+
+        if (!visibleItems.length) {
+            timelineContainer.innerHTML = '';
+            if (timelineEmpty) {
+                timelineEmpty.textContent = timelineItems.length === 0
+                    ? 'No hay actividades con fecha para mostrar en el cronograma.'
+                    : 'No hay actividades en el rango seleccionado.';
+                timelineEmpty.classList.remove('hidden');
+                timelineContainer.appendChild(timelineEmpty);
+            }
+            return;
+        }
+
+        if (timelineEmpty) timelineEmpty.classList.add('hidden');
+
+        // Agrupar por jerarquía
+        const hierarchy = new Map(); // clientId -> { name, projects: Map }
+        visibleItems.forEach(item => {
+            if (!hierarchy.has(item.clientId)) {
+                hierarchy.set(item.clientId, {
+                    name: item.clientName,
+                    projects: new Map()
+                });
+            }
+            const clientGroup = hierarchy.get(item.clientId);
+            if (!clientGroup.projects.has(item.projectId)) {
+                clientGroup.projects.set(item.projectId, {
+                    name: item.projectName,
+                    products: new Map(),
+                    tasks: []
+                });
+            }
+            const projectGroup = clientGroup.projects.get(item.projectId);
+
+            if (item.productId) {
+                if (!projectGroup.products.has(item.productId)) {
+                    projectGroup.products.set(item.productId, {
+                        name: item.productName,
+                        tasks: []
+                    });
+                }
+                projectGroup.products.get(item.productId).tasks.push(item);
+            } else {
+                projectGroup.tasks.push(item);
+            }
+        });
+
+        // Construir la vista
+        const container = document.createElement('div');
+        container.className = 'flex';
+
+        // Columna izquierda: Jerarquía
+        const leftCol = document.createElement('div');
+        leftCol.className = 'w-64 shrink-0 border-r border-border-dark bg-white dark:bg-surface-darker';
+
+        // Header de columnas
+        const leftHeader = document.createElement('div');
+        leftHeader.className = 'h-10 border-b border-border-dark px-3 flex items-center';
+        leftHeader.innerHTML = '<span class="text-xs font-semibold text-text-muted uppercase">Actividad</span>';
+        leftCol.appendChild(leftHeader);
+
+        // Columna derecha: Timeline
+        const rightCol = document.createElement('div');
+        rightCol.className = 'flex-1 overflow-x-auto';
+
+        // Header de días
+        const timelineHeader = document.createElement('div');
+        timelineHeader.className = 'flex h-10 border-b border-border-dark';
+        const dayWidth = timelineState.view === 'week' ? 100 : 36; // px por día
+
+        for (let i = 0; i < range.days; i++) {
+            const day = addDays(range.start, i);
+            const isToday = toDateKey(day) === toDateKey(new Date());
+            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
+            const dayCell = document.createElement('div');
+            dayCell.className = `shrink-0 flex items-center justify-center text-xs font-medium border-r border-border-dark/50 ${
+                isToday ? 'bg-primary/10 text-primary font-bold' : isWeekend ? 'bg-gray-100 dark:bg-gray-800/50 text-text-muted' : 'text-gray-700 dark:text-gray-300'
+            }`;
+            dayCell.style.width = `${dayWidth}px`;
+
+            if (timelineState.view === 'week') {
+                dayCell.innerHTML = `<span>${day.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</span>`;
+            } else {
+                dayCell.textContent = day.getDate();
+            }
+            timelineHeader.appendChild(dayCell);
+        }
+        rightCol.appendChild(timelineHeader);
+
+        // Contenido de filas
+        const leftContent = document.createElement('div');
+        const rightContent = document.createElement('div');
+        rightContent.className = 'relative';
+
+        let rowIndex = 0;
+        const ROW_HEIGHT = 36;
+
+        const createBarForItem = (item) => {
+            const daysDiff = Math.floor((item.date - range.start) / (1000 * 60 * 60 * 24));
+            const durationDays = Math.max(1, Math.ceil(item.durationMinutes / 480)); // 8h = 1 día laboral
+            const left = Math.max(0, daysDiff * dayWidth);
+            const width = Math.min(durationDays * dayWidth, (range.days - Math.max(0, daysDiff)) * dayWidth);
+
+            if (left >= range.days * dayWidth) return null; // Fuera de rango
+
+            const colors = TIMELINE_PRIORITY_COLORS[item.priority] || TIMELINE_PRIORITY_COLORS['none'];
+            const statusStyle = TIMELINE_STATUS_STYLES[item.status] || '';
+
+            const bar = document.createElement('button');
+            bar.type = 'button';
+            bar.className = `absolute h-6 rounded border ${colors.bg} ${colors.border} ${colors.text} ${statusStyle} flex items-center px-2 text-xs font-medium truncate cursor-pointer hover:shadow-md transition-shadow`;
+            bar.style.left = `${left}px`;
+            bar.style.width = `${Math.max(width, 24)}px`;
+            bar.style.top = `${rowIndex * ROW_HEIGHT + 5}px`;
+            bar.title = `${item.name} (${formatDurationMinutes(item.durationMinutes)}) - ${item.status}`;
+            bar.textContent = timelineState.view === 'week' ? item.name : '';
+
+            if (item.manageId) {
+                bar.addEventListener('click', () => openDetailPage(item.manageId));
+            }
+
+            return bar;
+        };
+
+        const formatDurationMinutes = (mins) => {
+            if (!mins) return '0m';
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            if (h && m) return `${h}h ${m}m`;
+            if (h) return `${h}h`;
+            return `${m}m`;
+        };
+
+        const createRow = (label, depth, icon, isGroup = false, groupId = null) => {
+            const row = document.createElement('div');
+            row.className = 'h-9 flex items-center border-b border-border-dark/30 hover:bg-gray-50 dark:hover:bg-white/5';
+            row.style.paddingLeft = `${12 + depth * 16}px`;
+
+            if (isGroup && groupId) {
+                const collapsed = timelineCollapsedGroups.has(groupId);
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'mr-1 text-text-muted hover:text-gray-900 dark:hover:text-white';
+                toggle.innerHTML = `<span class="material-symbols-outlined text-[16px]">${collapsed ? 'chevron_right' : 'expand_more'}</span>`;
+                toggle.addEventListener('click', () => {
+                    if (timelineCollapsedGroups.has(groupId)) {
+                        timelineCollapsedGroups.delete(groupId);
+                    } else {
+                        timelineCollapsedGroups.add(groupId);
+                    }
+                    renderTimeline();
+                });
+                row.appendChild(toggle);
+            }
+
+            if (icon) {
+                const iconEl = document.createElement('span');
+                iconEl.className = 'material-symbols-outlined text-[16px] mr-2 text-text-muted';
+                iconEl.textContent = icon;
+                row.appendChild(iconEl);
+            }
+
+            const text = document.createElement('span');
+            text.className = `text-sm truncate ${isGroup ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`;
+            text.textContent = label;
+            text.title = label;
+            row.appendChild(text);
+
+            return row;
+        };
+
+        const createTimelineRow = () => {
+            const row = document.createElement('div');
+            row.className = 'h-9 border-b border-border-dark/30 relative';
+            // Grid lines for days
+            for (let i = 0; i < range.days; i++) {
+                const day = addDays(range.start, i);
+                const isToday = toDateKey(day) === toDateKey(new Date());
+                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                const line = document.createElement('div');
+                line.className = `absolute top-0 bottom-0 border-r border-border-dark/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-gray-100/50 dark:bg-gray-800/20' : ''}`;
+                line.style.left = `${i * dayWidth}px`;
+                line.style.width = `${dayWidth}px`;
+                row.appendChild(line);
+            }
+            return row;
+        };
+
+        // Renderizar jerarquía
+        hierarchy.forEach((clientGroup, clientId) => {
+            const clientGroupId = `client-${clientId}`;
+            const clientCollapsed = timelineCollapsedGroups.has(clientGroupId);
+
+            // Cliente row
+            leftContent.appendChild(createRow(clientGroup.name, 0, 'apartment', true, clientGroupId));
+            rightContent.appendChild(createTimelineRow());
+            rowIndex++;
+
+            if (clientCollapsed) return;
+
+            clientGroup.projects.forEach((projectGroup, projectId) => {
+                const projectGroupId = `project-${clientId}-${projectId}`;
+                const projectCollapsed = timelineCollapsedGroups.has(projectGroupId);
+
+                // Proyecto row
+                leftContent.appendChild(createRow(projectGroup.name, 1, 'folder', true, projectGroupId));
+                rightContent.appendChild(createTimelineRow());
+                rowIndex++;
+
+                if (projectCollapsed) return;
+
+                // Productos
+                projectGroup.products.forEach((productGroup, productId) => {
+                    const productGroupId = `product-${clientId}-${projectId}-${productId}`;
+                    const productCollapsed = timelineCollapsedGroups.has(productGroupId);
+
+                    leftContent.appendChild(createRow(productGroup.name, 2, 'inventory_2', true, productGroupId));
+                    rightContent.appendChild(createTimelineRow());
+                    rowIndex++;
+
+                    if (productCollapsed) return;
+
+                    // Tareas del producto
+                    productGroup.tasks.forEach(item => {
+                        if (item.type === 'task') {
+                            leftContent.appendChild(createRow(item.name, 3, 'task_alt', false));
+                            const timelineRow = createTimelineRow();
+                            const bar = createBarForItem(item);
+                            if (bar) timelineRow.appendChild(bar);
+                            rightContent.appendChild(timelineRow);
+                            rowIndex++;
+
+                            // Subtareas de esta tarea
+                            const subtasks = productGroup.tasks.filter(st => st.type === 'subtask' && st.parentTaskId === item.id.split('-').pop());
+                            subtasks.forEach(subtask => {
+                                leftContent.appendChild(createRow(subtask.name, 4, 'subdirectory_arrow_right', false));
+                                const stRow = createTimelineRow();
+                                const stBar = createBarForItem(subtask);
+                                if (stBar) stRow.appendChild(stBar);
+                                rightContent.appendChild(stRow);
+                                rowIndex++;
+                            });
+                        }
+                    });
+                });
+
+                // Tareas directas del proyecto (sin producto)
+                projectGroup.tasks.forEach(item => {
+                    if (item.type === 'task') {
+                        leftContent.appendChild(createRow(item.name, 2, 'task_alt', false));
+                        const timelineRow = createTimelineRow();
+                        const bar = createBarForItem(item);
+                        if (bar) timelineRow.appendChild(bar);
+                        rightContent.appendChild(timelineRow);
+                        rowIndex++;
+
+                        // Subtareas
+                        const taskIdPart = item.id.split('-').slice(-1)[0];
+                        const subtasks = projectGroup.tasks.filter(st => st.type === 'subtask' && st.parentTaskId === taskIdPart);
+                        subtasks.forEach(subtask => {
+                            leftContent.appendChild(createRow(subtask.name, 3, 'subdirectory_arrow_right', false));
+                            const stRow = createTimelineRow();
+                            const stBar = createBarForItem(subtask);
+                            if (stBar) stRow.appendChild(stBar);
+                            rightContent.appendChild(stRow);
+                            rowIndex++;
+                        });
+                    }
+                });
+            });
+        });
+
+        leftCol.appendChild(leftContent);
+        rightCol.appendChild(rightContent);
+        container.append(leftCol, rightCol);
+
+        timelineContainer.innerHTML = '';
+        timelineContainer.appendChild(container);
+    };
+
+    // Cambiar vista del timeline
+    const setTimelineView = (view) => {
+        if (!['week', 'month'].includes(view)) return;
+        timelineState.view = view;
+        renderTimeline();
+    };
+
+    // Navegar en el tiempo
+    const shiftTimelineDate = (direction) => {
+        const amount = Number(direction) || 0;
+        if (!amount) return;
+        const base = timelineState.date;
+        if (timelineState.view === 'week') {
+            timelineState.date = addDays(base, amount * 7);
+        } else {
+            timelineState.date = new Date(base.getFullYear(), base.getMonth() + amount, 1);
+        }
+        renderTimeline();
+    };
+
+    // Ir a hoy
+    const goToTimelineToday = () => {
+        timelineState.date = new Date();
+        renderTimeline();
+    };
+
+    // Inicializar filtros del timeline
+    const initTimelineFilters = () => {
+        if (timelineFiltersInitialized) return;
+
+        const refresh = () => {
+            if (timelineFilterClient) timelineFilters.client = timelineFilterClient.value || 'all';
+            if (timelineFilterProject) timelineFilters.project = timelineFilterProject.value || 'all';
+            if (timelineFilterPriority) timelineFilters.priority = timelineFilterPriority.value || 'all';
+            if (timelineFilterType) timelineFilters.type = timelineFilterType.value || 'all';
+            if (timelineFilterAssignee) timelineFilters.assignee = timelineFilterAssignee.value || 'all';
+            renderTimeline();
+        };
+
+        timelineFilterClient?.addEventListener('change', () => {
+            timelineFilters.client = timelineFilterClient.value || 'all';
+            updateTimelineFilters(); // Actualizar proyectos según cliente
+            renderTimeline();
+        });
+        timelineFilterProject?.addEventListener('change', refresh);
+        timelineFilterPriority?.addEventListener('change', refresh);
+        timelineFilterType?.addEventListener('change', refresh);
+        timelineFilterAssignee?.addEventListener('change', refresh);
+
+        // Botones de navegación
+        timelinePrevBtn?.addEventListener('click', () => shiftTimelineDate(-1));
+        timelineNextBtn?.addEventListener('click', () => shiftTimelineDate(1));
+        timelineTodayBtn?.addEventListener('click', goToTimelineToday);
+
+        // Botones de vista
+        timelineViewButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.timelineView;
+                if (view) setTimelineView(view);
+            });
+        });
+
+        timelineFiltersInitialized = true;
+    };
+
+    // Actualizar items y re-render
+    const updateTimelineItems = () => {
+        if (!hasTimeline()) return;
+        timelineItems = buildTimelineItems();
+        initTimelineFilters();
+        renderTimeline();
     };
 
     const normalizeAutomationIdList = (value) => {
@@ -6416,6 +7112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMyTasks();
             renderSearchResults();
             updateCalendarItems();
+            updateTimelineItems();
         }, (error) => {
             console.error("Error fetching clients: ", error);
             clientsLoading = false;
