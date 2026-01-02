@@ -1361,6 +1361,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const info = document.createElement('div');
             info.className = 'min-w-0 flex flex-col gap-1';
 
+            // Add badge for Tarea or Subtarea
+            const badge = document.createElement('span');
+            const isSubtask = item.type === 'subtask';
+            badge.className = isSubtask
+                ? 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 w-fit'
+                : 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 w-fit';
+            badge.textContent = isSubtask ? '📝 Subtarea' : '📋 Tarea';
+
             const titleRow = document.createElement('div');
             titleRow.className = 'flex items-center gap-2 flex-wrap min-w-0';
 
@@ -1380,8 +1388,46 @@ document.addEventListener('DOMContentLoaded', () => {
             context.className = 'text-xs text-text-muted truncate';
             context.textContent = item.context;
 
-            info.append(titleRow, context);
+            info.append(badge, titleRow, context);
             topRow.append(statusControl, info);
+
+            // Add estimated time field
+            const estimatedTimeRow = document.createElement('div');
+            estimatedTimeRow.className = 'flex items-center gap-2';
+
+            const timeLabel = document.createElement('label');
+            timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
+            timeLabel.textContent = 'Tiempo estimado:';
+
+            const timeInput = document.createElement('input');
+            timeInput.type = 'number';
+            timeInput.step = '0.5';
+            timeInput.min = '0';
+            timeInput.value = item.estimatedHours || '';
+            timeInput.placeholder = '0';
+            timeInput.className = 'w-20 px-2 py-1 text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
+
+            timeInput.addEventListener('change', async (e) => {
+                const newValue = parseFloat(e.target.value) || 0;
+                if (item.manageId) {
+                    try {
+                        const ref = database.ref(item.manageId + '/estimatedHours');
+                        await ref.set(newValue);
+                        item.estimatedHours = newValue;
+                        console.log(`Updated estimated time for ${item.manageId}: ${newValue}h`);
+                    } catch (error) {
+                        console.error('Error updating estimated time:', error);
+                        alert('Error al actualizar el tiempo estimado');
+                        e.target.value = item.estimatedHours || '';
+                    }
+                }
+            });
+
+            const timeUnit = document.createElement('span');
+            timeUnit.className = 'text-xs text-text-muted';
+            timeUnit.textContent = 'horas';
+
+            estimatedTimeRow.append(timeLabel, timeInput, timeUnit);
 
             const actions = document.createElement('div');
             actions.className = 'flex flex-wrap items-center gap-2';
@@ -1396,7 +1442,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             actions.appendChild(openDetail);
 
-            card.append(topRow, actions);
+            card.append(topRow, estimatedTimeRow, actions);
             return card;
         };
 
