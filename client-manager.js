@@ -1391,7 +1391,7 @@ document.addEventListener('DOMContentLoaded', () => {
             info.append(badge, titleRow, context);
             topRow.append(statusControl, info);
 
-            // Add estimated time field
+            // Add estimated time field with +/- buttons
             const estimatedTimeRow = document.createElement('div');
             estimatedTimeRow.className = 'flex items-center gap-2';
 
@@ -1399,13 +1399,27 @@ document.addEventListener('DOMContentLoaded', () => {
             timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
             timeLabel.textContent = 'Tiempo estimado:';
 
+            // Botón decrementar
+            const decreaseBtn = document.createElement('button');
+            decreaseBtn.type = 'button';
+            decreaseBtn.className = 'w-6 h-6 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+            decreaseBtn.innerHTML = '<span class="material-symbols-outlined text-base">remove</span>';
+            decreaseBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const currentValue = parseFloat(timeInput.value) || 0;
+                const newValue = Math.max(0, currentValue - 0.5);
+                timeInput.value = newValue;
+                timeInput.dispatchEvent(new Event('change'));
+            });
+
+            // Input de horas
             const timeInput = document.createElement('input');
             timeInput.type = 'number';
             timeInput.step = '0.5';
             timeInput.min = '0';
             timeInput.value = item.estimatedHours || '';
             timeInput.placeholder = '0';
-            timeInput.className = 'w-20 px-2 py-1 text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
+            timeInput.className = 'w-16 px-2 py-1 text-center text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
 
             timeInput.addEventListener('change', async (e) => {
                 const newValue = parseFloat(e.target.value) || 0;
@@ -1423,11 +1437,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            // Botón incrementar
+            const increaseBtn = document.createElement('button');
+            increaseBtn.type = 'button';
+            increaseBtn.className = 'w-6 h-6 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+            increaseBtn.innerHTML = '<span class="material-symbols-outlined text-base">add</span>';
+            increaseBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const currentValue = parseFloat(timeInput.value) || 0;
+                const newValue = currentValue + 0.5;
+                timeInput.value = newValue;
+                timeInput.dispatchEvent(new Event('change'));
+            });
+
             const timeUnit = document.createElement('span');
             timeUnit.className = 'text-xs text-text-muted';
-            timeUnit.textContent = 'horas';
+            timeUnit.textContent = 'h';
 
-            estimatedTimeRow.append(timeLabel, timeInput, timeUnit);
+            estimatedTimeRow.append(timeLabel, decreaseBtn, timeInput, increaseBtn, timeUnit);
 
             const actions = document.createElement('div');
             actions.className = 'flex flex-wrap items-center gap-2';
