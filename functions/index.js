@@ -193,6 +193,348 @@ exports.validateAutomationCreation = functions
   });
 
 // ============================================
+// AUTOMATION ENGINE - EXECUTION
+// ============================================
+
+/**
+ * Helper: Get entity type from Firebase path
+ */
+function getEntityTypeFromPath(path) {
+  if (path.includes('/subtasks/')) return 'Task'; // Subtasks are treated as tasks
+  if (path.includes('/tasks/')) return 'Task';
+  if (path.includes('/products/')) return 'Product';
+  if (path.includes('/projects/')) return 'Project';
+  return 'Project';
+}
+
+/**
+ * Helper: Check if automation scope matches the entity path
+ */
+function isInAutomationScope(automation, clientId, projectId, productId) {
+  const scope = automation.scope || {};
+
+  // Si scope.client es "all", aplica a todos los clientes
+  if (scope.client === "all") return true;
+
+  // Si el cliente no coincide, no aplica
+  if (scope.client && scope.client !== clientId) return false;
+
+  // Si hay proyectos específicos y el proyecto no está en la lista, no aplica
+  if (scope.projects && scope.projects.length > 0) {
+    if (!scope.projects.includes(projectId)) return false;
+  }
+
+  // Si hay productos específicos, verificar
+  if (scope.products && scope.products.length > 0) {
+    const matchesProduct = scope.products.some(p =>
+      p.projectId === projectId && p.productId === productId
+    );
+    if (!matchesProduct) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Helper: Execute automation actions
+ */
+async function executeAutomationActions(automation, context) {
+  const { automationId, actions, clientId, projectId, productId, taskId, entityData } = context;
+
+  if (!actions || actions.length === 0) {
+    console.log(`No actions to execute for automation ${automationId}`);
+    return [];
+  }
+
+  const results = [];
+
+  for (const action of actions) {
+    try {
+      let result = null;
+
+      switch (action.type) {
+        case 'createChild_Producto':
+          result = await createChildEntity('Product', action, clientId, projectId, null, entityData);
+          break;
+
+        case 'createChild_Tarea':
+          result = await createChildEntity('Task', action, clientId, projectId, productId, entityData);
+          break;
+
+        case 'createChild_Subtarea':
+          result = await createChildEntity('Subtask', action, clientId, projectId, productId, taskId, entityData);
+          break;
+
+        case 'notify':
+          result = await sendAutomationNotification(action, context);
+          break;
+
+        default:
+          console.warn(`Unknown action type: ${action.type}`);
+      }
+
+      results.push({
+        actionType: action.type,
+        status: 'success',
+        result
+      });
+    } catch (error) {
+      console.error(`Error executing action ${action.type}:`, error);
+      results.push({
+        actionType: action.type,
+        status: 'error',
+        error: error.message
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Helper: Create child entity (Product, Task, Subtask)
+ */
+async function createChildEntity(entityType, action, clientId, projectId, productId, taskId, sourceData) {
+  const childName = action.name || `${entityType} generado automáticamente`;
+
+  let targetPath;
+  if (entityType === 'Product') {
+    targetPath = `clients/${clientId}/projects/${projectId}/products`;
+  } else if (entityType === 'Task') {
+    if (productId) {
+      targetPath = `clients/${clientId}/projects/${projectId}/products/${productId}/tasks`;
+    } else {
+      targetPath = `clients/${clientId}/projects/${projectId}/tasks`;
+    }
+  } else if (entityType === 'Subtask') {
+    if (productId) {
+      targetPath = `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}/subtasks`;
+    } else {
+      targetPath = `clients/${clientId}/projects/${projectId}/tasks/${taskId}/subtasks`;
+    }
+  }
+
+  const newRef = db.ref(targetPath).push();
+  const newData = {
+    name: childName,
+    status: 'Pendiente',
+    createdAt: admin.database.ServerValue.TIMESTAMP,
+    createdBy: 'automation',
+    automation: {
+      createdByAutomation: true,
+      sourceName: sourceData?.name || 'Unknown',
+      sourceType: sourceData?.type || 'Unknown'
+    }
+  };
+
+  await newRef.set(newData);
+  console.log(`Created ${entityType} at ${targetPath}/${newRef.key}`);
+
+  return { path: `${targetPath}/${newRef.key}`, name: childName };
+}
+
+/**
+ * Helper: Send automation notification
+ */
+async function sendAutomationNotification(action, context) {
+  const mailSettings = getMailSettings();
+  if (!mailSettings) {
+    console.warn('SendGrid not configured, skipping notification');
+    return { sent: false, reason: 'SendGrid not configured' };
+  }
+
+  sgMail.setApiKey(mailSettings.apiKey);
+
+  // TODO: Mejorar destinatarios - por ahora usar un destinatario hardcoded o del context
+  const recipientEmail = action.recipientEmail || mailSettings.sender;
+  const message = action.message || `Automatización ejecutada: ${context.triggerLabel || 'evento'}`;
+
+  const msg = {
+    to: recipientEmail,
+    from: mailSettings.sender,
+    subject: `Automatización TAMOE: ${context.automationName || 'Notificación'}`,
+    text: message,
+    html: `<p>${message}</p><p><small>Generado automáticamente por TAMOE</small></p>`
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`Notification sent to ${recipientEmail}`);
+    return { sent: true, recipient: recipientEmail };
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    return { sent: false, error: error.message };
+  }
+}
+
+/**
+ * Helper: Log automation execution
+ */
+async function logAutomationExecution(automationId, executionData) {
+  const logRef = db.ref(`automation_logs/${automationId}`).push();
+  await logRef.set({
+    ...executionData,
+    timestamp: admin.database.ServerValue.TIMESTAMP
+  });
+
+  // Update lastRun in automation
+  await db.ref(`automations/${automationId}`).update({
+    lastRun: admin.database.ServerValue.TIMESTAMP
+  });
+}
+
+/**
+ * Trigger: Execute automations when task status changes
+ */
+exports.onTaskStatusChange = functions
+  .region(REGION)
+  .database.ref("/clients/{clientId}/projects/{projectId}/products/{productId}/tasks/{taskId}/status")
+  .onUpdate(async (change, context) => {
+    const { clientId, projectId, productId, taskId } = context.params;
+    const fromStatus = change.before.val();
+    const toStatus = change.after.val();
+
+    console.log(`Task status changed: ${fromStatus} → ${toStatus}`);
+
+    // Get all enabled automations
+    const automationsSnapshot = await db.ref('automations').orderByChild('enabled').equalTo(true).once('value');
+    const automations = automationsSnapshot.val();
+
+    if (!automations) {
+      console.log('No enabled automations found');
+      return null;
+    }
+
+    // Get task data
+    const taskSnapshot = await db.ref(`clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`).once('value');
+    const taskData = taskSnapshot.val();
+
+    // Execute matching automations
+    for (const [automationId, automation] of Object.entries(automations)) {
+      try {
+        // Check if automation applies to this entity
+        if (!isInAutomationScope(automation, clientId, projectId, productId)) {
+          continue;
+        }
+
+        // Check if any trigger matches
+        const triggers = Array.isArray(automation.triggers) ? automation.triggers : [automation.triggers];
+        const matchingTrigger = triggers.find(t =>
+          t.activityType === 'Task' &&
+          t.triggerType === 'statusChange' &&
+          (t.fromState === fromStatus || !t.fromState) &&
+          (t.toState === toStatus || !t.toState)
+        );
+
+        if (!matchingTrigger) {
+          continue;
+        }
+
+        console.log(`Executing automation ${automationId}: ${automation.name}`);
+
+        // Execute actions
+        const actions = Array.isArray(automation.actions) ? automation.actions : [automation.actions];
+        const actionResults = await executeAutomationActions(automation, {
+          automationId,
+          automationName: automation.name,
+          actions,
+          clientId,
+          projectId,
+          productId,
+          taskId,
+          entityData: { ...taskData, type: 'Task' },
+          triggerLabel: `Tarea cambió de ${fromStatus} a ${toStatus}`
+        });
+
+        // Log execution
+        await logAutomationExecution(automationId, {
+          trigger: matchingTrigger,
+          entityPath: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`,
+          fromStatus,
+          toStatus,
+          actionResults,
+          status: actionResults.some(r => r.status === 'error') ? 'partial_success' : 'success'
+        });
+
+      } catch (error) {
+        console.error(`Error executing automation ${automationId}:`, error);
+        await logAutomationExecution(automationId, {
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+
+    return null;
+  });
+
+/**
+ * Trigger: Execute automations when task is created
+ */
+exports.onTaskCreated = functions
+  .region(REGION)
+  .database.ref("/clients/{clientId}/projects/{projectId}/products/{productId}/tasks/{taskId}")
+  .onCreate(async (snapshot, context) => {
+    const { clientId, projectId, productId, taskId } = context.params;
+    const taskData = snapshot.val();
+
+    console.log(`New task created: ${taskData.name}`);
+
+    // Get all enabled automations
+    const automationsSnapshot = await db.ref('automations').orderByChild('enabled').equalTo(true).once('value');
+    const automations = automationsSnapshot.val();
+
+    if (!automations) return null;
+
+    // Execute matching automations
+    for (const [automationId, automation] of Object.entries(automations)) {
+      try {
+        if (!isInAutomationScope(automation, clientId, projectId, productId)) {
+          continue;
+        }
+
+        const triggers = Array.isArray(automation.triggers) ? automation.triggers : [automation.triggers];
+        const matchingTrigger = triggers.find(t =>
+          t.activityType === 'Task' && t.triggerType === 'created'
+        );
+
+        if (!matchingTrigger) continue;
+
+        console.log(`Executing automation ${automationId}: ${automation.name}`);
+
+        const actions = Array.isArray(automation.actions) ? automation.actions : [automation.actions];
+        const actionResults = await executeAutomationActions(automation, {
+          automationId,
+          automationName: automation.name,
+          actions,
+          clientId,
+          projectId,
+          productId,
+          taskId,
+          entityData: { ...taskData, type: 'Task' },
+          triggerLabel: `Nueva tarea creada: ${taskData.name}`
+        });
+
+        await logAutomationExecution(automationId, {
+          trigger: matchingTrigger,
+          entityPath: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`,
+          actionResults,
+          status: actionResults.some(r => r.status === 'error') ? 'partial_success' : 'success'
+        });
+
+      } catch (error) {
+        console.error(`Error executing automation ${automationId}:`, error);
+        await logAutomationExecution(automationId, {
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+
+    return null;
+  });
+
+// ============================================
 // SECURITY TRIGGERS
 // ============================================
 
