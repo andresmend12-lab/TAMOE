@@ -1742,9 +1742,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4';
 
-            // Main layout: 3 columns (type/status | content | time)
+            // Main layout: 4 columns (type/status | content | priority | date/time)
             const mainRow = document.createElement('div');
-            mainRow.className = 'flex items-start gap-4';
+            mainRow.className = 'grid grid-cols-1 gap-4 items-center sm:grid-cols-2 lg:grid-cols-[200px_1fr_140px_320px]';
 
             // ===== COLUMNA IZQUIERDA: Tipo + Estado =====
             const leftCol = document.createElement('div');
@@ -1768,7 +1768,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Selector de prioridad compacto
             const prioritySelect = document.createElement('select');
-            prioritySelect.className = 'text-xs rounded border border-border-light dark:border-border-dark px-1 py-0.5 bg-background dark:bg-surface-dark cursor-pointer focus:border-primary focus:ring-1 focus:ring-primary';
+            prioritySelect.className = 'w-full text-xs rounded border border-border-light dark:border-border-dark px-1 py-0.5 bg-background dark:bg-surface-dark cursor-pointer focus:border-primary focus:ring-1 focus:ring-primary';
             PRIORITY_VALUES.forEach(val => {
                 const opt = document.createElement('option');
                 opt.value = val;
@@ -1807,7 +1807,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            leftCol.append(badge, statusControl, prioritySelect);
+            leftCol.append(badge, statusControl);
 
             // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable) =====
             const centerCol = document.createElement('div');
@@ -1843,6 +1843,11 @@ document.addEventListener('DOMContentLoaded', () => {
             context.textContent = item.context;
 
             centerCol.append(titleRow, context);
+
+            // ===== COLUMNA PRIORIDAD =====
+            const priorityCol = document.createElement('div');
+            priorityCol.className = 'flex items-center justify-start';
+            priorityCol.appendChild(prioritySelect);
 
             // ===== COLUMNA FECHA =====
             const dateCol = document.createElement('div');
@@ -1904,7 +1909,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ===== COLUMNA DERECHA: Tiempo Estimado =====
             const rightCol = document.createElement('div');
-            rightCol.className = 'flex flex-col items-center gap-1 ml-auto';
+            rightCol.className = 'flex flex-col items-center gap-1';
 
             const timeLabel = document.createElement('label');
             timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
@@ -2048,7 +2053,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             rightCol.append(timeLabel, inputWrapper);
 
-            mainRow.append(leftCol, centerCol, dateCol, rightCol);
+            const rightGroup = document.createElement('div');
+            rightGroup.className = 'flex flex-wrap items-start justify-between gap-4';
+            rightGroup.append(dateCol, rightCol);
+
+            mainRow.append(leftCol, centerCol, priorityCol, rightGroup);
             card.appendChild(mainRow);
 
             return card;
