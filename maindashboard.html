@@ -486,19 +486,19 @@
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
+                            <div class="bg-white dark:bg-surface-dark rounded-xl p-3 border border-border-dark shadow-lg">
                                 <div class="inline-flex items-center gap-2">
                                     <p class="text-text-muted text-sm font-medium">En curso:</p>
                                     <p id="my-tasks-kpi-inprogress" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
                                 </div>
                             </div>
-                            <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
+                            <div class="bg-white dark:bg-surface-dark rounded-xl p-3 border border-border-dark shadow-lg">
                                 <div class="inline-flex items-center gap-2">
                                     <p class="text-text-muted text-sm font-medium">Pendientes:</p>
                                     <p id="my-tasks-kpi-pending" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
                                 </div>
                             </div>
-                            <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
+                            <div class="bg-white dark:bg-surface-dark rounded-xl p-3 border border-border-dark shadow-lg">
                                 <div class="inline-flex items-center gap-2">
                                     <p class="text-text-muted text-sm font-medium">Finalizadas recientes:</p>
                                     <p id="my-tasks-kpi-recent" class="text-base font-semibold text-gray-900 dark:text-white">-</p>
@@ -514,7 +514,7 @@
                                 </div>
                                 <p id="my-tasks-summary" class="text-text-muted text-sm font-semibold">0 asignadas</p>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                                 <div class="relative">
                                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">tune</span>
                                     <select id="my-tasks-filter-status" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
@@ -542,6 +542,7 @@
                                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">search</span>
                                     <input id="my-tasks-filter-search" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 placeholder:text-text-muted focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Buscar..." type="search" autocomplete="off"/>
                                 </div>
+                                <div id="activity-sort-my-tasks" data-activity-sort class="relative"></div>
                             </div>
                             <p id="my-tasks-empty" class="text-text-muted text-sm">No tienes tareas asignadas.</p>
                             <div id="my-tasks-list" class="flex flex-col gap-4"></div>

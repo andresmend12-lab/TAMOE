@@ -178,10 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideEl = el => el && el.classList.add('hidden');
 
     const SORT_STORAGE_KEY = 'tamoe.activitySortMode';
-    const SORT_MODES = new Set(['created-desc', 'created-asc', 'alpha-asc', 'alpha-desc']);
+    const SORT_MODES = new Set(['created-desc', 'created-asc', 'recent-desc', 'recent-asc', 'alpha-asc', 'alpha-desc']);
     const SORT_LABELS = {
         'created-desc': 'Fecha de creación (más reciente)',
         'created-asc': 'Fecha de creación (más antigua)',
+        'recent-desc': 'Recientes (actualizado recientemente)',
+        'recent-asc': 'Recientes (actualizado hace más tiempo)',
         'alpha-asc': 'Nombre (A–Z)',
         'alpha-desc': 'Nombre (Z–A)',
     };
@@ -245,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getSortName = (item) => String(item?.name || '').trim();
     const getSortCreatedAt = (item) => parseTimestamp(item?.createdAt);
+    const getSortUpdatedAt = (item) => parseTimestamp(item?.updatedAt) || parseTimestamp(item?.createdAt);
 
     const compareActivities = (a, b, mode = currentSortMode) => {
         const nameCompare = getSortName(a).localeCompare(getSortName(b), 'es', { sensitivity: 'base' });
@@ -252,13 +255,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'alpha-asc') return nameCompare;
         if (mode === 'alpha-desc') return -nameCompare;
 
-        const timeA = getSortCreatedAt(a);
-        const timeB = getSortCreatedAt(b);
+        // Determinar si usar createdAt o updatedAt según el modo
+        const isRecentMode = mode === 'recent-desc' || mode === 'recent-asc';
+        const timeA = isRecentMode ? getSortUpdatedAt(a) : getSortCreatedAt(a);
+        const timeB = isRecentMode ? getSortUpdatedAt(b) : getSortCreatedAt(b);
         const hasA = Number.isFinite(timeA);
         const hasB = Number.isFinite(timeB);
 
         if (hasA && hasB) {
-            const direction = mode === 'created-asc' ? 1 : -1;
+            let direction = -1; // default: más reciente primero
+            if (mode === 'created-asc') direction = 1;
+            if (mode === 'recent-asc') direction = 1;
             const timeDiff = (timeA - timeB) * direction;
             if (timeDiff !== 0) return timeDiff;
         } else if (hasA !== hasB) {
@@ -1311,7 +1318,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (grouped[item.status]) grouped[item.status].push(item);
         });
 
-        Object.values(grouped).forEach((list) => list.sort(compareByRecent));
+        // Ordenar cada grupo usando el modo de ordenación global
+        Object.keys(grouped).forEach((status) => {
+            grouped[status] = sortActivities(grouped[status], currentSortMode);
+        });
 
         const applyStatusChange = async (item, nextStatus) => {
             await updateStatusAtPath(item.path, nextStatus, { source: 'my_tasks' });
@@ -1346,11 +1356,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const buildMyTaskRow = (item) => {
             const card = document.createElement('div');
-            card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4 flex flex-col gap-3';
+            card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4';
 
-            const topRow = document.createElement('div');
-            topRow.className = 'flex items-start gap-3';
+            // Main layout: 3 columns (type/status | content | time)
+            const mainRow = document.createElement('div');
+            mainRow.className = 'flex items-start gap-4';
 
+            // ===== COLUMNA IZQUIERDA: Tipo + Estado =====
+            const leftCol = document.createElement('div');
+            leftCol.className = 'flex flex-col gap-2 items-start';
+
+            // Badge para Tarea o Subtarea
+            const badge = document.createElement('span');
+            const isSubtask = item.type === 'subtask';
+            badge.className = isSubtask
+                ? 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                : 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
+            badge.textContent = isSubtask ? 'Subtarea' : 'Tarea';
+
+            // Control de estado
             const statusControl = createStatusControl({
                 status: item.status,
                 onChange: async (nextStatus) => {
@@ -1358,25 +1382,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            const info = document.createElement('div');
-            info.className = 'min-w-0 flex flex-col gap-1';
+            leftCol.append(badge, statusControl);
 
-            // Add badge for Tarea or Subtarea
-            const badge = document.createElement('span');
-            const isSubtask = item.type === 'subtask';
-            badge.className = isSubtask
-                ? 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 w-fit'
-                : 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 w-fit';
-            badge.textContent = isSubtask ? '📝 Subtarea' : '📋 Tarea';
+            // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable) =====
+            const centerCol = document.createElement('div');
+            centerCol.className = 'min-w-0 flex-1 flex flex-col gap-1';
 
+            // Hacer el nombre clickable
             const titleRow = document.createElement('div');
             titleRow.className = 'flex items-center gap-2 flex-wrap min-w-0';
 
-            const title = document.createElement('p');
-            title.className = 'text-gray-900 dark:text-white font-semibold truncate';
-            title.textContent = item.name;
+            const titleLink = document.createElement('button');
+            titleLink.type = 'button';
+            titleLink.className = 'text-gray-900 dark:text-white font-semibold truncate hover:text-primary dark:hover:text-primary transition-colors cursor-pointer text-left';
+            titleLink.textContent = item.name;
+            titleLink.disabled = !item.manageId;
+            if (!item.manageId) {
+                titleLink.classList.add('cursor-not-allowed', 'opacity-60');
+                titleLink.classList.remove('hover:text-primary');
+            }
+            titleLink.addEventListener('click', () => {
+                if (item.manageId) openDetailPage(item.manageId);
+            });
 
-            titleRow.appendChild(title);
+            titleRow.appendChild(titleLink);
 
             if (item.manageId) {
                 const chip = createIdChip(item.manageId);
@@ -1388,88 +1417,96 @@ document.addEventListener('DOMContentLoaded', () => {
             context.className = 'text-xs text-text-muted truncate';
             context.textContent = item.context;
 
-            info.append(badge, titleRow, context);
-            topRow.append(statusControl, info);
+            centerCol.append(titleRow, context);
 
-            // Add estimated time field with +/- buttons
-            const estimatedTimeRow = document.createElement('div');
-            estimatedTimeRow.className = 'flex items-center gap-2';
+            // ===== COLUMNA DERECHA: Tiempo Estimado =====
+            const rightCol = document.createElement('div');
+            rightCol.className = 'flex flex-col items-center gap-2 ml-auto';
 
             const timeLabel = document.createElement('label');
             timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
-            timeLabel.textContent = 'Tiempo estimado:';
+            timeLabel.textContent = 'Tiempo estimado';
 
-            // Botón decrementar
-            const decreaseBtn = document.createElement('button');
-            decreaseBtn.type = 'button';
-            decreaseBtn.className = 'w-6 h-6 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
-            decreaseBtn.innerHTML = '<span class="material-symbols-outlined text-base">remove</span>';
-            decreaseBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const currentValue = parseFloat(timeInput.value) || 0;
-                const newValue = Math.max(0, currentValue - 0.5);
-                timeInput.value = newValue;
-                timeInput.dispatchEvent(new Event('change'));
-            });
+            // Contenedor de inputs (horas y minutos)
+            const timeInputContainer = document.createElement('div');
+            timeInputContainer.className = 'flex items-center gap-2';
+
+            // Parsear estimatedMinutes o estimatedHours legacy
+            const getEstimatedMinutes = (item) => {
+                if (item.estimatedMinutes != null) return parseInt(item.estimatedMinutes) || 0;
+                if (item.estimatedHours != null) return Math.round((parseFloat(item.estimatedHours) || 0) * 60);
+                return 0;
+            };
+
+            const totalMinutes = getEstimatedMinutes(item);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
 
             // Input de horas
-            const timeInput = document.createElement('input');
-            timeInput.type = 'number';
-            timeInput.step = '0.5';
-            timeInput.min = '0';
-            timeInput.value = item.estimatedHours || '';
-            timeInput.placeholder = '0';
-            timeInput.className = 'w-16 px-2 py-1 text-center text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
+            const hoursInput = document.createElement('input');
+            hoursInput.type = 'number';
+            hoursInput.min = '0';
+            hoursInput.max = '999';
+            hoursInput.value = hours || '';
+            hoursInput.placeholder = '0';
+            hoursInput.className = 'w-12 px-2 py-1 text-center text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
 
-            timeInput.addEventListener('change', async (e) => {
-                const newValue = parseFloat(e.target.value) || 0;
+            const hLabel = document.createElement('span');
+            hLabel.className = 'text-xs text-text-muted';
+            hLabel.textContent = 'h';
+
+            // Input de minutos
+            const minutesInput = document.createElement('input');
+            minutesInput.type = 'number';
+            minutesInput.min = '0';
+            minutesInput.max = '59';
+            minutesInput.value = minutes || '';
+            minutesInput.placeholder = '0';
+            minutesInput.className = 'w-12 px-2 py-1 text-center text-sm border border-border-dark rounded bg-white dark:bg-surface-dark text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary';
+
+            const mLabel = document.createElement('span');
+            mLabel.className = 'text-xs text-text-muted';
+            mLabel.textContent = 'm';
+
+            const saveEstimatedTime = async () => {
+                const h = parseInt(hoursInput.value) || 0;
+                const m = Math.min(59, Math.max(0, parseInt(minutesInput.value) || 0));
+                const totalMins = h * 60 + m;
+
                 if (item.manageId) {
                     try {
-                        const ref = database.ref(item.manageId + '/estimatedHours');
-                        await ref.set(newValue);
-                        item.estimatedHours = newValue;
-                        console.log(`Updated estimated time for ${item.manageId}: ${newValue}h`);
+                        const updates = {
+                            estimatedMinutes: totalMins,
+                            updatedAt: new Date().toISOString()
+                        };
+                        const ref = database.ref(item.manageId);
+                        await ref.update(updates);
+                        item.estimatedMinutes = totalMins;
+                        if (item.entityRef) {
+                            item.entityRef.estimatedMinutes = totalMins;
+                            item.entityRef.updatedAt = updates.updatedAt;
+                        }
+                        console.log(`Updated estimated time for ${item.manageId}: ${h}h ${m}m (${totalMins} min)`);
                     } catch (error) {
                         console.error('Error updating estimated time:', error);
                         alert('Error al actualizar el tiempo estimado');
-                        e.target.value = item.estimatedHours || '';
+                        // Revertir valores
+                        const reverted = getEstimatedMinutes(item);
+                        hoursInput.value = Math.floor(reverted / 60) || '';
+                        minutesInput.value = reverted % 60 || '';
                     }
                 }
-            });
+            };
 
-            // Botón incrementar
-            const increaseBtn = document.createElement('button');
-            increaseBtn.type = 'button';
-            increaseBtn.className = 'w-6 h-6 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
-            increaseBtn.innerHTML = '<span class="material-symbols-outlined text-base">add</span>';
-            increaseBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const currentValue = parseFloat(timeInput.value) || 0;
-                const newValue = currentValue + 0.5;
-                timeInput.value = newValue;
-                timeInput.dispatchEvent(new Event('change'));
-            });
+            hoursInput.addEventListener('change', saveEstimatedTime);
+            minutesInput.addEventListener('change', saveEstimatedTime);
 
-            const timeUnit = document.createElement('span');
-            timeUnit.className = 'text-xs text-text-muted';
-            timeUnit.textContent = 'h';
+            timeInputContainer.append(hoursInput, hLabel, minutesInput, mLabel);
+            rightCol.append(timeLabel, timeInputContainer);
 
-            estimatedTimeRow.append(timeLabel, decreaseBtn, timeInput, increaseBtn, timeUnit);
+            mainRow.append(leftCol, centerCol, rightCol);
+            card.appendChild(mainRow);
 
-            const actions = document.createElement('div');
-            actions.className = 'flex flex-wrap items-center gap-2';
-
-            // Only keep "Abrir detalle" button
-            const openDetail = buildActionButton('Abrir detalle', () => {
-                if (item.manageId) openDetailPage(item.manageId);
-            }, { primary: true });
-            if (!item.manageId) {
-                openDetail.disabled = true;
-                openDetail.classList.add('opacity-60', 'cursor-not-allowed');
-            }
-            actions.appendChild(openDetail);
-
-            card.append(topRow, estimatedTimeRow, actions);
             return card;
         };
 
@@ -2199,7 +2236,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemBefore = parsed ? getItemFromState(parsed) : null;
         const prevStatus = normalizeStatus(itemBefore?.status);
         const normalized = normalizeStatus(nextStatus);
-        await update(ref(database, path), { status: normalized });
+        await update(ref(database, path), {
+            status: normalized,
+            updatedAt: new Date().toISOString()
+        });
 
         if (parsed?.clientId && prevStatus !== normalized) {
             const label = getTypeLabel(parsed.type);
@@ -2225,14 +2265,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateAssigneeAtPath = async (path, nextUid) => {
         if (!currentUser) {
-            alert("Debes iniciar sesi▋ para asignar tareas.");
+            alert("Debes iniciar sesión para asignar tareas.");
             return;
         }
         const parsed = parseClientPath(path);
         const itemBefore = parsed ? getItemFromState(parsed) : null;
         const prevUid = String(itemBefore?.assigneeUid || '').trim();
         const uid = String(nextUid || '').trim();
-        await update(ref(database, path), { assigneeUid: uid });
+        await update(ref(database, path), {
+            assigneeUid: uid,
+            updatedAt: new Date().toISOString()
+        });
 
         if (parsed?.clientId && prevUid !== uid) {
             const label = getTypeLabel(parsed.type);
@@ -5577,9 +5620,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 manageId = formatManageId(managePrefix, nextNumber);
             }
             const newClientRef = push(ref(database, 'clients'));
+            const timestamp = new Date().toISOString();
             const clientData = {
                 name: companyName,
-                createdAt: new Date().toISOString(),
+                createdAt: timestamp,
+                updatedAt: timestamp,
                 createdBy: currentUser.uid,
                 clientId: newClientRef.key,
                 manageId,
@@ -5624,10 +5669,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const manageId = await allocateNextManageId(selectedClientId);
             const newProjectRef = push(ref(database, `clients/${selectedClientId}/projects`));
+            const timestamp = new Date().toISOString();
             const projectData = {
                 name: projectName,
                 status: 'Pendiente',
-                createdAt: new Date().toISOString(),
+                createdAt: timestamp,
+                updatedAt: timestamp,
                 projectId: newProjectRef.key,
                 manageId
             };
@@ -5679,10 +5726,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const manageId = await allocateNextManageId(target.clientId);
             const newProductRef = push(ref(database, `clients/${target.clientId}/projects/${target.projectId}/products`));
+            const timestamp = new Date().toISOString();
             const productData = {
                 name: productName,
                 status: 'Pendiente',
-                createdAt: new Date().toISOString(),
+                createdAt: timestamp,
+                updatedAt: timestamp,
                 productId: newProductRef.key,
                 manageId
             };
@@ -5732,11 +5781,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `clients/${target.clientId}/projects/${target.projectId}/products/${target.productId}/tasks`
                 : `clients/${target.clientId}/projects/${target.projectId}/tasks`;
             const newTaskRef = push(ref(database, taskPath));
+            const timestamp = new Date().toISOString();
             const taskData = {
                 name: taskName,
                 status: 'Pendiente',
                 assigneeUid: '',
-                createdAt: new Date().toISOString(),
+                createdAt: timestamp,
+                updatedAt: timestamp,
                 taskId: newTaskRef.key,
                 manageId
             };
@@ -5785,11 +5836,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `clients/${selectedClientId}/projects/${selectedProjectId}/tasks/${selectedTaskId}/subtasks`;
 
             const newSubtaskRef = push(ref(database, subtaskPath));
+            const timestamp = new Date().toISOString();
             const subtaskData = {
                 name: subtaskName,
                 status: 'Pendiente',
                 assigneeUid: '',
-                createdAt: new Date().toISOString(),
+                createdAt: timestamp,
+                updatedAt: timestamp,
                 subtaskId: newSubtaskRef.key,
                 manageId
             };
