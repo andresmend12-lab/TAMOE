@@ -3,6 +3,24 @@ import { ref, push, onValue, query, set, update, remove, runTransaction, serverT
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { createDurationInput } from './src/utils/duration.js';
 
+/**
+ * Helper único para actualizar campos de actividades (tareas/subtareas) en RTDB
+ * Unifica la lógica de guardado entre "Mis tareas" y "Detail por ID"
+ * @param {string} dbPath - Path completo de Firebase RTDB (ej: "clients/xyz/projects/abc/tasks/123")
+ * @param {Object} patch - Campos a actualizar
+ * @returns {Promise<void>}
+ */
+async function updateActivityFields(dbPath, patch) {
+    if (!dbPath || typeof dbPath !== 'string') {
+        throw new Error('dbPath inválido o vacío');
+    }
+    const updates = {
+        ...patch,
+        updatedAt: new Date().toISOString()
+    };
+    await update(ref(database, dbPath), updates);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
     const addClientBtn = document.getElementById('add-client-btn');
@@ -1443,26 +1461,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 placeholder: 'Ej: 1h 30m',
                 className: 'w-24 focus:border-primary focus:ring-1 focus:ring-primary',
                 onCommit: async (minutes) => {
-                    if (item.manageId) {
-                        try {
-                            const updates = {
-                                estimatedMinutes: minutes,
-                                updatedAt: new Date().toISOString()
-                            };
-                            const ref = database.ref(item.manageId);
-                            await ref.update(updates);
-                            item.estimatedMinutes = minutes;
-                            if (item.entityRef) {
-                                item.entityRef.estimatedMinutes = minutes;
-                                item.entityRef.updatedAt = updates.updatedAt;
-                            }
-                            console.log(`Updated estimated time for ${item.manageId}: ${minutes} min`);
-                        } catch (error) {
-                            console.error('Error updating estimated time:', error);
-                            alert('Error al actualizar el tiempo estimado');
-                            // Revertir al valor anterior
-                            durationInput.setDurationValue(getEstimatedMinutes(item));
+                    // Validar que existe el path correcto antes de intentar guardar
+                    if (!item.path) {
+                        console.error('No se puede actualizar: item.path no disponible', { item });
+                        alert('Error: No se puede guardar (ruta de Firebase no disponible)');
+                        durationInput.setDurationValue(getEstimatedMinutes(item));
+                        return;
+                    }
+
+                    try {
+                        // Usar el helper unificado con el path correcto
+                        await updateActivityFields(item.path, {
+                            estimatedMinutes: minutes
+                        });
+
+                        // Actualizar referencias locales
+                        item.estimatedMinutes = minutes;
+                        if (item.entityRef) {
+                            item.entityRef.estimatedMinutes = minutes;
+                            item.entityRef.updatedAt = new Date().toISOString();
                         }
+
+                        console.log(`✓ Tiempo estimado actualizado: ${item.manageId || item.name} → ${minutes} min`, {
+                            path: item.path,
+                            minutes
+                        });
+                    } catch (error) {
+                        // Mostrar el error real para diagnóstico
+                        console.error('Error al actualizar tiempo estimado:', {
+                            error,
+                            code: error.code,
+                            message: error.message,
+                            item: { path: item.path, manageId: item.manageId, name: item.name }
+                        });
+
+                        const errorMsg = error.code
+                            ? `Error (${error.code}): ${error.message || 'Error desconocido'}`
+                            : `Error al actualizar: ${error.message || error}`;
+                        alert(errorMsg);
+
+                        // Revertir al valor anterior
+                        durationInput.setDurationValue(getEstimatedMinutes(item));
                     }
                 }
             });
