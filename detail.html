@@ -252,82 +252,22 @@
                                 Detalles
                             </h3>
                             <div class="flex flex-col gap-4">
-                                <!-- Tiempo estimado con botones +/- -->
+                                <!-- Tiempo estimado -->
                                 <div>
                                     <label class="text-xs font-bold uppercase tracking-wide text-text-muted mb-2 block">
                                         ⏱️ Tiempo estimado
                                     </label>
-                                    <div class="flex items-center gap-2">
-                                        <!-- Botón decrementar -->
-                                        <button
-                                            id="estimated-hours-decrease"
-                                            type="button"
-                                            class="w-8 h-8 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <span class="material-symbols-outlined text-lg">remove</span>
-                                        </button>
-
-                                        <!-- Input de horas -->
-                                        <input
-                                            id="estimated-hours-input"
-                                            type="number"
-                                            min="0"
-                                            step="0.5"
-                                            placeholder="0"
-                                            class="w-20 h-8 px-3 text-center text-sm border border-border-dark rounded bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                                        />
-
-                                        <!-- Botón incrementar -->
-                                        <button
-                                            id="estimated-hours-increase"
-                                            type="button"
-                                            class="w-8 h-8 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <span class="material-symbols-outlined text-lg">add</span>
-                                        </button>
-
-                                        <span class="text-sm text-text-muted">horas</span>
-                                    </div>
-                                    <p class="text-xs text-text-muted mt-1">Incrementos de 0.5 horas</p>
+                                    <div id="estimated-time-container"></div>
+                                    <p class="text-xs text-text-muted mt-1">Ej: 1h 30m, 2h, 45m</p>
                                 </div>
 
-                                <!-- Tiempo empleado con botones +/- -->
+                                <!-- Tiempo empleado -->
                                 <div>
                                     <label class="text-xs font-bold uppercase tracking-wide text-text-muted mb-2 block">
                                         📊 Tiempo empleado
                                     </label>
-                                    <div class="flex items-center gap-2">
-                                        <!-- Botón decrementar -->
-                                        <button
-                                            id="time-spent-decrease"
-                                            type="button"
-                                            class="w-8 h-8 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <span class="material-symbols-outlined text-lg">remove</span>
-                                        </button>
-
-                                        <!-- Input de horas -->
-                                        <input
-                                            id="time-spent-input"
-                                            type="number"
-                                            min="0"
-                                            step="0.5"
-                                            placeholder="0"
-                                            class="w-20 h-8 px-3 text-center text-sm border border-border-dark rounded bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                                        />
-
-                                        <!-- Botón incrementar -->
-                                        <button
-                                            id="time-spent-increase"
-                                            type="button"
-                                            class="w-8 h-8 flex items-center justify-center rounded border border-border-dark hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <span class="material-symbols-outlined text-lg">add</span>
-                                        </button>
-
-                                        <span class="text-sm text-text-muted">horas</span>
-                                    </div>
-                                    <p class="text-xs text-text-muted mt-1">Incrementos de 0.5 horas</p>
+                                    <div id="time-spent-container"></div>
+                                    <p class="text-xs text-text-muted mt-1">Ej: 1h 30m, 2h, 45m</p>
 
                                     <!-- Barra de progreso -->
                                     <div id="time-progress-container" class="hidden mt-2">
@@ -357,6 +297,7 @@
         import { auth, database } from './firebase.js';
         import { ref, get, set, update, push, onValue, serverTimestamp, runTransaction, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
         import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        import { createDurationInput, hoursToMinutes, minutesToHours } from './src/utils/duration.js';
 
         const qs = (id) => document.getElementById(id);
         const setText = (id, value) => { const el = qs(id); if (el) el.textContent = value || '-'; };
@@ -667,35 +608,16 @@
         const assigneeDept = qs('assignee-dept');
         const assigneeToggle = qs('assignee-toggle');
         const assigneeMenu = qs('assignee-menu');
-        const estimatedHoursInput = qs('estimated-hours-input');
-        const estimatedHoursDecrease = qs('estimated-hours-decrease');
-        const estimatedHoursIncrease = qs('estimated-hours-increase');
-        const timeSpentInput = qs('time-spent-input');
-        const timeSpentDecrease = qs('time-spent-decrease');
-        const timeSpentIncrease = qs('time-spent-increase');
         const workDateInput = qs('work-date-input');
         const detailFieldsStatus = qs('detail-fields-status');
+        const estimatedTimeContainer = qs('estimated-time-container');
+        const timeSpentContainer = qs('time-spent-container');
+
+        // Variables para los inputs de duración (se crearán dinámicamente)
+        let estimatedTimeInput = null;
+        let timeSpentInput = null;
 
         let descriptionEditing = false;
-
-        // Funciones para ajustar tiempos con botones +/-
-        const adjustEstimatedHours = (delta) => {
-            const currentValue = parseFloat(estimatedHoursInput?.value) || 0;
-            const newValue = Math.max(0, currentValue + delta);
-            if (estimatedHoursInput) {
-                estimatedHoursInput.value = newValue;
-                estimatedHoursInput.dispatchEvent(new Event('change'));
-            }
-        };
-
-        const adjustTimeSpent = (delta) => {
-            const currentValue = parseFloat(timeSpentInput?.value) || 0;
-            const newValue = Math.max(0, currentValue + delta);
-            if (timeSpentInput) {
-                timeSpentInput.value = newValue;
-                timeSpentInput.dispatchEvent(new Event('change'));
-            }
-        };
 
         const setDescriptionView = (textValue) => {
             if (!descriptionView) return;
@@ -762,7 +684,7 @@
         let usersByUid = {};
         let usersUnsubscribe = null;
         let detailFieldsSaving = false;
-        let detailFieldsSnapshot = { estimatedHours: '', actualHours: 0, workDate: '' };
+        let detailFieldsSnapshot = { estimatedMinutes: 0, spentMinutes: 0, workDate: '' };
 
         const getManageIdFromUrl = () => {
             const params = new URLSearchParams(window.location.search);
@@ -1140,16 +1062,16 @@
 
             if (!progressContainer || !progressBar || !progressText) return;
 
-            const estimatedHours = parseFloat(estimatedHoursInput?.value) || 0;
-            const actualHours = parseFloat(timeSpentInput?.value) || 0;
+            const estimatedMinutes = detailFieldsSnapshot.estimatedMinutes || 0;
+            const spentMinutes = detailFieldsSnapshot.spentMinutes || 0;
 
-            if (estimatedHours <= 0) {
+            if (estimatedMinutes <= 0) {
                 progressContainer.classList.add('hidden');
                 return;
             }
 
             progressContainer.classList.remove('hidden');
-            const percent = Math.min((actualHours / estimatedHours) * 100, 100);
+            const percent = Math.min((spentMinutes / estimatedMinutes) * 100, 100);
             progressBar.style.width = `${percent}%`;
 
             // Color based on progress
@@ -1162,47 +1084,94 @@
                 progressBar.classList.add('bg-red-500');
             }
 
-            progressText.textContent = `${Math.round(percent)}% del tiempo estimado (${actualHours.toFixed(1)}h de ${estimatedHours}h)`;
+            const estimatedHours = minutesToHours(estimatedMinutes);
+            const spentHours = minutesToHours(spentMinutes);
+            progressText.textContent = `${Math.round(percent)}% del tiempo estimado (${spentHours.toFixed(1)}h de ${estimatedHours.toFixed(1)}h)`;
         };
 
         const setDetailFields = (item = {}) => {
-            const estimatedHours = parseFloat(item.estimatedHours) || 0;
-            const actualHours = parseFloat(item.actualHours) || 0;
             const workDate = String(item.workDate || '').trim();
-            if (estimatedHoursInput) estimatedHoursInput.value = estimatedHours || '';
             if (workDateInput) workDateInput.value = workDate;
+
+            // Convertir de horas a minutos (compatibilidad con legacy)
+            let estimatedMinutes = 0;
+            if (item.estimatedMinutes != null) {
+                estimatedMinutes = parseInt(item.estimatedMinutes) || 0;
+            } else if (item.estimatedHours != null) {
+                estimatedMinutes = hoursToMinutes(parseFloat(item.estimatedHours));
+            }
+
+            let spentMinutes = 0;
+            if (item.spentMinutes != null) {
+                spentMinutes = parseInt(item.spentMinutes) || 0;
+            } else if (item.actualHours != null) {
+                spentMinutes = hoursToMinutes(parseFloat(item.actualHours));
+            }
+
+            // Crear inputs de duración si no existen
+            if (!estimatedTimeInput && estimatedTimeContainer) {
+                estimatedTimeInput = createDurationInput({
+                    valueMinutes: estimatedMinutes,
+                    placeholder: 'Ej: 1h 30m',
+                    className: 'w-full h-8 focus:ring-2 focus:ring-primary focus:border-transparent',
+                    onCommit: (minutes) => {
+                        detailFieldsSnapshot.estimatedMinutes = minutes;
+                        saveDetailFields();
+                        updateTimeProgressBar();
+                    }
+                });
+                estimatedTimeContainer.innerHTML = '';
+                estimatedTimeContainer.appendChild(estimatedTimeInput);
+            }
+
+            if (!timeSpentInput && timeSpentContainer) {
+                timeSpentInput = createDurationInput({
+                    valueMinutes: spentMinutes,
+                    placeholder: 'Ej: 1h 30m',
+                    className: 'w-full h-8 focus:ring-2 focus:ring-primary focus:border-transparent',
+                    onCommit: (minutes) => {
+                        detailFieldsSnapshot.spentMinutes = minutes;
+                        saveDetailFields();
+                        updateTimeProgressBar();
+                    }
+                });
+                timeSpentContainer.innerHTML = '';
+                timeSpentContainer.appendChild(timeSpentInput);
+            }
 
             // Check if item has children and should show total time
             const itemHasChildren = hasChildren(item, currentItemType);
 
             if (itemHasChildren) {
-                // Calculate total time from children
+                // Calculate total time from children (en horas, luego convertir)
                 const totalHours = calculateTotalTimeSpent(item, currentItemType);
+                const totalMinutes = hoursToMinutes(totalHours);
                 const childrenText = getChildrenCountText(item, currentItemType);
 
-                // Show as read-only with total and disable buttons
+                // Show as read-only with total
                 if (timeSpentInput) {
-                    timeSpentInput.value = totalHours.toFixed(1);
+                    timeSpentInput.setDurationValue(totalMinutes);
                     timeSpentInput.disabled = true;
                     timeSpentInput.classList.add('opacity-75', 'cursor-not-allowed');
                     timeSpentInput.title = `Suma de ${childrenText}`;
                 }
-                if (timeSpentDecrease) timeSpentDecrease.disabled = true;
-                if (timeSpentIncrease) timeSpentIncrease.disabled = true;
 
-                detailFieldsSnapshot = { estimatedHours: String(estimatedHours), actualHours: totalHours, workDate };
+                detailFieldsSnapshot = { estimatedMinutes, spentMinutes: totalMinutes, workDate };
             } else {
                 // Show as editable
                 if (timeSpentInput) {
-                    timeSpentInput.value = actualHours || '';
+                    timeSpentInput.setDurationValue(spentMinutes);
                     timeSpentInput.disabled = false;
                     timeSpentInput.classList.remove('opacity-75', 'cursor-not-allowed');
                     timeSpentInput.title = '';
                 }
-                if (timeSpentDecrease) timeSpentDecrease.disabled = false;
-                if (timeSpentIncrease) timeSpentIncrease.disabled = false;
 
-                detailFieldsSnapshot = { estimatedHours: String(estimatedHours), actualHours, workDate };
+                detailFieldsSnapshot = { estimatedMinutes, spentMinutes, workDate };
+            }
+
+            // Actualizar input de tiempo estimado
+            if (estimatedTimeInput) {
+                estimatedTimeInput.setDurationValue(estimatedMinutes);
             }
 
             if (detailFieldsStatus) detailFieldsStatus.textContent = '';
@@ -1216,14 +1185,27 @@
             }
             if (!currentItemPath) return;
 
-            const estimatedHours = parseFloat(estimatedHoursInput?.value) || 0;
-            const actualHours = parseFloat(timeSpentInput?.value) || 0;
+            const estimatedMinutes = detailFieldsSnapshot.estimatedMinutes || 0;
+            const spentMinutes = detailFieldsSnapshot.spentMinutes || 0;
             const workDate = String(workDateInput?.value || '').trim();
 
             const updates = {};
-            if (String(estimatedHours) !== detailFieldsSnapshot.estimatedHours) updates.estimatedHours = estimatedHours;
-            if (actualHours !== detailFieldsSnapshot.actualHours) updates.actualHours = actualHours;
-            if (workDate !== detailFieldsSnapshot.workDate) updates.workDate = workDate;
+
+            // Guardar en minutos (formato nuevo) y también en horas (compatibilidad legacy)
+            if (estimatedMinutes !== detailFieldsSnapshot.estimatedMinutes) {
+                updates.estimatedMinutes = estimatedMinutes;
+                updates.estimatedHours = minutesToHours(estimatedMinutes); // Legacy compatibility
+            }
+
+            if (spentMinutes !== detailFieldsSnapshot.spentMinutes) {
+                updates.spentMinutes = spentMinutes;
+                updates.actualHours = minutesToHours(spentMinutes); // Legacy compatibility
+            }
+
+            if (workDate !== detailFieldsSnapshot.workDate) {
+                updates.workDate = workDate;
+            }
+
             if (!Object.keys(updates).length) return;
 
             detailFieldsSaving = true;
@@ -1233,8 +1215,8 @@
             try {
                 await update(ref(database, currentItemPath), updates);
                 detailFieldsSnapshot = {
-                    estimatedHours: String(updates.estimatedHours ?? detailFieldsSnapshot.estimatedHours),
-                    actualHours: updates.actualHours ?? detailFieldsSnapshot.actualHours,
+                    estimatedMinutes: updates.estimatedMinutes ?? detailFieldsSnapshot.estimatedMinutes,
+                    spentMinutes: updates.spentMinutes ?? detailFieldsSnapshot.spentMinutes,
                     workDate: updates.workDate ?? detailFieldsSnapshot.workDate
                 };
                 if (detailFieldsStatus) {
@@ -3355,7 +3337,8 @@
             const canEditDetails = canEdit && !detailFieldsSaving;
             const itemHasChildren = currentResult?.item && hasChildren(currentResult.item, currentItemType);
 
-            [estimatedHoursInput, workDateInput].forEach(el => {
+            // Actualizar estado de los inputs de duración y fecha
+            [estimatedTimeInput, workDateInput].forEach(el => {
                 if (!el) return;
                 el.disabled = !canEditDetails;
                 el.classList.toggle('opacity-60', !canEditDetails);
@@ -3561,23 +3544,8 @@
         });
         saveDescriptionButton?.addEventListener('click', saveDescription);
 
-        // Event listeners para tiempo estimado
-        estimatedHoursInput?.addEventListener('change', () => {
-            saveDetailFields();
-            updateTimeProgressBar();
-        });
-        estimatedHoursInput?.addEventListener('input', updateTimeProgressBar);
-        estimatedHoursDecrease?.addEventListener('click', () => adjustEstimatedHours(-0.5));
-        estimatedHoursIncrease?.addEventListener('click', () => adjustEstimatedHours(0.5));
-
-        // Event listeners para tiempo empleado
-        timeSpentInput?.addEventListener('change', () => {
-            saveDetailFields();
-            updateTimeProgressBar();
-        });
-        timeSpentInput?.addEventListener('input', updateTimeProgressBar);
-        timeSpentDecrease?.addEventListener('click', () => adjustTimeSpent(-0.5));
-        timeSpentIncrease?.addEventListener('click', () => adjustTimeSpent(0.5));
+        // Los event listeners para tiempo estimado y empleado
+        // ahora se manejan dentro de createDurationInput (en setDetailFields)
 
         workDateInput?.addEventListener('change', saveDetailFields);
         commentButton?.addEventListener('click', submitComment);
