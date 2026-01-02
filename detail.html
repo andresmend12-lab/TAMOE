@@ -1115,8 +1115,8 @@
                     placeholder: 'Ej: 1h 30m',
                     className: 'w-full h-8 focus:ring-2 focus:ring-primary focus:border-transparent',
                     onCommit: (minutes) => {
-                        detailFieldsSnapshot.estimatedMinutes = minutes;
-                        saveDetailFields();
+                        // NO modificar detailFieldsSnapshot aquí, pasar el nuevo valor directamente
+                        saveDetailFields(minutes, null);
                         updateTimeProgressBar();
                     }
                 });
@@ -1130,8 +1130,8 @@
                     placeholder: 'Ej: 1h 30m',
                     className: 'w-full h-8 focus:ring-2 focus:ring-primary focus:border-transparent',
                     onCommit: (minutes) => {
-                        detailFieldsSnapshot.spentMinutes = minutes;
-                        saveDetailFields();
+                        // NO modificar detailFieldsSnapshot aquí, pasar el nuevo valor directamente
+                        saveDetailFields(null, minutes);
                         updateTimeProgressBar();
                     }
                 });
@@ -1178,26 +1178,28 @@
             updateTimeProgressBar();
         };
 
-        const saveDetailFields = async () => {
+        const saveDetailFields = async (newEstimatedMinutes = null, newSpentMinutes = null) => {
             if (!currentUser) {
                 alert('Debes iniciar sesi\u00F3n para guardar estos datos.');
                 return;
             }
             if (!currentItemPath) return;
 
-            const estimatedMinutes = detailFieldsSnapshot.estimatedMinutes || 0;
-            const spentMinutes = detailFieldsSnapshot.spentMinutes || 0;
+            // Si se pasan nuevos valores, usarlos; sino, leer del input de workDate solamente
+            const estimatedMinutes = newEstimatedMinutes ?? detailFieldsSnapshot.estimatedMinutes ?? 0;
+            const spentMinutes = newSpentMinutes ?? detailFieldsSnapshot.spentMinutes ?? 0;
             const workDate = String(workDateInput?.value || '').trim();
 
             const updates = {};
 
             // Guardar en minutos (formato nuevo) y también en horas (compatibilidad legacy)
-            if (estimatedMinutes !== detailFieldsSnapshot.estimatedMinutes) {
+            // Solo añadir a updates si realmente cambió el valor
+            if (newEstimatedMinutes != null && newEstimatedMinutes !== detailFieldsSnapshot.estimatedMinutes) {
                 updates.estimatedMinutes = estimatedMinutes;
                 updates.estimatedHours = minutesToHours(estimatedMinutes); // Legacy compatibility
             }
 
-            if (spentMinutes !== detailFieldsSnapshot.spentMinutes) {
+            if (newSpentMinutes != null && newSpentMinutes !== detailFieldsSnapshot.spentMinutes) {
                 updates.spentMinutes = spentMinutes;
                 updates.actualHours = minutesToHours(spentMinutes); // Legacy compatibility
             }
@@ -1214,11 +1216,19 @@
 
             try {
                 await update(ref(database, currentItemPath), updates);
+
+                // Actualizar snapshot con los nuevos valores guardados
                 detailFieldsSnapshot = {
                     estimatedMinutes: updates.estimatedMinutes ?? detailFieldsSnapshot.estimatedMinutes,
                     spentMinutes: updates.spentMinutes ?? detailFieldsSnapshot.spentMinutes,
                     workDate: updates.workDate ?? detailFieldsSnapshot.workDate
                 };
+
+                console.log('\u2713 Campos actualizados en detail:', {
+                    path: currentItemPath,
+                    updates
+                });
+
                 if (detailFieldsStatus) {
                     detailFieldsStatus.textContent = 'Guardado';
                     setTimeout(() => {
@@ -1227,7 +1237,13 @@
                 }
                 updateTimeProgressBar();
             } catch (err) {
-                console.error(err);
+                console.error('Error al guardar campos en detail:', {
+                    error: err,
+                    code: err.code,
+                    message: err.message,
+                    path: currentItemPath,
+                    updates
+                });
                 if (detailFieldsStatus) detailFieldsStatus.textContent = 'No se pudo guardar';
                 showError(err.message || 'No se pudieron guardar los datos.');
             } finally {
