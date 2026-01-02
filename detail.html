@@ -253,8 +253,21 @@
                             </h3>
                             <div class="flex flex-col gap-4">
                                 <label class="flex flex-col gap-2 text-sm">
-                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted">Tiempo empleado</span>
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted">⏱️ Tiempo estimado</span>
+                                    <div class="flex items-center gap-2">
+                                        <input id="estimated-hours-input" type="number" min="0" step="0.5" placeholder="0" class="w-24 h-10 rounded-lg border border-border-dark bg-white dark:bg-background-dark text-gray-900 dark:text-white px-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary/50"/>
+                                        <span class="text-sm text-text-muted">horas</span>
+                                    </div>
+                                </label>
+                                <label class="flex flex-col gap-2 text-sm">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted">📊 Tiempo empleado</span>
                                     <input id="time-spent-input" type="text" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-background-dark text-gray-900 dark:text-white px-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary/50" placeholder="Ej: 2h 30m"/>
+                                    <div id="time-progress-container" class="hidden mt-2">
+                                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                            <div id="time-progress-bar" class="h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                        </div>
+                                        <p id="time-progress-text" class="text-xs text-text-muted mt-1"></p>
+                                    </div>
                                 </label>
                                 <label class="flex flex-col gap-2 text-sm">
                                     <span class="text-xs font-bold uppercase tracking-wide text-text-muted">Fecha</span>
@@ -585,6 +598,7 @@
         const assigneeDept = qs('assignee-dept');
         const assigneeToggle = qs('assignee-toggle');
         const assigneeMenu = qs('assignee-menu');
+        const estimatedHoursInput = qs('estimated-hours-input');
         const timeSpentInput = qs('time-spent-input');
         const workDateInput = qs('work-date-input');
         const detailFieldsStatus = qs('detail-fields-status');
@@ -656,7 +670,7 @@
         let usersByUid = {};
         let usersUnsubscribe = null;
         let detailFieldsSaving = false;
-        let detailFieldsSnapshot = { timeSpent: '', workDate: '' };
+        let detailFieldsSnapshot = { estimatedHours: '', timeSpent: '', workDate: '' };
 
         const getManageIdFromUrl = () => {
             const params = new URLSearchParams(window.location.search);
@@ -913,13 +927,186 @@
             renderAvatar(assigneeAvatar, name, photo);
         };
 
+        // Parse time format "2h 30m" to hours
+        const parseTimeToHours = (timeString) => {
+            const str = String(timeString || '').trim().toLowerCase();
+            if (!str) return 0;
+
+            let totalHours = 0;
+            const hoursMatch = str.match(/(\d+\.?\d*)\s*h/);
+            const minutesMatch = str.match(/(\d+\.?\d*)\s*m/);
+
+            if (hoursMatch) totalHours += parseFloat(hoursMatch[1]);
+            if (minutesMatch) totalHours += parseFloat(minutesMatch[1]) / 60;
+
+            return totalHours;
+        };
+
+        // Calculate total time recursively for all children
+        const calculateTotalTimeSpent = (item, type) => {
+            let total = 0;
+
+            switch(type) {
+                case 'client':
+                    if (item.projects) {
+                        Object.values(item.projects).forEach(project => {
+                            total += calculateTotalTimeSpent(project, 'project');
+                        });
+                    }
+                    break;
+
+                case 'project':
+                    if (item.products) {
+                        Object.values(item.products).forEach(product => {
+                            total += calculateTotalTimeSpent(product, 'product');
+                        });
+                    }
+                    if (item.tasks) {
+                        Object.values(item.tasks).forEach(task => {
+                            total += calculateTotalTimeSpent(task, 'task');
+                        });
+                    }
+                    break;
+
+                case 'product':
+                    if (item.tasks) {
+                        Object.values(item.tasks).forEach(task => {
+                            total += calculateTotalTimeSpent(task, 'task');
+                        });
+                    }
+                    break;
+
+                case 'task':
+                    if (item.subtasks && Object.keys(item.subtasks).length > 0) {
+                        Object.values(item.subtasks).forEach(subtask => {
+                            total += parseTimeToHours(subtask.timeSpent);
+                        });
+                    } else {
+                        total = parseTimeToHours(item.timeSpent);
+                    }
+                    break;
+
+                case 'subtask':
+                    total = parseTimeToHours(item.timeSpent);
+                    break;
+            }
+
+            return total;
+        };
+
+        // Check if item has children
+        const hasChildren = (item, type) => {
+            switch(type) {
+                case 'client':
+                    return item.projects && Object.keys(item.projects).length > 0;
+                case 'project':
+                    return (item.products && Object.keys(item.products).length > 0) ||
+                           (item.tasks && Object.keys(item.tasks).length > 0);
+                case 'product':
+                    return item.tasks && Object.keys(item.tasks).length > 0;
+                case 'task':
+                    return item.subtasks && Object.keys(item.subtasks).length > 0;
+                case 'subtask':
+                    return false;
+                default:
+                    return false;
+            }
+        };
+
+        // Get count text for children
+        const getChildrenCountText = (item, type) => {
+            switch(type) {
+                case 'client':
+                    const projectCount = item.projects ? Object.keys(item.projects).length : 0;
+                    return `${projectCount} proyecto(s)`;
+                case 'project':
+                    const productCount = item.products ? Object.keys(item.products).length : 0;
+                    const taskCount = item.tasks ? Object.keys(item.tasks).length : 0;
+                    if (productCount > 0 && taskCount > 0) {
+                        return `${productCount} producto(s) y ${taskCount} tarea(s)`;
+                    } else if (productCount > 0) {
+                        return `${productCount} producto(s)`;
+                    } else {
+                        return `${taskCount} tarea(s)`;
+                    }
+                case 'product':
+                    const prodTaskCount = item.tasks ? Object.keys(item.tasks).length : 0;
+                    return `${prodTaskCount} tarea(s)`;
+                case 'task':
+                    const subtaskCount = item.subtasks ? Object.keys(item.subtasks).length : 0;
+                    return `${subtaskCount} subtarea(s)`;
+                default:
+                    return '';
+            }
+        };
+
+        // Update progress bar
+        const updateTimeProgressBar = () => {
+            const progressContainer = qs('time-progress-container');
+            const progressBar = qs('time-progress-bar');
+            const progressText = qs('time-progress-text');
+
+            if (!progressContainer || !progressBar || !progressText) return;
+
+            const estimatedHours = parseFloat(estimatedHoursInput?.value) || 0;
+            const actualHours = parseTimeToHours(timeSpentInput?.value);
+
+            if (estimatedHours <= 0) {
+                progressContainer.classList.add('hidden');
+                return;
+            }
+
+            progressContainer.classList.remove('hidden');
+            const percent = Math.min((actualHours / estimatedHours) * 100, 100);
+            progressBar.style.width = `${percent}%`;
+
+            // Color based on progress
+            progressBar.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
+            if (percent <= 75) {
+                progressBar.classList.add('bg-green-500');
+            } else if (percent <= 100) {
+                progressBar.classList.add('bg-yellow-500');
+            } else {
+                progressBar.classList.add('bg-red-500');
+            }
+
+            progressText.textContent = `${Math.round(percent)}% del tiempo estimado (${actualHours.toFixed(1)}h de ${estimatedHours}h)`;
+        };
+
         const setDetailFields = (item = {}) => {
+            const estimatedHours = parseFloat(item.estimatedHours) || 0;
             const timeSpent = String(item.timeSpent || '').trim();
             const workDate = String(item.workDate || '').trim();
-            if (timeSpentInput) timeSpentInput.value = timeSpent;
+            if (estimatedHoursInput) estimatedHoursInput.value = estimatedHours || '';
             if (workDateInput) workDateInput.value = workDate;
-            detailFieldsSnapshot = { timeSpent, workDate };
+
+            // Check if item has children and should show total time
+            const itemHasChildren = hasChildren(item, currentItemType);
+
+            if (itemHasChildren) {
+                // Calculate total time from children
+                const totalHours = calculateTotalTimeSpent(item, currentItemType);
+                const childrenText = getChildrenCountText(item, currentItemType);
+
+                // Show as read-only with total
+                if (timeSpentInput) {
+                    timeSpentInput.value = `${totalHours.toFixed(1)}h (suma de ${childrenText})`;
+                    timeSpentInput.disabled = true;
+                    timeSpentInput.classList.add('opacity-75', 'cursor-not-allowed');
+                    timeSpentInput.style.fontWeight = '600';
+                }
+                detailFieldsSnapshot = { estimatedHours: String(estimatedHours), timeSpent: `${totalHours.toFixed(1)}h`, workDate };
+            } else {
+                // Show as editable
+                if (timeSpentInput) {
+                    timeSpentInput.value = timeSpent;
+                    timeSpentInput.style.fontWeight = 'normal';
+                }
+                detailFieldsSnapshot = { estimatedHours: String(estimatedHours), timeSpent, workDate };
+            }
+
             if (detailFieldsStatus) detailFieldsStatus.textContent = '';
+            updateTimeProgressBar();
         };
 
         const saveDetailFields = async () => {
@@ -929,10 +1116,12 @@
             }
             if (!currentItemPath) return;
 
+            const estimatedHours = parseFloat(estimatedHoursInput?.value) || 0;
             const timeSpent = String(timeSpentInput?.value || '').trim();
             const workDate = String(workDateInput?.value || '').trim();
 
             const updates = {};
+            if (String(estimatedHours) !== detailFieldsSnapshot.estimatedHours) updates.estimatedHours = estimatedHours;
             if (timeSpent !== detailFieldsSnapshot.timeSpent) updates.timeSpent = timeSpent;
             if (workDate !== detailFieldsSnapshot.workDate) updates.workDate = workDate;
             if (!Object.keys(updates).length) return;
@@ -944,6 +1133,7 @@
             try {
                 await update(ref(database, currentItemPath), updates);
                 detailFieldsSnapshot = {
+                    estimatedHours: String(updates.estimatedHours ?? detailFieldsSnapshot.estimatedHours),
                     timeSpent: updates.timeSpent ?? detailFieldsSnapshot.timeSpent,
                     workDate: updates.workDate ?? detailFieldsSnapshot.workDate
                 };
@@ -3062,11 +3252,19 @@
             }
 
             const canEditDetails = canEdit && !detailFieldsSaving;
-            [timeSpentInput, workDateInput].forEach(el => {
+            const itemHasChildren = currentResult?.item && hasChildren(currentResult.item, currentItemType);
+
+            [estimatedHoursInput, workDateInput].forEach(el => {
                 if (!el) return;
                 el.disabled = !canEditDetails;
                 el.classList.toggle('opacity-60', !canEditDetails);
             });
+
+            // Handle timeSpentInput separately because it might be disabled due to children
+            if (timeSpentInput && !itemHasChildren) {
+                timeSpentInput.disabled = !canEditDetails;
+                timeSpentInput.classList.toggle('opacity-60', !canEditDetails);
+            }
 
             const canEditStatus = canEdit && STATUS_TYPES.has(currentItemType) && !statusSaving;
             statusStepButtons.forEach(btn => {
@@ -3261,7 +3459,16 @@
             }
         });
         saveDescriptionButton?.addEventListener('click', saveDescription);
-        timeSpentInput?.addEventListener('change', saveDetailFields);
+        estimatedHoursInput?.addEventListener('change', () => {
+            saveDetailFields();
+            updateTimeProgressBar();
+        });
+        estimatedHoursInput?.addEventListener('input', updateTimeProgressBar);
+        timeSpentInput?.addEventListener('change', () => {
+            saveDetailFields();
+            updateTimeProgressBar();
+        });
+        timeSpentInput?.addEventListener('input', updateTimeProgressBar);
         workDateInput?.addEventListener('change', saveDetailFields);
         commentButton?.addEventListener('click', submitComment);
         qs('open-dashboard')?.addEventListener('click', () => {
