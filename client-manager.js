@@ -1440,20 +1440,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ===== COLUMNA DERECHA: Tiempo Estimado =====
             const rightCol = document.createElement('div');
-            rightCol.className = 'flex flex-col items-center gap-2 ml-auto';
+            rightCol.className = 'flex flex-col items-center gap-1 ml-auto';
 
             const timeLabel = document.createElement('label');
             timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
             timeLabel.textContent = 'Tiempo estimado';
 
-            // Parsear estimatedMinutes o estimatedHours legacy
+            // Parsear estimatedMinutes (fuente de verdad) o estimatedHours legacy como fallback
             const getEstimatedMinutes = (item) => {
+                // PRIORIDAD 1: estimatedMinutes (formato nuevo, única fuente de verdad)
                 if (item.estimatedMinutes != null) return parseInt(item.estimatedMinutes) || 0;
+                // PRIORIDAD 2: legacy fallback (solo lectura inicial)
                 if (item.estimatedHours != null) return Math.round((parseFloat(item.estimatedHours) || 0) * 60);
                 return 0;
             };
 
             const totalMinutes = getEstimatedMinutes(item);
+
+            // Contenedor para input + indicador de estado
+            const inputWrapper = document.createElement('div');
+            inputWrapper.className = 'flex flex-col items-center gap-1';
 
             // Usar el nuevo componente de duración unificado
             const durationInput = createDurationInput({
@@ -1469,18 +1475,40 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
 
+                    // Crear indicador de estado si no existe
+                    let statusIndicator = inputWrapper.querySelector('[data-save-status]');
+                    if (!statusIndicator) {
+                        statusIndicator = document.createElement('div');
+                        statusIndicator.setAttribute('data-save-status', '');
+                        statusIndicator.className = 'text-[10px] h-3 transition-opacity';
+                        inputWrapper.appendChild(statusIndicator);
+                    }
+
+                    // Mostrar "Guardando..."
+                    statusIndicator.textContent = 'Guardando...';
+                    statusIndicator.className = 'text-[10px] h-3 text-blue-600 dark:text-blue-400 opacity-100';
+
                     try {
                         // Usar el helper unificado con el path correcto
                         await updateActivityFields(item.path, {
                             estimatedMinutes: minutes
                         });
 
-                        // Actualizar referencias locales
+                        // Actualizar referencias locales INMEDIATAMENTE (optimistic UI)
                         item.estimatedMinutes = minutes;
                         if (item.entityRef) {
                             item.entityRef.estimatedMinutes = minutes;
                             item.entityRef.updatedAt = new Date().toISOString();
                         }
+
+                        // Mostrar "Guardado" con checkmark
+                        statusIndicator.textContent = '✓ Guardado';
+                        statusIndicator.className = 'text-[10px] h-3 text-green-600 dark:text-green-400 opacity-100';
+
+                        // Ocultar después de 2 segundos
+                        setTimeout(() => {
+                            statusIndicator.className = 'text-[10px] h-3 opacity-0';
+                        }, 2000);
 
                         console.log(`✓ Tiempo estimado actualizado: ${item.manageId || item.name} → ${minutes} min`, {
                             path: item.path,
@@ -1495,18 +1523,30 @@ document.addEventListener('DOMContentLoaded', () => {
                             item: { path: item.path, manageId: item.manageId, name: item.name }
                         });
 
+                        // Mostrar error visual
+                        statusIndicator.textContent = '✗ Error al guardar';
+                        statusIndicator.className = 'text-[10px] h-3 text-red-600 dark:text-red-400 opacity-100';
+
                         const errorMsg = error.code
                             ? `Error (${error.code}): ${error.message || 'Error desconocido'}`
                             : `Error al actualizar: ${error.message || error}`;
-                        alert(errorMsg);
+
+                        // Mostrar error en consola pero NO alert intrusivo
+                        console.error('No se pudo guardar el tiempo estimado:', errorMsg);
 
                         // Revertir al valor anterior
                         durationInput.setDurationValue(getEstimatedMinutes(item));
+
+                        // Ocultar indicador después de 4 segundos
+                        setTimeout(() => {
+                            statusIndicator.className = 'text-[10px] h-3 opacity-0';
+                        }, 4000);
                     }
                 }
             });
 
-            rightCol.append(timeLabel, durationInput);
+            inputWrapper.appendChild(durationInput);
+            rightCol.append(timeLabel, inputWrapper);
 
             mainRow.append(leftCol, centerCol, rightCol);
             card.appendChild(mainRow);
