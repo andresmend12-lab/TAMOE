@@ -3237,9 +3237,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${m}m`;
         };
 
-        // Contenedor principal con estructura mejorada
+        // Contenedor principal con estructura mejorada (full-bleed)
         const container = document.createElement('div');
-        container.className = 'flex flex-col h-[500px] max-h-[70vh]';
+        container.className = 'flex flex-col flex-1 min-h-0 h-full';
 
         // ===== HEADER FIJO (sticky) =====
         const headerWrapper = document.createElement('div');
@@ -3251,14 +3251,19 @@ document.addEventListener('DOMContentLoaded', () => {
         leftHeader.innerHTML = '<span class="text-[11px] font-semibold text-text-muted uppercase tracking-wide">Actividad</span>';
         headerWrapper.appendChild(leftHeader);
 
-        // Header derecho (días del timeline) - con scroll horizontal
+        // Header derecho (días del timeline) - sin scroll en semana, con scroll en mes
         const rightHeaderScroll = document.createElement('div');
-        rightHeaderScroll.className = 'flex-1 overflow-x-auto scrollbar-thin';
+        rightHeaderScroll.className = timelineState.view === 'week'
+            ? 'flex-1 min-w-0 overflow-hidden'  // Semana: sin scroll, ajustar al contenedor
+            : 'flex-1 min-w-0 overflow-x-auto scrollbar-thin';  // Mes: con scroll
         rightHeaderScroll.id = 'timeline-header-scroll';
 
         const timelineHeader = document.createElement('div');
-        timelineHeader.className = 'flex h-9';
-        timelineHeader.style.width = `${timelineWidth}px`;
+        timelineHeader.className = 'flex h-9 w-full';
+        // En semana: ancho 100%, en mes: ancho fijo para scroll
+        if (timelineState.view !== 'week') {
+            timelineHeader.style.width = `${timelineWidth}px`;
+        }
 
         for (let i = 0; i < range.days; i++) {
             const day = addDays(range.start, i);
@@ -3266,14 +3271,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
             const dayCell = document.createElement('div');
-            dayCell.className = `shrink-0 flex items-center justify-center text-[11px] font-medium border-r border-border-dark/40 ${
+            // En semana: flex-1 para distribuir uniformemente, en mes: ancho fijo
+            const widthClass = timelineState.view === 'week' ? 'flex-1 min-w-0' : 'shrink-0';
+            dayCell.className = `${widthClass} flex items-center justify-center text-[11px] font-medium border-r border-border-dark/40 last:border-r-0 ${
                 isToday
                     ? 'bg-primary/15 text-primary font-bold'
                     : isWeekend
                         ? 'bg-gray-100 dark:bg-gray-800/40 text-text-muted'
                         : 'text-gray-600 dark:text-gray-400'
             }`;
-            dayCell.style.width = `${dayWidth}px`;
+            if (timelineState.view !== 'week') {
+                dayCell.style.width = `${dayWidth}px`;
+            }
 
             if (timelineState.view === 'week') {
                 const weekday = day.toLocaleDateString('es-ES', { weekday: 'short' });
@@ -3297,15 +3306,19 @@ document.addEventListener('DOMContentLoaded', () => {
         leftCol.className = 'w-56 shrink-0 overflow-y-auto overflow-x-hidden border-r border-border-dark bg-white dark:bg-surface-darker scrollbar-thin';
         leftCol.id = 'timeline-left-scroll';
 
-        // Columna derecha (timeline) - scroll horizontal y vertical
+        // Columna derecha (timeline) - scroll vertical, horizontal solo en mes
         const rightCol = document.createElement('div');
-        rightCol.className = 'flex-1 overflow-auto scrollbar-thin';
+        rightCol.className = timelineState.view === 'week'
+            ? 'flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin'
+            : 'flex-1 min-w-0 overflow-auto scrollbar-thin';
         rightCol.id = 'timeline-right-scroll';
 
-        // Contenedor interno del timeline con ancho fijo
+        // Contenedor interno del timeline - ancho 100% en semana, fijo en mes
         const rightContent = document.createElement('div');
-        rightContent.className = 'relative';
-        rightContent.style.width = `${timelineWidth}px`;
+        rightContent.className = 'relative w-full';
+        if (timelineState.view !== 'week') {
+            rightContent.style.width = `${timelineWidth}px`;
+        }
 
         // Arrays para construir filas
         const rows = [];
@@ -3315,10 +3328,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const createBarForItem = (item) => {
             const daysDiff = Math.floor((item.date - range.start) / (1000 * 60 * 60 * 24));
             const durationDays = Math.max(1, Math.ceil(item.durationMinutes / 480));
-            const left = Math.max(0, daysDiff * dayWidth);
-            const width = Math.min(durationDays * dayWidth - 4, (range.days - Math.max(0, daysDiff)) * dayWidth - 4);
 
-            if (left >= timelineWidth) return null;
+            // En semana: usar porcentajes, en mes: usar pixels
+            const usePercent = timelineState.view === 'week';
+            let leftPos, widthVal;
+
+            if (usePercent) {
+                const leftPercent = (daysDiff / range.days) * 100;
+                const widthPercent = Math.min(durationDays / range.days, (range.days - daysDiff) / range.days) * 100;
+                if (leftPercent >= 100) return null;
+                leftPos = `calc(${leftPercent}% + 2px)`;
+                widthVal = `calc(${Math.max(widthPercent, 100 / range.days)}% - 4px)`;
+            } else {
+                const left = Math.max(0, daysDiff * dayWidth);
+                const width = Math.min(durationDays * dayWidth - 4, (range.days - Math.max(0, daysDiff)) * dayWidth - 4);
+                if (left >= timelineWidth) return null;
+                leftPos = `${left + 2}px`;
+                widthVal = `${Math.max(width, 20)}px`;
+            }
 
             const colors = TIMELINE_PRIORITY_COLORS[item.priority] || TIMELINE_PRIORITY_COLORS['none'];
             const statusStyle = TIMELINE_STATUS_STYLES[item.status] || '';
@@ -3326,8 +3353,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const bar = document.createElement('button');
             bar.type = 'button';
             bar.className = `absolute h-5 rounded-md border-l-[3px] ${colors.bg} ${colors.border} ${colors.text} ${statusStyle} flex items-center px-2 text-[11px] font-semibold truncate cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all z-10`;
-            bar.style.left = `${left + 2}px`;
-            bar.style.width = `${Math.max(width, 20)}px`;
+            bar.style.left = leftPos;
+            bar.style.width = widthVal;
             bar.style.top = '50%';
             bar.style.transform = 'translateY(-50%)';
 
@@ -3404,7 +3431,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Función para crear fila del timeline (derecha)
         const createTimelineRow = () => {
             const row = document.createElement('div');
-            row.className = 'border-b border-border-dark/20 relative';
+            // En semana: usar flex para distribuir celdas, en mes: relative para posición absoluta
+            row.className = timelineState.view === 'week'
+                ? 'border-b border-border-dark/20 relative flex w-full'
+                : 'border-b border-border-dark/20 relative';
             row.style.height = `${ROW_HEIGHT}px`;
 
             // Grid lines for days
@@ -3413,11 +3443,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
                 const cell = document.createElement('div');
-                cell.className = `absolute top-0 bottom-0 border-r border-border-dark/15 ${
-                    isWeekend ? 'bg-gray-50/50 dark:bg-gray-800/20' : ''
-                }`;
-                cell.style.left = `${i * dayWidth}px`;
-                cell.style.width = `${dayWidth}px`;
+                if (timelineState.view === 'week') {
+                    // En semana: celdas con flex-1 para distribuir uniformemente
+                    cell.className = `flex-1 min-w-0 h-full border-r border-border-dark/15 last:border-r-0 ${
+                        isWeekend ? 'bg-gray-50/50 dark:bg-gray-800/20' : ''
+                    }`;
+                } else {
+                    // En mes: posición absoluta con pixels
+                    cell.className = `absolute top-0 bottom-0 border-r border-border-dark/15 ${
+                        isWeekend ? 'bg-gray-50/50 dark:bg-gray-800/20' : ''
+                    }`;
+                    cell.style.left = `${i * dayWidth}px`;
+                    cell.style.width = `${dayWidth}px`;
+                }
                 row.appendChild(cell);
             }
 
@@ -3541,14 +3579,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Línea de "Hoy" prominente
         if (todayIndex >= 0) {
+            // En semana: porcentaje, en mes: pixels
+            const todayPos = timelineState.view === 'week'
+                ? `calc(${(todayIndex + 0.5) / range.days * 100}%)`
+                : `${todayIndex * dayWidth + dayWidth / 2}px`;
+
             const todayLine = document.createElement('div');
             todayLine.className = 'absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none';
-            todayLine.style.left = `${todayIndex * dayWidth + dayWidth / 2}px`;
+            todayLine.style.left = todayPos;
 
             // Indicador superior "Hoy"
             const todayLabel = document.createElement('div');
             todayLabel.className = 'absolute -top-1 -translate-x-1/2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-b shadow-sm';
-            todayLabel.style.left = `${todayIndex * dayWidth + dayWidth / 2}px`;
+            todayLabel.style.left = todayPos;
             todayLabel.textContent = 'HOY';
 
             rightContent.appendChild(todayLine);
