@@ -298,6 +298,7 @@
         import { ref, get, set, update, push, onValue, serverTimestamp, runTransaction, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
         import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
         import { createDurationInput, hoursToMinutes, minutesToHours } from './src/utils/duration.js';
+        import { propagateRollupHierarchy } from './src/utils/rollup.js';
 
         const qs = (id) => document.getElementById(id);
         const setText = (id, value) => { const el = qs(id); if (el) el.textContent = value || '-'; };
@@ -1108,14 +1109,17 @@
 
             const parts = [];
 
-            // Condiciones EXACTAS como en Mis tareas
-            if (rollupMinutes > 0) {
-                // Si hay rollup, mostrar desglose completo
+            // Formato: "Manual: X · Hijos: Y · Total: Z"
+            // Reglas condicionales:
+            // - Si Hijos === 0 → mostrar solo "Total: X"
+            // - Si Manual === 0 → ocultar Manual
+            if (rollupMinutes === 0) {
+                // Solo mostrar total si no hay hijos
+                parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+            } else {
+                // Hay hijos: mostrar desglose completo
                 if (manualMinutes > 0) parts.push(`Manual: ${formatMinutes(manualMinutes)}`);
-                parts.push(`Subtareas: ${formatMinutes(rollupMinutes)}`);
-                if (totalMinutes > 0) parts.push(`Total: ${formatMinutes(totalMinutes)}`);
-            } else if (totalMinutes > 0) {
-                // Si no hay rollup pero hay total, mostrar solo total
+                parts.push(`Hijos: ${formatMinutes(rollupMinutes)}`);
                 parts.push(`Total: ${formatMinutes(totalMinutes)}`);
             }
 
@@ -1302,6 +1306,12 @@
                     path: currentItemPath,
                     updates
                 });
+
+                // PASO 3: Propagar rollup jerárquico si se actualizó estimatedMinutes
+                if (updates.estimatedMinutes != null) {
+                    console.log('🔄 Propagando rollup jerárquico...');
+                    await propagateRollupHierarchy(currentItemPath);
+                }
 
                 if (detailFieldsStatus) {
                     detailFieldsStatus.textContent = 'Guardado';

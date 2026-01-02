@@ -2,6 +2,7 @@ import { auth, database } from './firebase.js';
 import { ref, push, onValue, query, set, update, remove, runTransaction, serverTimestamp, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { createDurationInput } from './src/utils/duration.js';
+import { recomputeRollup as recomputeRollupShared, propagateRollupHierarchy } from './src/utils/rollup.js';
 
 /**
  * Helper único para actualizar campos de actividades (tareas/subtareas) en RTDB
@@ -22,51 +23,20 @@ async function updateActivityFields(dbPath, patch) {
 }
 
 /**
- * Recomputa y actualiza el rollup de tiempo estimado de una tarea
- * Suma el estimatedMinutes de todas sus subtareas y guarda en estimatedMinutesRollup
+ * Wrapper local de recomputeRollup desde el módulo compartido
+ */
+async function recomputeRollup(parentDbPath, childrenKey) {
+    return recomputeRollupShared(parentDbPath, childrenKey);
+}
+
+/**
+ * Recomputa y actualiza el rollup de tiempo estimado de una tarea (legacy wrapper)
+ * @deprecated Usar recomputeRollup(parentTaskPath, 'subtasks') en su lugar
  * @param {string} parentTaskPath - Path RTDB de la tarea padre
  * @returns {Promise<number>} - Total de minutos rollup
  */
 async function recomputeParentTaskRollup(parentTaskPath) {
-    if (!parentTaskPath || typeof parentTaskPath !== 'string') {
-        console.warn('recomputeParentTaskRollup: path inválido', parentTaskPath);
-        return 0;
-    }
-
-    try {
-        // Leer el nodo de la tarea padre
-        const taskSnap = await get(ref(database, parentTaskPath));
-        if (!taskSnap.exists()) {
-            console.warn('recomputeParentTaskRollup: tarea no encontrada', parentTaskPath);
-            return 0;
-        }
-
-        const taskData = taskSnap.val();
-        const subtasks = taskData.subtasks || {};
-
-        // Sumar estimatedMinutes de todas las subtareas
-        let rollupSum = 0;
-        Object.values(subtasks).forEach(subtask => {
-            if (subtask && subtask.estimatedMinutes != null) {
-                rollupSum += Number(subtask.estimatedMinutes) || 0;
-            }
-        });
-
-        // Guardar en el padre (NO sobrescribe estimatedMinutes manual)
-        await update(ref(database, parentTaskPath), {
-            estimatedMinutesRollup: rollupSum,
-            updatedAt: new Date().toISOString()
-        });
-
-        console.log(`✓ Rollup actualizado para ${parentTaskPath}: ${rollupSum} min`);
-        return rollupSum;
-    } catch (error) {
-        console.error('Error al recomputar rollup:', {
-            error,
-            parentTaskPath
-        });
-        throw error;
-    }
+    return recomputeRollup(parentTaskPath, 'subtasks');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1138,6 +1108,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 Object.entries(project.tasks || {}).forEach(([taskId, task]) => {
                     if (!task) return;
                     if (isAssignedToUser(task.assigneeUid)) {
+                        const taskPath = `clients/${clientId}/projects/${projectId}/tasks/${taskId}`;
+                        const parentProjectPath = `clients/${clientId}/projects/${projectId}`;
+
                         pushAssignment({
                             type: 'task',
                             name: normalizeText(task.name, 'Tarea'),
@@ -1154,7 +1127,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             context: buildContext(clientName, projectName, 'Sin producto'),
                             clientId,
                             clientName,
-                            path: `clients/${clientId}/projects/${projectId}/tasks/${taskId}`,
+                            path: taskPath,
+                            parentProjectDbPath: parentProjectPath, // Para rollup jerárquico
                             entityRef: task,
                         });
                     }
@@ -1195,6 +1169,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     Object.entries(product.tasks || {}).forEach(([taskId, task]) => {
                         if (!task) return;
                         if (isAssignedToUser(task.assigneeUid)) {
+                            const taskPath = `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`;
+                            const parentProductPath = `clients/${clientId}/projects/${projectId}/products/${productId}`;
+
                             pushAssignment({
                                 type: 'task',
                                 name: normalizeText(task.name, 'Tarea'),
@@ -1211,7 +1188,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 context: buildContext(clientName, projectName, productName),
                                 clientId,
                                 clientName,
-                                path: `clients/${clientId}/projects/${projectId}/products/${productId}/tasks/${taskId}`,
+                                path: taskPath,
+                                parentProductDbPath: parentProductPath, // Para rollup jerárquico
                                 entityRef: task,
                             });
                         }
@@ -1585,15 +1563,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             item.entityRef.updatedAt = new Date().toISOString();
                         }
 
-                        // Si es una subtarea, recomputar rollup del padre
-                        if (item.type === 'subtask' && item.parentTaskPath) {
-                            try {
-                                const rollupSum = await recomputeParentTaskRollup(item.parentTaskPath);
-                                console.log(`✓ Rollup de tarea padre actualizado: ${rollupSum} min`);
-                            } catch (rollupError) {
-                                console.error('Error al actualizar rollup del padre (no crítico):', rollupError);
-                                // No bloquear el guardado de la subtarea si falla el rollup
-                            }
+                        // Propagar rollup jerárquico completo
+                        try {
+                            await propagateRollupHierarchy(item.path);
+                            console.log(`✓ Rollup jerárquico propagado desde ${item.path}`);
+                        } catch (rollupError) {
+                            console.error('Error al propagar rollup jerárquico (no crítico):', rollupError);
+                            // No bloquear el guardado si falla el rollup
                         }
 
                         // Mostrar "Guardado" con checkmark
@@ -1643,10 +1619,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             inputWrapper.appendChild(durationInput);
 
-            // Si es una tarea con rollup de subtareas, mostrar desglose
-            if (item.type === 'task' && rollupMinutes > 0) {
+            // Mostrar desglose de tiempo estimado (FORMATO UNIFICADO)
+            // Regla: Si es tarea (puede tener hijos), mostrar siempre el desglose
+            if (item.type === 'task') {
                 const rollupInfo = document.createElement('div');
-                rollupInfo.className = 'text-[10px] text-text-muted text-center';
+                rollupInfo.className = 'text-xs text-text-muted text-center mt-1';
 
                 // Formatear minutos a horas/minutos legibles
                 const formatMinutes = (mins) => {
@@ -1658,10 +1635,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `${minutes}m`;
                 };
 
+                // Formato: "Manual: X · Hijos: Y · Total: Z"
+                // Reglas condicionales:
+                // - Si Hijos === 0 → mostrar solo "Total: X"
+                // - Si Manual === 0 → ocultar Manual
                 const parts = [];
-                if (manualMinutes > 0) parts.push(`Manual: ${formatMinutes(manualMinutes)}`);
-                parts.push(`Subtareas: ${formatMinutes(rollupMinutes)}`);
-                if (totalMinutes > 0) parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+
+                if (rollupMinutes === 0) {
+                    // Solo mostrar total si no hay hijos
+                    parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+                } else {
+                    // Hay hijos: mostrar desglose completo
+                    if (manualMinutes > 0) parts.push(`Manual: ${formatMinutes(manualMinutes)}`);
+                    parts.push(`Hijos: ${formatMinutes(rollupMinutes)}`);
+                    parts.push(`Total: ${formatMinutes(totalMinutes)}`);
+                }
 
                 rollupInfo.textContent = parts.join(' · ');
                 inputWrapper.appendChild(rollupInfo);
