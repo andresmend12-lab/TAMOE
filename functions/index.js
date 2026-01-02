@@ -1,6 +1,5 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const sgMail = require("@sendgrid/mail");
 
 admin.initializeApp();
 
@@ -12,15 +11,7 @@ const REGION = "europe-west1";
 // UTILITY FUNCTIONS
 // ============================================
 
-const getMailSettings = () => {
-  const config = typeof functions.config === "function" ? functions.config() : {};
-  const apiKey = process.env.SENDGRID_API_KEY || (config.sendgrid && config.sendgrid.key);
-  const sender = process.env.INVITE_SENDER || (config.sendgrid && config.sendgrid.sender);
-  if (!apiKey || !sender) {
-    return null;
-  }
-  return { apiKey, sender };
-};
+// Removed: getMailSettings() - No longer needed (SendGrid dependency removed)
 
 const isValidUrl = (value) => {
   if (!value) return false;
@@ -71,64 +62,10 @@ async function checkRateLimit(uid, action) {
 // EMAIL FUNCTIONS
 // ============================================
 
-exports.sendInviteEmail = functions
-  .region(REGION)
-  .https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Debes iniciar sesión para enviar invitaciones."
-      );
-    }
-
-    // Rate limiting
-    const allowed = await checkRateLimit(context.auth.uid, "sendInvite");
-    if (!allowed) {
-      throw new functions.https.HttpsError(
-        "resource-exhausted",
-        "Has excedido el límite de invitaciones. Intenta de nuevo en un minuto."
-      );
-    }
-
-    const email = sanitizeString(data?.email, 254);
-    const registerUrl = sanitizeString(data?.registerUrl, 500);
-
-    if (!EMAIL_REGEX.test(email) || !isValidUrl(registerUrl)) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Parámetros de invitación inválidos."
-      );
-    }
-
-    const settings = getMailSettings();
-    if (!settings) {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "El servidor de correo no está configurado."
-      );
-    }
-
-    sgMail.setApiKey(settings.apiKey);
-
-    const subject = "Invitación a Tamoe";
-    const text = `Hola,\n\nTe invito a registrarte en Tamoe.\n\nEnlace de registro: ${registerUrl}\n\nGracias.`;
-    const html = [
-      "<p>Hola,</p>",
-      "<p>Te invito a registrarte en Tamoe.</p>",
-      `<p>Enlace de registro: <a href="${registerUrl}">${registerUrl}</a></p>`,
-      "<p>Gracias.</p>",
-    ].join("");
-
-    await sgMail.send({
-      to: email,
-      from: settings.sender,
-      subject,
-      text,
-      html,
-    });
-
-    return { ok: true };
-  });
+// REMOVED: exports.sendInviteEmail
+// This function was removed because it depended on SendGrid.
+// To re-enable email invitations, consider using Firebase Extensions like
+// "Trigger Email" or implement an alternative notification system.
 
 // ============================================
 // VALIDATION FUNCTIONS
@@ -334,131 +271,73 @@ async function createChildEntity(entityType, action, clientId, projectId, produc
 }
 
 /**
- * Helper: Send automation notification
+ * Helper: Send automation notification (saves to Firebase Database as in-app notification)
  */
 async function sendAutomationNotification(action, context) {
-  const mailSettings = getMailSettings();
-  if (!mailSettings) {
-    console.warn('SendGrid not configured, skipping notification');
-    return { sent: false, reason: 'SendGrid not configured' };
-  }
-
-  sgMail.setApiKey(mailSettings.apiKey);
-
-  // Parse recipients - support single email or array
+  // Parse recipients - support single userId/email or array
   let recipients = [];
   if (action.recipients) {
     recipients = Array.isArray(action.recipients) ? action.recipients : [action.recipients];
   } else if (action.recipientEmail) {
     recipients = [action.recipientEmail];
-  } else {
-    // Default to sender as fallback
-    recipients = [mailSettings.sender];
   }
 
-  // Build email content
+  if (recipients.length === 0) {
+    console.warn('No recipients specified for notification');
+    return { sent: false, reason: 'No recipients specified' };
+  }
+
+  // Build notification content
   const entityData = context.entityData || {};
   const entityType = entityData.type || 'Actividad';
   const entityName = entityData.name || 'Sin nombre';
   const customMessage = action.message || '';
 
-  // Create HTML email template
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #4F46E5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-        .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
-        .entity-info { background: white; padding: 15px; margin: 15px 0; border-left: 4px solid #4F46E5; }
-        .footer { background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
-        .label { font-weight: bold; color: #6b7280; font-size: 12px; text-transform: uppercase; }
-        .value { color: #1f2937; margin-top: 5px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h2 style="margin: 0;">🔔 Notificación de Automatización</h2>
-          <p style="margin: 5px 0 0 0; opacity: 0.9;">${context.automationName || 'TAMOE Automation'}</p>
-        </div>
-        <div class="content">
-          <p><strong>Evento:</strong> ${context.triggerLabel || 'Automatización ejecutada'}</p>
+  // Create notification title and message
+  const title = `${context.automationName || 'Automatización'}: ${context.triggerLabel || 'Evento'}`;
 
-          ${customMessage ? `<p style="background: white; padding: 15px; border-radius: 4px; margin: 15px 0;">${customMessage}</p>` : ''}
+  let message = `${entityType}: ${entityName}`;
+  if (customMessage) {
+    message += `\n\n${customMessage}`;
+  }
+  if (entityData.status) {
+    message += `\n\nEstado: ${entityData.status}`;
+  }
+  if (entityData.assignedTo) {
+    message += `\nAsignado a: ${entityData.assignedTo}`;
+  }
 
-          <div class="entity-info">
-            <div class="label">Tipo de Actividad</div>
-            <div class="value">${entityType}</div>
-
-            <div class="label" style="margin-top: 10px;">Nombre</div>
-            <div class="value">${entityName}</div>
-
-            ${entityData.status ? `
-              <div class="label" style="margin-top: 10px;">Estado</div>
-              <div class="value">${entityData.status}</div>
-            ` : ''}
-
-            ${entityData.assignedTo ? `
-              <div class="label" style="margin-top: 10px;">Asignado a</div>
-              <div class="value">${entityData.assignedTo}</div>
-            ` : ''}
-
-            ${entityData.estimatedHours ? `
-              <div class="label" style="margin-top: 10px;">Tiempo Estimado</div>
-              <div class="value">${entityData.estimatedHours} horas</div>
-            ` : ''}
-          </div>
-
-          <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
-            <strong>Ruta:</strong> ${context.entityPath || 'N/A'}
-          </p>
-        </div>
-        <div class="footer">
-          <p style="margin: 0;">Generado automáticamente por TAMOE</p>
-          <p style="margin: 5px 0 0 0;">Sistema de Gestión de Proyectos</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  // Plain text version
-  const textContent = `
-NOTIFICACIÓN DE AUTOMATIZACIÓN
-${context.automationName || 'TAMOE Automation'}
-
-Evento: ${context.triggerLabel || 'Automatización ejecutada'}
-
-${customMessage ? `Mensaje:\n${customMessage}\n` : ''}
-Tipo: ${entityType}
-Nombre: ${entityName}
-${entityData.status ? `Estado: ${entityData.status}\n` : ''}${entityData.assignedTo ? `Asignado a: ${entityData.assignedTo}\n` : ''}
-Ruta: ${context.entityPath || 'N/A'}
-
----
-Generado automáticamente por TAMOE
-  `.trim();
-
-  // Send to all recipients
+  // Send notification to all recipients
   const results = [];
-  for (const recipient of recipients) {
-    const msg = {
-      to: recipient.trim(),
-      from: mailSettings.sender,
-      subject: `TAMOE: ${context.automationName || 'Notificación'} - ${entityName}`,
-      text: textContent,
-      html: htmlContent
-    };
 
+  for (const recipient of recipients) {
     try {
-      await sgMail.send(msg);
-      console.log(`Notification sent to ${recipient}`);
-      results.push({ recipient, sent: true });
+      const recipientId = recipient.trim();
+
+      // Create notification in Firebase Database
+      const notificationRef = db.ref(`notifications/${recipientId}`).push();
+      await notificationRef.set({
+        title,
+        message,
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        read: false,
+        type: 'automation',
+        automationId: context.automationId,
+        automationName: context.automationName,
+        entityType,
+        entityName,
+        entityPath: context.entityPath,
+        entityData: {
+          status: entityData.status,
+          assignedTo: entityData.assignedTo,
+          estimatedHours: entityData.estimatedHours
+        }
+      });
+
+      console.log(`Notification created for user ${recipientId}`);
+      results.push({ recipient: recipientId, sent: true, notificationId: notificationRef.key });
     } catch (error) {
-      console.error(`Error sending notification to ${recipient}:`, error);
+      console.error(`Error creating notification for ${recipient}:`, error);
       results.push({ recipient, sent: false, error: error.message });
     }
   }
