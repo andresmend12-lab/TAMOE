@@ -8264,11 +8264,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init with user
     const initializeApp = (user) => {
+        console.log('[INIT] Initializing app for user:', user?.email || user?.uid);
         currentUser = user;
         if (!database) {
             console.error("Database not initialized. Check firebase.js exports.");
             return;
         }
+        console.log('[INIT] Database ready, subscribing to data...');
         clientsRef = query(ref(database, 'clients'));
         subscribeUsers();
         attachListeners();
