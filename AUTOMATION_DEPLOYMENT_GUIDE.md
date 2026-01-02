@@ -2,14 +2,14 @@
 
 ## 📋 Resumen de Implementación
 
-Se ha implementado un **sistema completo de automatizaciones** para TAMOE con las siguientes características:
+Se ha implementado un **sistema completo de automatizaciones** para TAMOE usando **exclusivamente Firebase** (sin dependencias externas como SendGrid):
 
 ### ✅ Componentes Implementados
 
 1. **Motor de Ejecución (Cloud Functions)**
    - 4 triggers principales implementados
    - Sistema de validación de scope (cliente/proyecto/producto)
-   - Ejecución de acciones (crear entidades hijas, notificaciones)
+   - Ejecución de acciones (crear entidades hijas, notificaciones in-app)
    - Logging completo de ejecuciones
 
 2. **Sistema de Logs**
@@ -18,12 +18,13 @@ Se ha implementado un **sistema completo de automatizaciones** para TAMOE con la
    - Tracking de resultados por acción
    - Actualización de `lastRun` en automatización
 
-3. **Sistema de Notificaciones**
-   - Integración con SendGrid
+3. **Sistema de Notificaciones In-App (100% Firebase)**
+   - Notificaciones guardadas en Firebase Realtime Database
+   - Estructura `notifications/{userId}/{notificationId}`
    - Soporte para múltiples destinatarios
-   - Templates HTML profesionales
    - Información detallada de entidad
-   - Tracking de resultados por destinatario
+   - Estado de lectura (read/unread)
+   - Sin dependencias externas
 
 4. **UI Actualizada**
    - Datos reales en lugar de mock data
@@ -45,24 +46,10 @@ npm install
 Dependencias requeridas (ya están en package.json):
 - `firebase-admin`: ^11.11.1
 - `firebase-functions`: ^4.5.0
-- `@sendgrid/mail`: ^7.7.0
 
-### Paso 2: Configurar Variables de Entorno
+**Nota**: No se requieren dependencias externas como SendGrid. El sistema usa únicamente Firebase.
 
-Crear archivo `/home/user/TAMOE/functions/.env` con:
-
-```env
-SENDGRID_API_KEY=tu_api_key_de_sendgrid
-SENDGRID_SENDER_EMAIL=noreply@tudominio.com
-```
-
-**IMPORTANTE**: También configurar estas variables en Firebase Console:
-```bash
-firebase functions:config:set sendgrid.apikey="tu_api_key"
-firebase functions:config:set sendgrid.sender="noreply@tudominio.com"
-```
-
-### Paso 3: Deploy de Cloud Functions
+### Paso 2: Deploy de Cloud Functions
 
 ```bash
 cd /home/user/TAMOE
@@ -75,7 +62,7 @@ Esto desplegará las siguientes funciones:
 - `onProductCreated` - Trigger cuando se crea un nuevo producto
 - `onProjectCreated` - Trigger cuando se crea un nuevo proyecto
 
-### Paso 4: Verificar Deployment
+### Paso 3: Verificar Deployment
 
 ```bash
 firebase functions:log
@@ -87,9 +74,9 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
 
 ## 🧪 Plan de Testing End-to-End
 
-### Test 1: Automatización de Cambio de Status
+### Test 1: Automatización de Cambio de Status con Notificación
 
-**Objetivo**: Verificar que una automatización se ejecuta cuando una tarea cambia de status.
+**Objetivo**: Verificar que una automatización se ejecuta cuando una tarea cambia de status y crea una notificación in-app.
 
 #### Configuración:
 1. Ir a TAMOE → Automatizaciones → "Crear Automatización"
@@ -102,7 +89,7 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
      - Estado final: `Finalizado`
    - **Acción**:
      - Tipo: `notify`
-     - Recipients: `["tu_email@ejemplo.com"]`
+     - Recipients: `["userId1", "userId2"]` (IDs de usuarios de Firebase Auth)
      - Message: "Una tarea ha sido finalizada"
    - **Scope**: Todos los proyectos
    - **Estado**: Habilitada
@@ -115,8 +102,9 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
 - [ ] Cloud Function se ejecuta (verificar en Firebase Console → Functions → Logs)
 - [ ] Se crea un log en `automation_logs/{automationId}`
 - [ ] El campo `lastRun` se actualiza en la automatización
-- [ ] Se recibe un email en el destinatario configurado
-- [ ] El email contiene información correcta de la tarea
+- [ ] Se crean notificaciones en `notifications/{userId}` para cada destinatario
+- [ ] Las notificaciones contienen información correcta de la tarea
+- [ ] Las notificaciones tienen `read: false` inicialmente
 - [ ] En la UI de Automatizaciones, "Última ejecución" ya no dice "Nunca"
 
 ---
@@ -271,7 +259,7 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
       "actions": [
         {
           "type": "notify",
-          "recipients": ["email1@example.com", "email2@example.com"],
+          "recipients": ["userId1", "userId2"],
           "message": "Mensaje personalizado"
         },
         {
@@ -352,19 +340,45 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
 
 ---
 
-## 📧 Configuración de SendGrid
+## 🔔 Sistema de Notificaciones In-App
 
-### Obtener API Key:
-1. Ir a https://sendgrid.com/
-2. Crear cuenta o iniciar sesión
-3. Settings → API Keys → Create API Key
-4. Dar permisos de "Mail Send"
-5. Copiar la API Key
+Las notificaciones se guardan en Firebase Realtime Database bajo la ruta:
 
-### Verificar Sender Email:
-1. Settings → Sender Authentication
-2. Verificar dominio o email individual
-3. Usar email verificado en configuración de Firebase
+```
+notifications/
+  {userId}/
+    {notificationId}/
+      title: "..."
+      message: "..."
+      timestamp: 1672531200000
+      read: false
+      type: "automation"
+      automationId: "..."
+      automationName: "..."
+      entityType: "Task"
+      entityName: "..."
+      entityPath: "clients/..."
+      entityData: {...}
+```
+
+### Implementar UI de Notificaciones (Opcional):
+
+Para mostrar las notificaciones en la aplicación, puedes crear un componente que:
+1. Escuche cambios en `notifications/{currentUserId}`
+2. Muestre un badge con el número de notificaciones no leídas
+3. Permita marcar notificaciones como leídas
+4. Navegue a la entidad relacionada al hacer clic
+
+Ejemplo básico:
+```javascript
+const userId = firebase.auth().currentUser.uid;
+const notificationsRef = database.ref(`notifications/${userId}`);
+
+notificationsRef.orderByChild('read').equalTo(false).on('value', (snapshot) => {
+  const unreadCount = snapshot.numChildren();
+  // Actualizar badge UI
+});
+```
 
 ---
 
@@ -376,12 +390,12 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
 - Verificar que el scope incluye la entidad que cambió
 - Revisar logs: `firebase functions:log`
 
-### Problema: No se reciben notificaciones
+### Problema: No se crean notificaciones
 **Solución**:
-- Verificar SendGrid API Key configurada
-- Verificar que el sender email está verificado en SendGrid
-- Revisar logs de SendGrid para ver si hay errores
-- Verificar que recipients[] contiene emails válidos
+- Verificar que recipients[] contiene IDs de usuario válidos
+- Revisar Firebase Database Rules para asegurar que las funciones tienen permiso de escritura en `notifications/`
+- Revisar logs: `firebase functions:log` para ver errores específicos
+- Verificar que la acción tiene type: "notify" correctamente configurado
 
 ### Problema: lastRun siempre dice "Nunca"
 **Solución**:
@@ -407,10 +421,11 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
 - [x] Trigger: onProjectCreated
 - [x] Validación de scope (cliente/proyecto/producto)
 - [x] Acción: createChild (Product/Task/Subtask)
-- [x] Acción: notify con SendGrid
+- [x] Acción: notify (in-app notifications en Firebase)
 - [x] Sistema de logging (automation_logs)
 - [x] Actualización de lastRun
 - [x] Manejo de errores y logs
+- [x] Sin dependencias externas (100% Firebase)
 
 ### Frontend (UI)
 - [x] Interfaz de listado de automatizaciones (automations.html)
@@ -422,8 +437,8 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
 
 ### Pendiente (para deployment)
 - [ ] Deploy de Cloud Functions a Firebase
-- [ ] Configurar variables de entorno SendGrid
 - [ ] Testing end-to-end (6 tests listados arriba)
+- [ ] Implementar UI para mostrar notificaciones in-app (opcional)
 - [ ] Monitoreo de logs en producción
 - [ ] Ajustes basados en resultados de testing
 
@@ -432,8 +447,9 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
 ## 📚 Recursos Adicionales
 
 - **Firebase Functions Docs**: https://firebase.google.com/docs/functions
-- **SendGrid Node.js Docs**: https://docs.sendgrid.com/for-developers/sending-email/v3-nodejs-code-example
 - **Firebase Realtime Database Triggers**: https://firebase.google.com/docs/functions/database-events
+- **Firebase Realtime Database Rules**: https://firebase.google.com/docs/database/security
+- **Firebase Admin SDK**: https://firebase.google.com/docs/admin/setup
 
 ---
 
@@ -448,13 +464,21 @@ Deberías ver logs confirmando que las funciones se desplegaron correctamente.
    - Ejecutar los 6 tests end-to-end listados arriba
    - Documentar resultados y cualquier issue encontrado
 
-3. **Mejoras Futuras** (opcional):
+3. **Implementar UI de Notificaciones** (opcional pero recomendado):
+   - Crear componente de notificaciones en la navbar
+   - Badge con contador de notificaciones no leídas
+   - Panel dropdown con lista de notificaciones
+   - Botón para marcar como leídas
+   - Link directo a la entidad relacionada
+
+4. **Mejoras Futuras** (opcional):
    - Dashboard de analytics de automatizaciones
    - Visor de logs en la UI
    - Más tipos de triggers (asignación, tiempo programado)
    - Más tipos de acciones (actualizar campo, cambiar status)
    - Rate limiting para evitar loops infinitos
    - Templates de automatizaciones pre-configuradas
+   - Notificaciones push web usando Firebase Cloud Messaging (FCM)
 
 ---
 
