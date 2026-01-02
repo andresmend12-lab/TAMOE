@@ -149,6 +149,47 @@ function updatePaginationControls(totalItems) {
     }
 }
 
+// Helper: Get icon based on trigger type
+function getTriggerIcon(triggers) {
+    if (!triggers || triggers.length === 0) return 'help_outline';
+
+    const firstTrigger = triggers[0];
+    const triggerType = firstTrigger.triggerType;
+
+    const iconMap = {
+        'statusChange': 'swap_horiz',
+        'created': 'add_circle',
+        'assigned': 'person_add',
+        'timeScheduled': 'schedule',
+        'hierarchical': 'account_tree'
+    };
+
+    return iconMap[triggerType] || 'play_arrow';
+}
+
+// Helper: Format timestamp to readable date
+function formatLastRun(timestamp) {
+    if (!timestamp) return 'Nunca';
+
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Hace unos segundos';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffHours < 24) return `Hace ${diffHours} h`;
+    if (diffDays < 7) return `Hace ${diffDays} días`;
+
+    return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    });
+}
+
 function fetchAutomations() {
     const automationsRef = ref(database, 'automations');
     onValue(automationsRef, (snapshot) => {
@@ -164,15 +205,23 @@ function fetchAutomations() {
                     : Object.values(automation.actions || {});
                 const triggerLabel = triggers.map(t => t.activityType).filter(Boolean).join(', ') || 'Sin disparador';
                 const steps = actions.map(a => a.type).filter(Boolean);
+
+                // Get real lastRun timestamp
+                const lastRunTimestamp = automation.lastRun || null;
+                const lastRunFormatted = formatLastRun(lastRunTimestamp);
+
+                // Get dynamic icon based on trigger type
+                const triggerIcon = getTriggerIcon(triggers);
+
                 // Adapt data to what renderAutomationCard expects
                 return {
                     id: key,
                     name: automation.name || 'Automatizacion sin nombre',
                     enabled: automation.enabled !== false, // default to true
                     status: automation.enabled !== false ? 'active' : 'paused',
-                    lastRun: 'Nunca', // Mock last run
+                    lastRun: lastRunFormatted,
                     trigger: {
-                        icon: 'play_arrow', // Mock icon
+                        icon: triggerIcon,
                         label: triggerLabel
                     },
                     steps
