@@ -137,6 +137,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectAutomationList = document.getElementById('project-automation-list');
     const projectAutomationEmpty = document.getElementById('project-automation-empty');
 
+    // Project Template elements
+    const projectTemplateEnabled = document.getElementById('project-template-enabled');
+    const projectTemplateStatus = document.getElementById('project-template-status');
+    const projectTemplateConfig = document.getElementById('project-template-config');
+    const templateTasksList = document.getElementById('template-tasks-list');
+    const templateTasksEmpty = document.getElementById('template-tasks-empty');
+    const addTemplateTaskBtn = document.getElementById('add-template-task-btn');
+    const saveTemplateBtn = document.getElementById('save-template-btn');
+    const templateSaveStatus = document.getElementById('template-save-status');
+
     // Modals & forms
     const addClientModal = document.getElementById('add-client-modal');
     const addProjectModal = document.getElementById('add-project-modal');
@@ -200,6 +210,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let statusFiltersInitialized = false;
     const myTasksFilters = { status: 'all', client: 'all', type: 'all', query: '' };
     let myTasksFiltersInitialized = false;
+
+    // Project Template state
+    let projectTemplateState = {
+        enabled: false,
+        tasks: []
+    };
+    const DEFAULT_PROJECT_TEMPLATE = {
+        id: 'default_project_template',
+        name: 'Proyecto estándar',
+        tasks: [
+            { name: 'Kick-off y brief', status: 'Pendiente', estimatedMinutes: 0 },
+            { name: 'Producción de contenidos', status: 'Pendiente', estimatedMinutes: 0 },
+            { name: 'Revisión y validación', status: 'Pendiente', estimatedMinutes: 0 },
+            { name: 'Entrega y cierre', status: 'Pendiente', estimatedMinutes: 0 }
+        ]
+    };
 
     // User dropdown
     const userMenuToggle = document.getElementById('user-menu-toggle');
@@ -5846,6 +5872,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: projectData
             }, { includeAutomationIds: selectedAutomationIds });
 
+            // Aplicar plantilla de proyecto automáticamente (con idempotencia)
+            const projectPath = `clients/${selectedClientId}/projects/${newProjectRef.key}`;
+            await applyProjectTemplate(selectedClientId, newProjectRef.key, projectPath, projectName);
+
             closeProjectModal();
             renderClients();
             renderTree();
@@ -6181,11 +6211,358 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // ============================================================
+    // PROJECT TEMPLATE SYSTEM
+    // ============================================================
+
+    /**
+     * Cargar configuración de plantillas desde RTDB
+     * Si no existe, crear la configuración por defecto
+     */
+    const loadProjectTemplateConfig = async () => {
+        try {
+            const configRef = ref(database, 'automations/projectTemplate');
+            const snapshot = await get(configRef);
+
+            if (snapshot.exists()) {
+                const config = snapshot.val();
+                projectTemplateState = {
+                    enabled: config.enabled === true,
+                    tasks: Array.isArray(config.tasks) ? config.tasks : DEFAULT_PROJECT_TEMPLATE.tasks
+                };
+            } else {
+                // Crear configuración por defecto
+                projectTemplateState = {
+                    enabled: false,
+                    tasks: [...DEFAULT_PROJECT_TEMPLATE.tasks]
+                };
+                await set(configRef, {
+                    enabled: false,
+                    tasks: DEFAULT_PROJECT_TEMPLATE.tasks,
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            // Actualizar UI
+            if (projectTemplateEnabled) {
+                projectTemplateEnabled.checked = projectTemplateState.enabled;
+            }
+            if (projectTemplateStatus) {
+                projectTemplateStatus.textContent = projectTemplateState.enabled ? 'Activado' : 'Desactivado';
+            }
+            if (projectTemplateConfig) {
+                if (projectTemplateState.enabled) {
+                    projectTemplateConfig.classList.remove('hidden');
+                } else {
+                    projectTemplateConfig.classList.add('hidden');
+                }
+            }
+            renderTemplateTasks();
+        } catch (error) {
+            console.error('Error loading project template config:', error);
+        }
+    };
+
+    /**
+     * Guardar configuración de plantillas en RTDB
+     */
+    const saveProjectTemplateConfig = async () => {
+        try {
+            if (templateSaveStatus) templateSaveStatus.textContent = 'Guardando...';
+            if (saveTemplateBtn) saveTemplateBtn.disabled = true;
+
+            const configRef = ref(database, 'automations/projectTemplate');
+            await set(configRef, {
+                enabled: projectTemplateState.enabled,
+                tasks: projectTemplateState.tasks,
+                updatedAt: new Date().toISOString()
+            });
+
+            if (templateSaveStatus) {
+                templateSaveStatus.textContent = 'Guardado correctamente';
+                setTimeout(() => {
+                    if (templateSaveStatus) templateSaveStatus.textContent = '';
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Error saving project template config:', error);
+            if (templateSaveStatus) templateSaveStatus.textContent = 'Error al guardar';
+        } finally {
+            if (saveTemplateBtn) saveTemplateBtn.disabled = false;
+        }
+    };
+
+    /**
+     * Renderizar lista de tareas de la plantilla
+     */
+    const renderTemplateTasks = () => {
+        if (!templateTasksList) return;
+
+        if (projectTemplateState.tasks.length === 0) {
+            templateTasksList.innerHTML = '';
+            if (templateTasksEmpty) templateTasksEmpty.classList.remove('hidden');
+            return;
+        }
+
+        if (templateTasksEmpty) templateTasksEmpty.classList.add('hidden');
+
+        templateTasksList.innerHTML = projectTemplateState.tasks.map((task, index) => `
+            <div class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-border-dark/50" data-task-index="${index}">
+                <span class="material-symbols-outlined text-text-muted text-[18px] cursor-move drag-handle">drag_indicator</span>
+                <input type="text"
+                       value="${escapeHtml(task.name)}"
+                       class="flex-1 bg-transparent border-none text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-0 placeholder:text-text-muted/60"
+                       placeholder="Nombre de la tarea"
+                       data-field="name">
+                <input type="text"
+                       value="${task.estimatedMinutes ? formatMinutesToDuration(task.estimatedMinutes) : ''}"
+                       class="w-20 bg-white dark:bg-surface-dark border border-border-dark rounded px-2 py-1 text-xs text-center text-gray-900 dark:text-white placeholder:text-text-muted/60"
+                       placeholder="1h 30m"
+                       title="Tiempo estimado"
+                       data-field="estimatedMinutes">
+                <button type="button" class="text-red-500 hover:text-red-600 transition-colors remove-task-btn" title="Eliminar tarea">
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+            </div>
+        `).join('');
+    };
+
+    /**
+     * Formatear minutos a duración legible
+     */
+    const formatMinutesToDuration = (minutes) => {
+        if (!minutes || minutes <= 0) return '';
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+        if (hours > 0) return `${hours}h`;
+        return `${mins}m`;
+    };
+
+    /**
+     * Parsear duración a minutos
+     */
+    const parseDurationToMinutes = (input) => {
+        if (!input || typeof input !== 'string') return 0;
+        const trimmed = input.trim().toLowerCase();
+        if (!trimmed) return 0;
+
+        // Formato "1h 30m" o "1h30m"
+        const hmMatch = trimmed.match(/^(\d+)\s*h\s*(\d+)\s*m$/);
+        if (hmMatch) return parseInt(hmMatch[1], 10) * 60 + parseInt(hmMatch[2], 10);
+
+        // Solo horas "2h"
+        const hMatch = trimmed.match(/^(\d+)\s*h$/);
+        if (hMatch) return parseInt(hMatch[1], 10) * 60;
+
+        // Solo minutos "45m"
+        const mMatch = trimmed.match(/^(\d+)\s*m$/);
+        if (mMatch) return parseInt(mMatch[1], 10);
+
+        // Número solo (asumimos minutos)
+        const numMatch = trimmed.match(/^(\d+)$/);
+        if (numMatch) return parseInt(numMatch[1], 10);
+
+        return 0;
+    };
+
+    /**
+     * Escape HTML para prevenir XSS
+     */
+    const escapeHtml = (str) => {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    };
+
+    /**
+     * Actualizar una tarea en el estado desde el input
+     */
+    const updateTemplateTaskFromInput = (index, field, value) => {
+        if (index < 0 || index >= projectTemplateState.tasks.length) return;
+
+        if (field === 'name') {
+            projectTemplateState.tasks[index].name = value.trim();
+        } else if (field === 'estimatedMinutes') {
+            projectTemplateState.tasks[index].estimatedMinutes = parseDurationToMinutes(value);
+        }
+    };
+
+    /**
+     * Añadir una nueva tarea a la plantilla
+     */
+    const addTemplateTask = () => {
+        projectTemplateState.tasks.push({
+            name: '',
+            status: 'Pendiente',
+            estimatedMinutes: 0
+        });
+        renderTemplateTasks();
+
+        // Enfocar el nuevo input
+        const lastInput = templateTasksList?.querySelector('[data-task-index]:last-child input[data-field="name"]');
+        if (lastInput) lastInput.focus();
+    };
+
+    /**
+     * Eliminar una tarea de la plantilla
+     */
+    const removeTemplateTask = (index) => {
+        if (index < 0 || index >= projectTemplateState.tasks.length) return;
+        projectTemplateState.tasks.splice(index, 1);
+        renderTemplateTasks();
+    };
+
+    /**
+     * Aplicar plantilla de proyecto al crear un proyecto nuevo
+     * CON IDEMPOTENCIA: verifica si ya se aplicó para evitar duplicados
+     * @param {string} clientId - ID del cliente
+     * @param {string} projectId - ID del proyecto
+     * @param {string} projectPath - Path completo del proyecto en RTDB
+     * @param {string} projectName - Nombre del proyecto (para logs)
+     */
+    const applyProjectTemplate = async (clientId, projectId, projectPath, projectName) => {
+        // Verificar si las plantillas están activadas
+        if (!projectTemplateState.enabled) {
+            console.log('Project templates disabled, skipping');
+            return;
+        }
+
+        // Verificar si hay tareas definidas
+        if (!projectTemplateState.tasks || projectTemplateState.tasks.length === 0) {
+            console.log('No template tasks defined, skipping');
+            return;
+        }
+
+        try {
+            // IDEMPOTENCIA: Verificar si ya se aplicó la plantilla
+            const appliedRef = ref(database, `${projectPath}/templateApplied`);
+            const appliedSnap = await get(appliedRef);
+
+            if (appliedSnap.exists()) {
+                console.log('Template already applied to this project, skipping');
+                return;
+            }
+
+            console.log('Applying project template...', { clientId, projectId, tasks: projectTemplateState.tasks.length });
+
+            const createdTaskIds = [];
+            const timestamp = new Date().toISOString();
+
+            // Crear cada tarea de la plantilla
+            for (const templateTask of projectTemplateState.tasks) {
+                if (!templateTask.name || !templateTask.name.trim()) continue;
+
+                const manageId = await allocateNextManageId(clientId);
+                const newTaskRef = push(ref(database, `${projectPath}/tasks`));
+
+                const taskData = {
+                    name: templateTask.name.trim(),
+                    status: templateTask.status || 'Pendiente',
+                    createdAt: timestamp,
+                    updatedAt: timestamp,
+                    taskId: newTaskRef.key,
+                    manageId
+                };
+
+                if (templateTask.estimatedMinutes && templateTask.estimatedMinutes > 0) {
+                    taskData.estimatedMinutes = templateTask.estimatedMinutes;
+                }
+
+                await set(newTaskRef, taskData);
+                createdTaskIds.push(newTaskRef.key);
+                console.log(`Created template task: ${templateTask.name} (${newTaskRef.key})`);
+            }
+
+            // Marcar como aplicado (IDEMPOTENCIA)
+            await set(appliedRef, {
+                appliedAt: timestamp,
+                templateId: DEFAULT_PROJECT_TEMPLATE.id,
+                createdTasks: createdTaskIds
+            });
+
+            // Log de actividad
+            await logActivity(
+                clientId,
+                `Plantilla aplicada automáticamente al proyecto "${projectName}": ${createdTaskIds.length} tareas creadas.`,
+                { action: 'template_applied', path: projectPath, entityType: 'project' }
+            );
+
+            console.log(`✓ Template applied: ${createdTaskIds.length} tasks created for project ${projectId}`);
+        } catch (error) {
+            console.error('Error applying project template:', error);
+            // No lanzar el error para no bloquear la creación del proyecto
+        }
+    };
+
+    /**
+     * Inicializar listeners del sistema de plantillas
+     */
+    const initProjectTemplateListeners = () => {
+        // Toggle activar/desactivar
+        projectTemplateEnabled?.addEventListener('change', async () => {
+            projectTemplateState.enabled = projectTemplateEnabled.checked;
+
+            if (projectTemplateStatus) {
+                projectTemplateStatus.textContent = projectTemplateState.enabled ? 'Activado' : 'Desactivado';
+            }
+
+            if (projectTemplateConfig) {
+                if (projectTemplateState.enabled) {
+                    projectTemplateConfig.classList.remove('hidden');
+                } else {
+                    projectTemplateConfig.classList.add('hidden');
+                }
+            }
+
+            // Guardar cambio inmediatamente
+            await saveProjectTemplateConfig();
+        });
+
+        // Añadir tarea
+        addTemplateTaskBtn?.addEventListener('click', addTemplateTask);
+
+        // Guardar plantilla
+        saveTemplateBtn?.addEventListener('click', saveProjectTemplateConfig);
+
+        // Delegación de eventos para la lista de tareas
+        templateTasksList?.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.remove-task-btn');
+            if (removeBtn) {
+                const taskRow = removeBtn.closest('[data-task-index]');
+                if (taskRow) {
+                    const index = parseInt(taskRow.dataset.taskIndex, 10);
+                    removeTemplateTask(index);
+                }
+            }
+        });
+
+        // Actualizar estado al cambiar inputs
+        templateTasksList?.addEventListener('input', (e) => {
+            const input = e.target;
+            if (!input.matches('input[data-field]')) return;
+
+            const taskRow = input.closest('[data-task-index]');
+            if (!taskRow) return;
+
+            const index = parseInt(taskRow.dataset.taskIndex, 10);
+            const field = input.dataset.field;
+            updateTemplateTaskFromInput(index, field, input.value);
+        });
+
+        // Cargar configuración inicial
+        loadProjectTemplateConfig();
+    };
+
 
     // Attach UI listeners once
     const attachListeners = () => {
         if (listenersAttached) return;
         listenersAttached = true;
+
+        // Initialize project template system
+        initProjectTemplateListeners();
 
         addClientBtn?.addEventListener('click', () => {
             if (!currentUser) {
