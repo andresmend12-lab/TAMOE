@@ -2873,6 +2873,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const buildTimelineItems = () => {
         const items = [];
         const normalizeText = (value, fallback = '') => String(value || '').trim() || fallback;
+        let tasksWithDate = 0;
+        let tasksWithoutDate = 0;
 
         const getEstimatedMinutes = (entity) => {
             if (entity.estimatedMinutes != null) return parseInt(entity.estimatedMinutes) || 0;
@@ -2899,7 +2901,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 Object.entries(project.tasks || {}).forEach(([taskId, task]) => {
                     if (!task) return;
                     const taskDate = parseWorkDate(task.date) || parseWorkDate(task.workDate);
-                    if (!taskDate) return; // Solo incluir si tiene fecha
+                    if (!taskDate) {
+                        tasksWithoutDate++;
+                        console.log('[TIMELINE] Task without date:', task.name, '| date:', task.date, '| workDate:', task.workDate, '| dueDate:', task.dueDate);
+                        return;
+                    }
+                    tasksWithDate++;
 
                     const hasSubtasksFlag = hasSubtasks(task);
                     const taskMinutes = hasSubtasksFlag
@@ -2964,7 +2971,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     Object.entries(product.tasks || {}).forEach(([taskId, task]) => {
                         if (!task) return;
                         const taskDate = parseWorkDate(task.date) || parseWorkDate(task.workDate);
-                        if (!taskDate) return;
+                        if (!taskDate) {
+                            tasksWithoutDate++;
+                            console.log('[TIMELINE] Product task without date:', task.name, '| date:', task.date, '| workDate:', task.workDate, '| dueDate:', task.dueDate);
+                            return;
+                        }
+                        tasksWithDate++;
 
                         const hasSubtasksFlag = hasSubtasks(task);
                         const taskMinutes = hasSubtasksFlag
@@ -3024,6 +3036,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        console.log('[TIMELINE] Summary: Tasks with date:', tasksWithDate, '| Tasks without date:', tasksWithoutDate, '| Total items:', items.length);
         return items;
     };
 
@@ -8264,11 +8277,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init with user
     const initializeApp = (user) => {
+        console.log('[INIT] Initializing app for user:', user?.email || user?.uid);
         currentUser = user;
         if (!database) {
             console.error("Database not initialized. Check firebase.js exports.");
             return;
         }
+        console.log('[INIT] Database ready, subscribing to data...');
         clientsRef = query(ref(database, 'clients'));
         subscribeUsers();
         attachListeners();
