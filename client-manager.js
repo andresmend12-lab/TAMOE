@@ -1952,32 +1952,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const buildMyTaskRow = (item) => {
             const card = document.createElement('div');
-            card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4';
+            card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark py-3 px-4';
 
-            // Main layout: flex con izquierda (tipo+estado+datos) y derecha (prioridad+fecha+tiempo)
+            // Main layout: flex con gap reducido para acercar bloques
             const mainRow = document.createElement('div');
-            mainRow.className = 'flex flex-wrap items-center gap-4';
+            mainRow.className = 'flex flex-wrap items-center gap-3';
 
-            // ===== BLOQUE IZQUIERDO: Tipo + Estado (2 líneas) =====
+            // ===== BLOQUE IZQUIERDO: Tipo + Estado (2 líneas, centrado) =====
             const leftCol = document.createElement('div');
-            leftCol.className = 'w-[140px] shrink-0 flex flex-col items-start justify-center gap-1.5';
+            leftCol.className = 'w-[140px] shrink-0 flex flex-col items-center justify-center gap-1.5';
 
-            // Línea 1: Badge tipo (Tarea/Subtarea)
+            // Línea 1: Badge tipo (Tarea/Subtarea) - ancho fijo, centrado
             const badge = document.createElement('span');
             const isSubtask = item.type === 'subtask';
             badge.className = isSubtask
-                ? 'h-7 px-3 rounded-md text-xs font-semibold inline-flex items-center justify-center bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                : 'h-7 px-3 rounded-md text-xs font-semibold inline-flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
+                ? 'h-7 w-[110px] rounded-md text-xs font-semibold inline-flex items-center justify-center bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                : 'h-7 w-[110px] rounded-md text-xs font-semibold inline-flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
             badge.textContent = isSubtask ? 'Subtarea' : 'Tarea';
 
-            // Línea 2: Control de estado
+            // Línea 2: Control de estado - ancho fijo para centrar
             const statusControl = createStatusControl({
                 status: item.status,
                 onChange: async (nextStatus) => {
                     await applyStatusChange(item, nextStatus);
                 },
             });
-            statusControl.classList.add('h-7');
+            statusControl.classList.add('h-7', 'w-[110px]');
 
             leftCol.append(badge, statusControl);
 
@@ -2016,20 +2016,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             centerCol.append(titleRow, context);
 
-            // ===== BLOQUE DERECHO: Prioridad + Fecha + Tiempo (grid 3 columnas alineado) =====
+            // ===== BLOQUE DERECHO: Prioridad + Fecha + Tiempo (grid 3 columnas IGUALES) =====
             const rightCol = document.createElement('div');
-            rightCol.className = 'ml-auto grid grid-cols-[120px_150px_130px] items-start gap-3 shrink-0';
+            rightCol.className = 'ml-auto grid grid-cols-3 gap-3 shrink-0';
+
+            // Ancho uniforme para los 3 controles
+            const CONTROL_WIDTH = 'w-[120px]';
 
             // --- Columna 1: Prioridad ---
             const priorityCol = document.createElement('div');
-            priorityCol.className = 'flex flex-col items-start gap-1';
+            priorityCol.className = 'flex flex-col items-center gap-1';
 
             const priorityLabel = document.createElement('span');
-            priorityLabel.className = 'text-xs font-semibold text-text-muted';
+            priorityLabel.className = 'text-xs font-semibold text-text-muted text-center';
             priorityLabel.textContent = 'Prioridad';
 
             const priorityWrapper = document.createElement('div');
-            priorityWrapper.className = 'relative w-full';
+            priorityWrapper.className = `relative ${CONTROL_WIDTH}`;
 
             let currentPriority = item.priority || 'none';
 
@@ -2119,17 +2122,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- Columna 2: Fecha ---
             const dateCol = document.createElement('div');
-            dateCol.className = 'flex flex-col items-start gap-1';
+            dateCol.className = 'flex flex-col items-center gap-1';
 
             const dateLabel = document.createElement('button');
             dateLabel.type = 'button';
-            dateLabel.className = 'text-xs font-semibold text-text-muted whitespace-nowrap cursor-pointer hover:text-red-500 hover:underline transition-colors';
+            dateLabel.className = 'text-xs font-semibold text-text-muted text-center whitespace-nowrap cursor-pointer hover:text-red-500 hover:underline transition-colors';
             dateLabel.textContent = 'Fecha';
             dateLabel.title = item.date ? 'Clic para quitar fecha' : 'Fecha de ejecución';
 
             const dateInput = document.createElement('input');
             dateInput.type = 'date';
-            dateInput.className = 'h-9 w-full bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary';
+            dateInput.className = `h-9 ${CONTROL_WIDTH} bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-2 text-sm text-center focus:border-primary focus:ring-1 focus:ring-primary`;
             dateInput.value = item.date || '';
 
             // Status para fecha
@@ -2173,10 +2176,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- Columna 3: Tiempo Estimado ---
             const timeCol = document.createElement('div');
-            timeCol.className = 'flex flex-col items-start gap-1';
+            timeCol.className = 'flex flex-col items-center gap-1';
 
             const timeLabel = document.createElement('label');
-            timeLabel.className = 'text-xs font-semibold text-text-muted whitespace-nowrap';
+            timeLabel.className = 'text-xs font-semibold text-text-muted text-center whitespace-nowrap';
             timeLabel.textContent = 'Tiempo';
 
             // Helper para formatear minutos
@@ -2201,9 +2204,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const aggregated = aggregateLeafTimes(item, 'task');
                 const totalEstimated = aggregated.estimated;
 
-                // Display de tiempo estimado (read-only) - SIN texto debajo
+                // Display de tiempo estimado (read-only) - ancho uniforme
                 const readOnlyDisplay = document.createElement('div');
-                readOnlyDisplay.className = 'bg-gray-100 dark:bg-gray-700/50 border border-border-light dark:border-border-dark rounded px-3 py-1 text-sm text-center w-24 text-text-muted';
+                readOnlyDisplay.className = `h-9 ${CONTROL_WIDTH} bg-gray-100 dark:bg-gray-700/50 border border-border-light dark:border-border-dark rounded px-3 text-sm text-center flex items-center justify-center text-text-muted`;
                 readOnlyDisplay.textContent = formatMinutes(totalEstimated);
                 readOnlyDisplay.title = `Acumulado de ${Object.keys(item.subtasks || {}).length} subtarea(s)`;
 
@@ -2223,7 +2226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const durationInput = createDurationInput({
                     valueMinutes: manualMinutes,
                     placeholder: 'Ej: 1h 30m',
-                    className: 'w-24 focus:border-primary focus:ring-1 focus:ring-primary',
+                    className: `h-9 ${CONTROL_WIDTH} text-center focus:border-primary focus:ring-1 focus:ring-primary`,
                     onCommit: async (minutes) => {
                         if (!item.path) {
                             console.error('No se puede actualizar: item.path no disponible', { item });
