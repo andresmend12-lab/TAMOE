@@ -589,11 +589,11 @@
                     </div>
                 </section>
 
-                <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden -mx-8 px-4">
-                    <div class="rounded-2xl border border-border-dark bg-white dark:bg-surface-darker p-4 shadow-lg shadow-black/20">
-                        <div class="flex flex-col gap-3">
+                <section id="tab-panel-timeline" data-tab-panel="timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden -mx-8 flex flex-col flex-1 min-h-0">
+                    <div class="flex flex-col flex-1 min-h-0 border-x border-border-dark bg-white dark:bg-surface-darker px-4 py-3">
+                        <div class="flex flex-col flex-1 min-h-0 gap-3">
                             <!-- Header compacto -->
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
                                 <div class="flex items-center gap-2">
                                     <span class="material-symbols-outlined text-primary text-xl">timeline</span>
                                     <div>
@@ -626,7 +626,7 @@
                             </div>
 
                             <!-- Filtros compactos -->
-                            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+                            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 shrink-0">
                                 <div class="relative">
                                     <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[16px]">apartment</span>
                                     <select id="timeline-filter-client" class="w-full h-8 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-xs text-gray-900 dark:text-white pl-8 pr-2 focus:border-primary focus:ring-1 focus:ring-primary">
@@ -666,7 +666,7 @@
                             </div>
 
                             <!-- Contenedor principal: Jerarquía + Timeline -->
-                            <div id="timeline-container" class="rounded-xl border border-border-dark bg-surface-light dark:bg-surface-dark overflow-hidden">
+                            <div id="timeline-container" class="flex-1 min-h-0 rounded-xl border border-border-dark bg-surface-light dark:bg-surface-dark overflow-hidden flex flex-col">
                                 <p id="timeline-empty" class="text-text-muted text-sm p-6 text-center">No hay actividades con fecha para mostrar en el cronograma.</p>
                             </div>
                         </div>
