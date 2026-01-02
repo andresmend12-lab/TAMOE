@@ -362,6 +362,19 @@ document.addEventListener('DOMContentLoaded', () => {
         'medium': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
         'high': 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
     };
+
+    // Clases para chip/pill de prioridad (elegante, con colores R/N/A/V)
+    const priorityChipClass = (p) => {
+        const base = 'inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border transition-colors select-none cursor-pointer min-w-[100px]';
+        // Sin prioridad = verde sutil
+        if (p === 'none') return `${base} border-emerald-500/35 bg-emerald-500/12 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/18`;
+        // Baja = amarillo
+        if (p === 'low') return `${base} border-yellow-500/35 bg-yellow-500/12 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-500/18`;
+        // Media = naranja
+        if (p === 'medium') return `${base} border-orange-500/35 bg-orange-500/12 text-orange-800 dark:text-orange-200 hover:bg-orange-500/18`;
+        // Alta = rojo
+        return `${base} border-red-500/35 bg-red-500/12 text-red-800 dark:text-red-200 hover:bg-red-500/18`;
+    };
     const PRIORITY_SORT_ORDER = { 'high': 3, 'medium': 2, 'low': 1, 'none': 0 };
 
     // Helper para obtener fecha local en formato YYYY-MM-DD
@@ -593,6 +606,169 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rerender) refreshSortedViews();
     };
 
+    // Menú extendido para "Mis tareas" con filtros de prioridad y fecha + ordenación
+    const createMyTasksSortFilterMenu = ({ value, onChange, onFilterChange }) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative flex items-center justify-end';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.sortToggle = 'true';
+        button.className = 'size-9 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center justify-center';
+        button.setAttribute('aria-label', 'Filtros y ordenación');
+        button.title = 'Filtros y ordenación';
+        button.innerHTML = '<span class="material-symbols-outlined text-[18px]">tune</span>';
+
+        const menu = document.createElement('div');
+        menu.className = 'action-menu hidden absolute right-0 top-full mt-2 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-40 text-gray-900 dark:text-white max-h-[400px] overflow-y-auto';
+
+        // === SECCIÓN FILTROS ===
+        const filtersSection = document.createElement('div');
+        filtersSection.className = 'border-b border-border-dark pb-2 mb-2';
+
+        const filtersTitle = document.createElement('div');
+        filtersTitle.className = 'px-4 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider';
+        filtersTitle.textContent = 'Filtros';
+        filtersSection.appendChild(filtersTitle);
+
+        // Filtro Prioridad
+        const priorityFilterWrapper = document.createElement('div');
+        priorityFilterWrapper.className = 'px-4 py-2';
+
+        const priorityFilterLabel = document.createElement('label');
+        priorityFilterLabel.className = 'text-xs text-text-muted block mb-1';
+        priorityFilterLabel.textContent = 'Prioridad';
+
+        const priorityFilterSelect = document.createElement('select');
+        priorityFilterSelect.id = 'my-tasks-filter-priority';
+        priorityFilterSelect.className = 'w-full h-8 rounded border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white px-2 focus:border-primary focus:ring-1 focus:ring-primary';
+
+        const priorityOptions = [
+            { value: 'all', label: 'Todas' },
+            { value: 'high', label: 'Alta' },
+            { value: 'medium', label: 'Media' },
+            { value: 'low', label: 'Baja' },
+            { value: 'none', label: 'Sin prioridad' }
+        ];
+        priorityOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            if (opt.value === myTasksFilters.priority) option.selected = true;
+            priorityFilterSelect.appendChild(option);
+        });
+
+        priorityFilterSelect.addEventListener('change', () => {
+            myTasksFilters.priority = priorityFilterSelect.value;
+            onFilterChange?.();
+        });
+
+        priorityFilterWrapper.append(priorityFilterLabel, priorityFilterSelect);
+        filtersSection.appendChild(priorityFilterWrapper);
+
+        // Filtro Fecha de ejecución
+        const dateFilterWrapper = document.createElement('div');
+        dateFilterWrapper.className = 'px-4 py-2';
+
+        const dateFilterLabel = document.createElement('label');
+        dateFilterLabel.className = 'text-xs text-text-muted block mb-1';
+        dateFilterLabel.textContent = 'Fecha de ejecución';
+
+        const dateFilterSelect = document.createElement('select');
+        dateFilterSelect.id = 'my-tasks-filter-date';
+        dateFilterSelect.className = 'w-full h-8 rounded border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white px-2 focus:border-primary focus:ring-1 focus:ring-primary';
+
+        const dateOptions = [
+            { value: 'all', label: 'Todas' },
+            { value: 'no-date', label: 'Sin fecha' },
+            { value: 'today', label: 'Hoy' },
+            { value: 'next-7-days', label: 'Próximos 7 días' },
+            { value: 'this-month', label: 'Este mes' }
+        ];
+        dateOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            if (opt.value === myTasksFilters.dateFilter) option.selected = true;
+            dateFilterSelect.appendChild(option);
+        });
+
+        dateFilterSelect.addEventListener('change', () => {
+            myTasksFilters.dateFilter = dateFilterSelect.value;
+            onFilterChange?.();
+        });
+
+        dateFilterWrapper.append(dateFilterLabel, dateFilterSelect);
+        filtersSection.appendChild(dateFilterWrapper);
+
+        menu.appendChild(filtersSection);
+
+        // === SECCIÓN ORDENACIÓN ===
+        const sortTitle = document.createElement('div');
+        sortTitle.className = 'px-4 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider';
+        sortTitle.textContent = 'Ordenación';
+        menu.appendChild(sortTitle);
+
+        const sortOptions = [
+            { key: 'created-desc', label: 'Creación (reciente)', icon: 'schedule' },
+            { key: 'created-asc', label: 'Creación (antigua)', icon: 'history' },
+            { key: 'alpha-asc', label: 'Nombre (A–Z)', icon: 'sort_by_alpha' },
+            { key: 'alpha-desc', label: 'Nombre (Z–A)', icon: 'sort_by_alpha' },
+            { key: 'date-asc', label: 'Fecha (próxima)', icon: 'event' },
+            { key: 'date-desc', label: 'Fecha (lejana)', icon: 'event' },
+            { key: 'priority-desc', label: 'Prioridad (Alta→Baja)', icon: 'priority_high' },
+            { key: 'priority-asc', label: 'Prioridad (Baja→Alta)', icon: 'low_priority' },
+        ];
+
+        const updateChecks = () => {
+            Array.from(menu.querySelectorAll('button[data-sort]')).forEach((btn) => {
+                const isActive = btn.dataset.sort === value;
+                const check = btn.querySelector('.material-symbols-outlined.check');
+                if (check) check.classList.toggle('opacity-0', !isActive);
+            });
+        };
+
+        sortOptions.forEach((option) => {
+            const optBtn = document.createElement('button');
+            optBtn.type = 'button';
+            optBtn.dataset.sort = option.key;
+            optBtn.className = 'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
+            optBtn.innerHTML = `
+                <span class="inline-flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px]">${option.icon}</span>
+                    ${option.label}
+                </span>
+                <span class="material-symbols-outlined check text-[18px] text-text-muted ${option.key === value ? '' : 'opacity-0'}">check</span>
+            `;
+            optBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                menu.classList.add('hidden');
+                value = option.key;
+                onChange?.(option.key);
+                updateChecks();
+            });
+            menu.appendChild(optBtn);
+        });
+
+        menu.addEventListener('click', event => event.stopPropagation());
+
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            userMenu?.classList.add('hidden');
+            closeAllActionMenus(menu);
+            updateChecks();
+            // Sincronizar selects con estado actual
+            priorityFilterSelect.value = myTasksFilters.priority || 'all';
+            dateFilterSelect.value = myTasksFilters.dateFilter || 'all';
+            menu.classList.toggle('hidden');
+        });
+
+        wrapper.append(button, menu);
+        return wrapper;
+    };
+
     const mountActivitySortMenus = () => {
         if (!activitySortContainers.length) return;
         activitySortContainers.forEach((container) => {
@@ -603,6 +779,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             container.dataset.sortMounted = 'true';
             container.innerHTML = '';
+
+            // Para "Mis tareas", usar menú extendido con filtros
+            if (container.id === 'activity-sort-my-tasks') {
+                const menu = createMyTasksSortFilterMenu({
+                    value: currentSortMode,
+                    onChange: (mode) => setSortMode(mode),
+                    onFilterChange: () => renderMyTasks(),
+                });
+                container.appendChild(menu);
+                return;
+            }
+
             const size = container.id === 'activity-sort-status' ? 'lg' : 'md';
             const menu = createSortMenu({
                 value: currentSortMode,
@@ -1742,20 +1930,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4';
 
-            // Main layout: 4 columns (type/status | content | priority | date/time)
+            // Main layout: 4 columnas compactas [left: tipo+estado | main: título+breadcrumb | midRight: prioridad+fecha | right: tiempo]
             const mainRow = document.createElement('div');
-            mainRow.className = 'grid grid-cols-1 gap-4 items-center sm:grid-cols-2 lg:grid-cols-[200px_1fr_140px_320px]';
+            mainRow.className = 'grid grid-cols-1 gap-4 items-center sm:grid-cols-2 lg:grid-cols-[180px_1fr_auto_170px]';
 
-            // ===== COLUMNA IZQUIERDA: Tipo + Estado =====
+            // ===== COLUMNA IZQUIERDA: Tipo + Estado (horizontal, centrados) =====
             const leftCol = document.createElement('div');
-            leftCol.className = 'flex flex-col gap-2 items-start';
+            leftCol.className = 'flex items-center gap-3';
 
-            // Badge para Tarea o Subtarea
+            // Badge para Tarea o Subtarea (altura consistente con estado)
             const badge = document.createElement('span');
             const isSubtask = item.type === 'subtask';
             badge.className = isSubtask
-                ? 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                : 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
+                ? 'inline-flex items-center h-7 px-3 rounded-md text-xs font-semibold leading-none bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                : 'inline-flex items-center h-7 px-3 rounded-md text-xs font-semibold leading-none bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
             badge.textContent = isSubtask ? 'Subtarea' : 'Tarea';
 
             // Control de estado
@@ -1766,52 +1954,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            // Selector de prioridad compacto
-            const prioritySelect = document.createElement('select');
-            prioritySelect.className = 'w-full text-xs rounded border border-border-light dark:border-border-dark px-1 py-0.5 bg-background dark:bg-surface-dark cursor-pointer focus:border-primary focus:ring-1 focus:ring-primary';
-            PRIORITY_VALUES.forEach(val => {
-                const opt = document.createElement('option');
-                opt.value = val;
-                opt.textContent = PRIORITY_LABELS[val];
-                if (val === (item.priority || 'none')) opt.selected = true;
-                prioritySelect.appendChild(opt);
-            });
-
-            // Actualizar colores según prioridad
-            const updatePriorityColor = () => {
-                const prio = prioritySelect.value;
-                // Limpiar clases anteriores
-                prioritySelect.classList.remove(...Object.values(PRIORITY_COLORS).flatMap(c => c.split(' ')));
-                // Añadir nuevas clases
-                PRIORITY_COLORS[prio]?.split(' ').forEach(c => prioritySelect.classList.add(c));
-            };
-            updatePriorityColor();
-
-            // Guardar prioridad en RTDB
-            prioritySelect.addEventListener('change', async () => {
-                const newPriority = prioritySelect.value;
-                if (!item.path) return;
-
-                // Optimistic update
-                item.priority = newPriority;
-                if (item.entityRef) item.entityRef.priority = newPriority;
-                updatePriorityColor();
-
-                try {
-                    await updateActivityFields(item.path, { priority: newPriority });
-                } catch (error) {
-                    console.error('Error al guardar prioridad:', error);
-                    // Revertir en caso de error
-                    prioritySelect.value = item.priority || 'none';
-                    updatePriorityColor();
-                }
-            });
-
             leftCol.append(badge, statusControl);
 
-            // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable) =====
+            // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable, más cerca del left) =====
             const centerCol = document.createElement('div');
-            centerCol.className = 'min-w-0 flex-1 flex flex-col gap-1';
+            centerCol.className = 'min-w-0 flex flex-col gap-1';
 
             // Hacer el nombre clickable
             const titleRow = document.createElement('div');
@@ -1844,34 +1991,113 @@ document.addEventListener('DOMContentLoaded', () => {
 
             centerCol.append(titleRow, context);
 
-            // ===== COLUMNA PRIORIDAD =====
-            const priorityCol = document.createElement('div');
-            priorityCol.className = 'flex items-center justify-start';
-            priorityCol.appendChild(prioritySelect);
+            // ===== COLUMNA MEDIA-DERECHA: Prioridad (chip) + Fecha (compactos) =====
+            const midRightCol = document.createElement('div');
+            midRightCol.className = 'flex items-center gap-3 justify-end shrink-0';
 
-            // ===== COLUMNA FECHA =====
+            // --- Prioridad como chip/pill clickable con menú contextual ---
+            const priorityWrapper = document.createElement('div');
+            priorityWrapper.className = 'relative';
+
+            let currentPriority = item.priority || 'none';
+
+            const priorityChip = document.createElement('button');
+            priorityChip.type = 'button';
+            priorityChip.className = priorityChipClass(currentPriority);
+            priorityChip.textContent = PRIORITY_LABELS[currentPriority];
+            priorityChip.title = 'Cambiar prioridad';
+
+            // Menú contextual de prioridad
+            const priorityMenu = document.createElement('div');
+            priorityMenu.className = 'hidden absolute left-0 top-full mt-1 w-36 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-50';
+
+            const updatePriorityChip = (p) => {
+                priorityChip.className = priorityChipClass(p);
+                priorityChip.textContent = PRIORITY_LABELS[p];
+            };
+
+            PRIORITY_VALUES.forEach(val => {
+                const optBtn = document.createElement('button');
+                optBtn.type = 'button';
+                optBtn.className = 'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left';
+
+                // Dot de color según prioridad
+                const dotColor = val === 'none' ? 'bg-emerald-500' : val === 'low' ? 'bg-yellow-500' : val === 'medium' ? 'bg-orange-500' : 'bg-red-500';
+                optBtn.innerHTML = `
+                    <span class="inline-flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+                        ${PRIORITY_LABELS[val]}
+                    </span>
+                    <span class="material-symbols-outlined text-[16px] text-text-muted ${val === currentPriority ? '' : 'opacity-0'}">check</span>
+                `;
+
+                optBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    priorityMenu.classList.add('hidden');
+
+                    if (val === currentPriority) return;
+
+                    const oldPriority = currentPriority;
+                    currentPriority = val;
+                    item.priority = val;
+                    if (item.entityRef) item.entityRef.priority = val;
+                    updatePriorityChip(val);
+
+                    // Actualizar checks en el menú
+                    priorityMenu.querySelectorAll('button').forEach((btn, idx) => {
+                        const check = btn.querySelector('.material-symbols-outlined');
+                        if (check) check.classList.toggle('opacity-0', PRIORITY_VALUES[idx] !== val);
+                    });
+
+                    if (!item.path) return;
+
+                    try {
+                        await updateActivityFields(item.path, { priority: val });
+                    } catch (error) {
+                        console.error('Error al guardar prioridad:', error);
+                        // Revertir
+                        currentPriority = oldPriority;
+                        item.priority = oldPriority;
+                        if (item.entityRef) item.entityRef.priority = oldPriority;
+                        updatePriorityChip(oldPriority);
+                    }
+                });
+
+                priorityMenu.appendChild(optBtn);
+            });
+
+            // Toggle menú prioridad
+            priorityChip.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeAllActionMenus(priorityMenu);
+                priorityMenu.classList.toggle('hidden');
+            });
+
+            // Cerrar menú al hacer click fuera
+            document.addEventListener('click', (e) => {
+                if (!priorityWrapper.contains(e.target)) {
+                    priorityMenu.classList.add('hidden');
+                }
+            });
+
+            priorityWrapper.append(priorityChip, priorityMenu);
+
+            // --- Fecha (sin botón X, "Fecha" es clicable para limpiar) ---
             const dateCol = document.createElement('div');
-            dateCol.className = 'flex flex-col items-center gap-1';
+            dateCol.className = 'flex flex-col items-center gap-0.5';
 
-            const dateLabel = document.createElement('label');
-            dateLabel.className = 'text-xs text-text-muted whitespace-nowrap';
+            const dateLabel = document.createElement('button');
+            dateLabel.type = 'button';
+            dateLabel.className = 'text-xs text-text-muted whitespace-nowrap cursor-pointer hover:text-red-500 hover:underline transition-colors';
             dateLabel.textContent = 'Fecha';
-
-            const dateWrapper = document.createElement('div');
-            dateWrapper.className = 'flex items-center gap-1';
+            dateLabel.title = item.date ? 'Clic para quitar fecha' : 'Fecha de ejecución';
 
             const dateInput = document.createElement('input');
             dateInput.type = 'date';
-            dateInput.className = 'bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-2 py-1 text-sm w-32 focus:border-primary focus:ring-1 focus:ring-primary';
+            dateInput.className = 'bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-2 py-1 text-sm w-[130px] focus:border-primary focus:ring-1 focus:ring-primary';
             dateInput.value = item.date || '';
-
-            // Botón para limpiar fecha
-            const clearDateBtn = document.createElement('button');
-            clearDateBtn.type = 'button';
-            clearDateBtn.className = 'p-1 text-text-muted hover:text-red-500 transition-colors';
-            clearDateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>';
-            clearDateBtn.title = 'Limpiar fecha';
-            clearDateBtn.classList.toggle('hidden', !item.date);
 
             // Status para fecha
             const dateStatus = document.createElement('div');
@@ -1885,7 +2111,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await updateActivityFields(item.path, { date: newDate || null });
                     item.date = newDate || null;
                     if (item.entityRef) item.entityRef.date = newDate || null;
-                    clearDateBtn.classList.toggle('hidden', !newDate);
+                    dateLabel.title = newDate ? 'Clic para quitar fecha' : 'Fecha de ejecución';
                     dateStatus.textContent = '✓ Guardado';
                     dateStatus.className = 'text-[10px] h-3 text-green-600 dark:text-green-400 opacity-100';
                     setTimeout(() => { dateStatus.className = 'text-[10px] h-3 opacity-0'; }, 2000);
@@ -1898,14 +2124,21 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             dateInput.addEventListener('change', () => saveDateToDb(dateInput.value));
-            clearDateBtn.addEventListener('click', (e) => {
+
+            // Clic en "Fecha" para limpiar (con confirmación si hay fecha)
+            dateLabel.addEventListener('click', (e) => {
                 e.preventDefault();
-                dateInput.value = '';
-                saveDateToDb(null);
+                if (item.date) {
+                    if (confirm('¿Quitar fecha?')) {
+                        dateInput.value = '';
+                        saveDateToDb(null);
+                    }
+                }
             });
 
-            dateWrapper.append(dateInput, clearDateBtn);
-            dateCol.append(dateLabel, dateWrapper, dateStatus);
+            dateCol.append(dateLabel, dateInput, dateStatus);
+
+            midRightCol.append(priorityWrapper, dateCol);
 
             // ===== COLUMNA DERECHA: Tiempo Estimado =====
             const rightCol = document.createElement('div');
@@ -2053,11 +2286,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             rightCol.append(timeLabel, inputWrapper);
 
-            const rightGroup = document.createElement('div');
-            rightGroup.className = 'flex flex-wrap items-start justify-between gap-4';
-            rightGroup.append(dateCol, rightCol);
-
-            mainRow.append(leftCol, centerCol, priorityCol, rightGroup);
+            mainRow.append(leftCol, centerCol, midRightCol, rightCol);
             card.appendChild(mainRow);
 
             return card;
