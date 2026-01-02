@@ -243,6 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const myTasksFilterStatus = document.getElementById('my-tasks-filter-status');
     const myTasksFilterClient = document.getElementById('my-tasks-filter-client');
     const myTasksFilterType = document.getElementById('my-tasks-filter-type');
+    const myTasksFilterPriority = document.getElementById('my-tasks-filter-priority');
+    const myTasksFilterDate = document.getElementById('my-tasks-filter-date');
     const myTasksFilterSearch = document.getElementById('my-tasks-filter-search');
     const myTasksKpiInProgress = document.getElementById('my-tasks-kpi-inprogress');
     const myTasksKpiPending = document.getElementById('my-tasks-kpi-pending');
@@ -343,8 +345,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectAutomationCache = new Map();
     const statusFilters = { type: 'all', client: 'all', status: 'all', assignee: 'all', query: '' };
     let statusFiltersInitialized = false;
-    const myTasksFilters = { status: 'all', client: 'all', type: 'all', query: '' };
+    const myTasksFilters = { status: 'all', client: 'all', type: 'all', priority: 'all', dateFilter: 'all', query: '' };
     let myTasksFiltersInitialized = false;
+
+    // Constantes de prioridad
+    const PRIORITY_VALUES = ['none', 'low', 'medium', 'high'];
+    const PRIORITY_LABELS = {
+        'none': 'Sin prioridad',
+        'low': 'Baja',
+        'medium': 'Media',
+        'high': 'Alta'
+    };
+    const PRIORITY_COLORS = {
+        'none': 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300',
+        'low': 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+        'medium': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+        'high': 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+    };
+    const PRIORITY_SORT_ORDER = { 'high': 3, 'medium': 2, 'low': 1, 'none': 0 };
+
+    // Helper para obtener fecha local en formato YYYY-MM-DD
+    const getTodayLocalYYYYMMDD = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // Helper para sumar días a una fecha
+    const addDaysToDateString = (dateStr, days) => {
+        const date = new Date(dateStr + 'T00:00:00');
+        date.setDate(date.getDate() + days);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // Helper para verificar si una fecha está en el mes actual
+    const isInCurrentMonth = (dateStr) => {
+        if (!dateStr) return false;
+        const now = new Date();
+        const date = new Date(dateStr + 'T00:00:00');
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    };
 
     // Project Template state
     let projectTemplateState = {
@@ -376,7 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideEl = el => el && el.classList.add('hidden');
 
     const SORT_STORAGE_KEY = 'tamoe.activitySortMode';
-    const SORT_MODES = new Set(['created-desc', 'created-asc', 'recent-desc', 'recent-asc', 'alpha-asc', 'alpha-desc']);
     const SORT_LABELS = {
         'created-desc': 'Fecha de creación (más reciente)',
         'created-asc': 'Fecha de creación (más antigua)',
@@ -384,8 +428,13 @@ document.addEventListener('DOMContentLoaded', () => {
         'recent-asc': 'Recientes (actualizado hace más tiempo)',
         'alpha-asc': 'Nombre (A–Z)',
         'alpha-desc': 'Nombre (Z–A)',
+        'date-asc': 'Fecha ejecución (próxima primero)',
+        'date-desc': 'Fecha ejecución (lejana primero)',
+        'priority-desc': 'Prioridad (Alta→Baja)',
+        'priority-asc': 'Prioridad (Baja→Alta)',
     };
     const DEFAULT_SORT_MODE = 'created-desc';
+    const SORT_MODES = new Set(Object.keys(SORT_LABELS));
     let currentSortMode = DEFAULT_SORT_MODE;
 
     const parseTimestamp = (value) => {
@@ -446,12 +495,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const getSortName = (item) => String(item?.name || '').trim();
     const getSortCreatedAt = (item) => parseTimestamp(item?.createdAt);
     const getSortUpdatedAt = (item) => parseTimestamp(item?.updatedAt) || parseTimestamp(item?.createdAt);
+    const getSortDate = (item) => String(item?.date || '').trim();
+    const getSortPriority = (item) => PRIORITY_SORT_ORDER[item?.priority] ?? 0;
 
     const compareActivities = (a, b, mode = currentSortMode) => {
         const nameCompare = getSortName(a).localeCompare(getSortName(b), 'es', { sensitivity: 'base' });
 
         if (mode === 'alpha-asc') return nameCompare;
         if (mode === 'alpha-desc') return -nameCompare;
+
+        // Ordenación por prioridad
+        if (mode === 'priority-desc' || mode === 'priority-asc') {
+            const prioA = getSortPriority(a);
+            const prioB = getSortPriority(b);
+            if (prioA !== prioB) {
+                return mode === 'priority-desc' ? prioB - prioA : prioA - prioB;
+            }
+            // Empate: fallback a createdAt desc
+            const timeA = getSortCreatedAt(a);
+            const timeB = getSortCreatedAt(b);
+            if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+                return timeB - timeA;
+            }
+            return nameCompare;
+        }
+
+        // Ordenación por fecha de ejecución
+        if (mode === 'date-asc' || mode === 'date-desc') {
+            const dateA = getSortDate(a);
+            const dateB = getSortDate(b);
+            const hasA = Boolean(dateA);
+            const hasB = Boolean(dateB);
+
+            // Items sin fecha van al final
+            if (hasA && !hasB) return -1;
+            if (!hasA && hasB) return 1;
+            if (!hasA && !hasB) return nameCompare;
+
+            // Comparar fechas como strings (YYYY-MM-DD es comparable alfabéticamente)
+            const cmp = dateA.localeCompare(dateB);
+            if (cmp !== 0) {
+                return mode === 'date-asc' ? cmp : -cmp;
+            }
+            return nameCompare;
+        }
 
         // Determinar si usar createdAt o updatedAt según el modo
         const isRecentMode = mode === 'recent-desc' || mode === 'recent-asc';
@@ -1291,7 +1378,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             hasSubtasks: taskHasSubtasks,
                             subtasks: task.subtasks || null, // Para calcular acumulados
                             // Campo de fecha para "Mis tareas"
-                            date: task.date || null,
+                            date: task.date || task.workDate || null,
+                            // Campo de prioridad
+                            priority: task.priority || 'none',
                             context: buildContext(clientName, projectName, 'Sin producto'),
                             clientId,
                             clientName,
@@ -1319,7 +1408,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 spentMinutes: subtask.spentMinutes ?? null,
                                 actualHours: subtask.actualHours ?? null, // legacy fallback
                                 // Campo de fecha para "Mis tareas"
-                                date: subtask.date || null,
+                                date: subtask.date || subtask.workDate || null,
+                                // Campo de prioridad
+                                priority: subtask.priority || 'none',
                                 context: buildContext(clientName, projectName, 'Sin producto'),
                                 clientId,
                                 clientName,
@@ -1361,7 +1452,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 hasSubtasks: taskHasSubtasks,
                                 subtasks: task.subtasks || null, // Para calcular acumulados
                                 // Campo de fecha para "Mis tareas"
-                                date: task.date || null,
+                                date: task.date || task.workDate || null,
+                                // Campo de prioridad
+                                priority: task.priority || 'none',
                                 context: buildContext(clientName, projectName, productName),
                                 clientId,
                                 clientName,
@@ -1389,7 +1482,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     spentMinutes: subtask.spentMinutes ?? null,
                                     actualHours: subtask.actualHours ?? null, // legacy fallback
                                     // Campo de fecha para "Mis tareas"
-                                    date: subtask.date || null,
+                                    date: subtask.date || subtask.workDate || null,
+                                    // Campo de prioridad
+                                    priority: subtask.priority || 'none',
                                     context: buildContext(clientName, projectName, productName),
                                     clientId,
                                     clientName,
@@ -1409,6 +1504,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (myTasksFilterStatus) myTasksFilters.status = myTasksFilterStatus.value || 'all';
             if (myTasksFilterClient) myTasksFilters.client = myTasksFilterClient.value || 'all';
             if (myTasksFilterType) myTasksFilters.type = myTasksFilterType.value || 'all';
+            if (myTasksFilterPriority) myTasksFilters.priority = myTasksFilterPriority.value || 'all';
+            if (myTasksFilterDate) myTasksFilters.dateFilter = myTasksFilterDate.value || 'all';
             if (myTasksFilterSearch) myTasksFilters.query = String(myTasksFilterSearch.value || '').trim().toLowerCase();
         };
 
@@ -1421,6 +1518,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (myTasksFilterStatus) myTasksFilterStatus.addEventListener('change', refresh);
             if (myTasksFilterClient) myTasksFilterClient.addEventListener('change', refresh);
             if (myTasksFilterType) myTasksFilterType.addEventListener('change', refresh);
+            if (myTasksFilterPriority) myTasksFilterPriority.addEventListener('change', refresh);
+            if (myTasksFilterDate) myTasksFilterDate.addEventListener('change', refresh);
             if (myTasksFilterSearch) myTasksFilterSearch.addEventListener('input', refresh);
             myTasksFiltersInitialized = true;
         };
@@ -1462,6 +1561,35 @@ document.addEventListener('DOMContentLoaded', () => {
             if (myTasksFilters.status !== 'all' && item.status !== myTasksFilters.status) return false;
             if (myTasksFilters.client !== 'all' && item.clientId !== myTasksFilters.client) return false;
             if (myTasksFilters.type !== 'all' && item.type !== myTasksFilters.type) return false;
+
+            // Filtro por prioridad
+            if (myTasksFilters.priority !== 'all') {
+                const itemPriority = item.priority || 'none';
+                if (itemPriority !== myTasksFilters.priority) return false;
+            }
+
+            // Filtro por fecha
+            if (myTasksFilters.dateFilter !== 'all') {
+                const itemDate = item.date || '';
+                const today = getTodayLocalYYYYMMDD();
+                const next7Days = addDaysToDateString(today, 7);
+
+                switch (myTasksFilters.dateFilter) {
+                    case 'no-date':
+                        if (itemDate) return false;
+                        break;
+                    case 'today':
+                        if (itemDate !== today) return false;
+                        break;
+                    case 'next-7-days':
+                        if (!itemDate || itemDate < today || itemDate >= next7Days) return false;
+                        break;
+                    case 'this-month':
+                        if (!isInCurrentMonth(itemDate)) return false;
+                        break;
+                }
+            }
+
             if (myTasksFilters.query) {
                 const haystack = [
                     item.name,
@@ -1478,6 +1606,8 @@ document.addEventListener('DOMContentLoaded', () => {
             myTasksFilters.status !== 'all' ||
             myTasksFilters.client !== 'all' ||
             myTasksFilters.type !== 'all' ||
+            myTasksFilters.priority !== 'all' ||
+            myTasksFilters.dateFilter !== 'all' ||
             myTasksFilters.query
         );
 
@@ -1636,7 +1766,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            leftCol.append(badge, statusControl);
+            // Selector de prioridad compacto
+            const prioritySelect = document.createElement('select');
+            prioritySelect.className = 'text-xs rounded border border-border-light dark:border-border-dark px-1 py-0.5 bg-background dark:bg-surface-dark cursor-pointer focus:border-primary focus:ring-1 focus:ring-primary';
+            PRIORITY_VALUES.forEach(val => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = PRIORITY_LABELS[val];
+                if (val === (item.priority || 'none')) opt.selected = true;
+                prioritySelect.appendChild(opt);
+            });
+
+            // Actualizar colores según prioridad
+            const updatePriorityColor = () => {
+                const prio = prioritySelect.value;
+                // Limpiar clases anteriores
+                prioritySelect.classList.remove(...Object.values(PRIORITY_COLORS).flatMap(c => c.split(' ')));
+                // Añadir nuevas clases
+                PRIORITY_COLORS[prio]?.split(' ').forEach(c => prioritySelect.classList.add(c));
+            };
+            updatePriorityColor();
+
+            // Guardar prioridad en RTDB
+            prioritySelect.addEventListener('change', async () => {
+                const newPriority = prioritySelect.value;
+                if (!item.path) return;
+
+                // Optimistic update
+                item.priority = newPriority;
+                if (item.entityRef) item.entityRef.priority = newPriority;
+                updatePriorityColor();
+
+                try {
+                    await updateActivityFields(item.path, { priority: newPriority });
+                } catch (error) {
+                    console.error('Error al guardar prioridad:', error);
+                    // Revertir en caso de error
+                    prioritySelect.value = item.priority || 'none';
+                    updatePriorityColor();
+                }
+            });
+
+            leftCol.append(badge, statusControl, prioritySelect);
 
             // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable) =====
             const centerCol = document.createElement('div');
@@ -1939,6 +2110,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'Finalizado': 'bg-emerald-400'
     };
     const CALENDAR_TYPE_LABELS = { task: 'Tarea', subtask: 'Subtarea' };
+    const CALENDAR_PRIORITY_DOT = {
+        'none': '',
+        'low': 'bg-blue-400',
+        'medium': 'bg-yellow-400',
+        'high': 'bg-red-500'
+    };
 
     const hasCalendar = () => (
         calendarMonthLabel &&
@@ -1998,14 +2175,16 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const buildPath = (...parts) => parts.filter(Boolean).join(' / ');
 
-        const pushItem = ({ type, name, manageId, status, workDate, path }) => {
-            const date = parseWorkDate(workDate);
+        const pushItem = ({ type, name, manageId, status, workDate, dateField, priority, path }) => {
+            // Usar dateField (campo 'date') primero, luego workDate como fallback
+            const date = parseWorkDate(dateField) || parseWorkDate(workDate);
             if (!date) return;
             items.push({
                 type,
                 typeLabel: CALENDAR_TYPE_LABELS[type] || 'Tarea',
                 name: normalizeText(name, 'Tarea'),
                 manageId: String(manageId || '').trim(),
+                priority: priority || 'none',
                 status: normalizeStatus(status),
                 date,
                 dateKey: toDateKey(date),
@@ -2032,6 +2211,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         manageId: task.manageId,
                         status: task.status,
                         workDate: task.workDate,
+                        dateField: task.date,
+                        priority: task.priority,
                         path: taskPath
                     });
 
@@ -2044,6 +2225,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             manageId: subtask.manageId,
                             status: subtask.status,
                             workDate: subtask.workDate,
+                            dateField: subtask.date,
+                            priority: subtask.priority,
                             path: buildPath(clientName, projectName, taskName)
                         });
                     });
@@ -2063,6 +2246,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             manageId: task.manageId,
                             status: task.status,
                             workDate: task.workDate,
+                            dateField: task.date,
+                            priority: task.priority,
                             path: taskPath
                         });
 
@@ -2075,6 +2260,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 manageId: subtask.manageId,
                                 status: subtask.status,
                                 workDate: subtask.workDate,
+                                dateField: subtask.date,
+                                priority: subtask.priority,
                                 path: buildPath(clientName, projectName, productName, taskName)
                             });
                         });
@@ -2149,9 +2336,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const createCalendarEventButton = (event, { compact = false } = {}) => {
         const button = document.createElement('button');
         button.type = 'button';
+
+        // Añadir borde de color según prioridad
+        const priorityBorderClass = {
+            'none': 'border-border-dark',
+            'low': 'border-blue-400',
+            'medium': 'border-yellow-400',
+            'high': 'border-red-500 border-l-4'
+        }[event.priority || 'none'] || 'border-border-dark';
+
         button.className = compact
-            ? 'flex items-center gap-2 rounded-md border border-border-dark bg-white/80 dark:bg-surface-dark/80 px-2 py-1 text-[11px] text-gray-900 dark:text-white truncate'
-            : 'flex items-start gap-3 rounded-lg border border-border-dark bg-white dark:bg-surface-darker px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-white/5 transition-colors';
+            ? `flex items-center gap-2 rounded-md border ${priorityBorderClass} bg-white/80 dark:bg-surface-dark/80 px-2 py-1 text-[11px] text-gray-900 dark:text-white truncate`
+            : `flex items-start gap-3 rounded-lg border ${priorityBorderClass} bg-white dark:bg-surface-darker px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-white/5 transition-colors`;
         button.title = event.name || '';
 
         const dot = document.createElement('span');
@@ -2159,6 +2355,13 @@ document.addEventListener('DOMContentLoaded', () => {
         dot.className = `mt-1 size-2 rounded-full ${dotClass} shrink-0`;
 
         if (compact) {
+            // En modo compacto, añadir indicador de prioridad si es alta
+            if (event.priority === 'high') {
+                const priorityIcon = document.createElement('span');
+                priorityIcon.className = 'text-red-500 text-[10px]';
+                priorityIcon.textContent = '!';
+                button.append(priorityIcon);
+            }
             const label = document.createElement('span');
             label.className = 'truncate';
             label.textContent = event.name || '';
@@ -2167,9 +2370,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const textWrap = document.createElement('div');
             textWrap.className = 'min-w-0 flex-1';
 
+            const metaRow = document.createElement('div');
+            metaRow.className = 'flex items-center gap-2';
+
             const meta = document.createElement('p');
             meta.className = 'text-[11px] uppercase tracking-[0.2em] text-text-muted';
             meta.textContent = event.typeLabel || 'Tarea';
+
+            // Badge de prioridad si no es 'none'
+            if (event.priority && event.priority !== 'none') {
+                const priorityBadge = document.createElement('span');
+                const badgeColors = {
+                    'low': 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+                    'medium': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+                    'high': 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                };
+                priorityBadge.className = `text-[9px] px-1 py-0.5 rounded font-medium ${badgeColors[event.priority] || ''}`;
+                priorityBadge.textContent = PRIORITY_LABELS[event.priority] || '';
+                metaRow.append(meta, priorityBadge);
+            } else {
+                metaRow.appendChild(meta);
+            }
 
             const title = document.createElement('p');
             title.className = 'text-sm font-semibold text-gray-900 dark:text-white truncate';
@@ -2179,7 +2400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             path.className = 'text-xs text-text-muted truncate';
             path.textContent = event.path || '-';
 
-            textWrap.append(meta, title, path);
+            textWrap.append(metaRow, title, path);
             button.append(dot, textWrap);
         }
 

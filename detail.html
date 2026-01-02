@@ -246,6 +246,50 @@
                             <p id="status-helper" class="text-xs text-text-muted mt-2"></p>
                         </section>
 
+                        <!-- Sección Prioridad -->
+                        <section id="priority-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <div class="flex items-center justify-between gap-2 mb-4">
+                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">flag</span>
+                                    Prioridad
+                                </h3>
+                                <span id="priority-save" class="text-xs text-text-muted"></span>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button type="button" id="priority-btn-none" data-priority="none" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
+                                    Sin prioridad
+                                </button>
+                                <button type="button" id="priority-btn-low" data-priority="low" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
+                                    Baja
+                                </button>
+                                <button type="button" id="priority-btn-medium" data-priority="medium" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
+                                    Media
+                                </button>
+                                <button type="button" id="priority-btn-high" data-priority="high" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
+                                    Alta
+                                </button>
+                            </div>
+                            <p id="priority-helper" class="text-xs text-text-muted mt-2">Haz clic para cambiar la prioridad.</p>
+                        </section>
+
+                        <!-- Sección Fecha de ejecución -->
+                        <section id="date-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
+                            <div class="flex items-center justify-between gap-2 mb-4">
+                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">event</span>
+                                    Fecha de ejecución
+                                </h3>
+                                <span id="date-save-status" class="text-xs text-text-muted"></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="date" id="detail-date-input" class="flex-1 bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                                <button type="button" id="clear-date-btn" class="p-2 text-text-muted hover:text-red-500 transition-colors hidden" title="Limpiar fecha">
+                                    <span class="material-symbols-outlined text-lg">close</span>
+                                </button>
+                            </div>
+                            <p id="date-helper" class="text-xs text-text-muted mt-2">Selecciona la fecha de ejecución.</p>
+                        </section>
+
                         <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
                             <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2 mb-4">
                                 <span class="material-symbols-outlined text-primary">tune</span>
@@ -611,6 +655,37 @@
         const assigneeMenu = qs('assignee-menu');
         const workDateInput = qs('work-date-input');
         const detailFieldsStatus = qs('detail-fields-status');
+
+        // Priority section elements
+        const prioritySection = qs('priority-section');
+        const prioritySave = qs('priority-save');
+        const priorityHelper = qs('priority-helper');
+        const priorityButtons = Array.from(document.querySelectorAll('.priority-btn'));
+
+        // Date section elements
+        const dateSection = qs('date-section');
+        const dateSaveStatus = qs('date-save-status');
+        const detailDateInput = qs('detail-date-input');
+        const clearDateBtn = qs('clear-date-btn');
+        const dateHelper = qs('date-helper');
+
+        // Priority constants
+        const PRIORITY_VALUES = ['none', 'low', 'medium', 'high'];
+        const PRIORITY_LABELS = {
+            'none': 'Sin prioridad',
+            'low': 'Baja',
+            'medium': 'Media',
+            'high': 'Alta'
+        };
+        const PRIORITY_BUTTON_COLORS = {
+            'none': { active: 'bg-gray-500 text-white border-gray-500', inactive: 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' },
+            'low': { active: 'bg-blue-500 text-white border-blue-500', inactive: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' },
+            'medium': { active: 'bg-yellow-500 text-white border-yellow-500', inactive: 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800' },
+            'high': { active: 'bg-red-500 text-white border-red-500', inactive: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' }
+        };
+
+        let currentPriority = 'none';
+        let prioritySaving = false;
         const estimatedTimeContainer = qs('estimated-time-container');
         const timeSpentContainer = qs('time-spent-container');
 
@@ -810,6 +885,30 @@
             renderAvatar(headerUserAvatar, name, photo);
         };
 
+        // Renderizar sección de prioridad
+        const renderPrioritySection = () => {
+            if (!prioritySection) return;
+
+            // Mostrar prioridad para: project, product, task, subtask
+            const enabledForType = ['project', 'product', 'task', 'subtask'].includes(currentItemType);
+            prioritySection.classList.toggle('hidden', !enabledForType);
+            if (!enabledForType) return;
+
+            renderPriorityButtons();
+        };
+
+        // Renderizar sección de fecha
+        const renderDateSection = () => {
+            if (!dateSection) return;
+
+            // Mostrar fecha para: task, subtask (mínimo)
+            const enabledForType = ['task', 'subtask'].includes(currentItemType);
+            dateSection.classList.toggle('hidden', !enabledForType);
+            if (!enabledForType) return;
+
+            renderDetailDate();
+        };
+
         const renderStatusFlow = () => {
             if (!statusSection) return;
 
@@ -903,6 +1002,114 @@
                 updateAuthUI();
             }
         };
+
+        // ===== PRIORIDAD =====
+        const renderPriorityButtons = () => {
+            priorityButtons.forEach(btn => {
+                const prio = btn.dataset.priority;
+                const isActive = prio === currentPriority;
+                const colors = PRIORITY_BUTTON_COLORS[prio] || PRIORITY_BUTTON_COLORS.none;
+
+                // Limpiar todas las clases de color
+                Object.values(PRIORITY_BUTTON_COLORS).forEach(c => {
+                    c.active.split(' ').forEach(cls => btn.classList.remove(cls));
+                    c.inactive.split(' ').forEach(cls => btn.classList.remove(cls));
+                });
+
+                // Añadir clases según estado
+                const classes = isActive ? colors.active : colors.inactive;
+                classes.split(' ').forEach(cls => btn.classList.add(cls));
+            });
+        };
+
+        const savePriority = async (newPriority) => {
+            if (!currentUser) {
+                alert('Debes iniciar sesión para cambiar la prioridad.');
+                return;
+            }
+            if (!currentItemPath) return;
+            if (newPriority === currentPriority) return;
+
+            prioritySaving = true;
+            if (prioritySave) prioritySave.textContent = 'Guardando...';
+
+            try {
+                await update(ref(database, currentItemPath), { priority: newPriority });
+                currentPriority = newPriority;
+                renderPriorityButtons();
+                if (prioritySave) {
+                    prioritySave.textContent = 'Guardado';
+                    setTimeout(() => {
+                        if (prioritySave) prioritySave.textContent = '';
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error('Error al guardar prioridad:', err);
+                if (prioritySave) prioritySave.textContent = 'Error';
+                showError(err.message || 'No se pudo actualizar la prioridad.');
+            } finally {
+                prioritySaving = false;
+            }
+        };
+
+        // Inicializar eventos de prioridad
+        priorityButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const prio = btn.dataset.priority;
+                if (prio) savePriority(prio);
+            });
+        });
+
+        // ===== FECHA DE EJECUCIÓN =====
+        let currentDetailDate = '';
+
+        const renderDetailDate = () => {
+            if (detailDateInput) {
+                detailDateInput.value = currentDetailDate || '';
+            }
+            if (clearDateBtn) {
+                clearDateBtn.classList.toggle('hidden', !currentDetailDate);
+            }
+        };
+
+        const saveDetailDate = async (newDate) => {
+            if (!currentUser) {
+                alert('Debes iniciar sesión para cambiar la fecha.');
+                return;
+            }
+            if (!currentItemPath) return;
+
+            if (dateSaveStatus) dateSaveStatus.textContent = 'Guardando...';
+
+            try {
+                await update(ref(database, currentItemPath), { date: newDate || null });
+                currentDetailDate = newDate || '';
+                renderDetailDate();
+                if (dateSaveStatus) {
+                    dateSaveStatus.textContent = 'Guardado';
+                    setTimeout(() => {
+                        if (dateSaveStatus) dateSaveStatus.textContent = '';
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error('Error al guardar fecha:', err);
+                if (dateSaveStatus) dateSaveStatus.textContent = 'Error';
+                showError(err.message || 'No se pudo actualizar la fecha.');
+            }
+        };
+
+        // Inicializar eventos de fecha
+        if (detailDateInput) {
+            detailDateInput.addEventListener('change', () => {
+                saveDetailDate(detailDateInput.value);
+            });
+        }
+        if (clearDateBtn) {
+            clearDateBtn.addEventListener('click', () => {
+                if (detailDateInput) detailDateInput.value = '';
+                saveDetailDate(null);
+            });
+        }
 
         const subscribeUsers = () => {
             if (usersUnsubscribe) usersUnsubscribe();
@@ -3694,6 +3901,16 @@
             currentItemStatus = normalizeStatus(item.status);
             if (statusSave) statusSave.textContent = '';
             renderStatusFlow();
+
+            // Cargar y renderizar prioridad
+            currentPriority = item.priority || 'none';
+            if (prioritySave) prioritySave.textContent = '';
+            renderPrioritySection();
+
+            // Cargar y renderizar fecha de ejecución
+            currentDetailDate = item.date || item.workDate || '';
+            if (dateSaveStatus) dateSaveStatus.textContent = '';
+            renderDateSection();
 
             currentAssigneeUid = String(item.assigneeUid || '').trim();
             if (assigneeSave) assigneeSave.textContent = '';
