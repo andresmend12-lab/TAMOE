@@ -389,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clases para chip/pill de prioridad (elegante, con colores R/N/A/V)
     const priorityChipClass = (p) => {
-        const base = 'inline-flex items-center justify-center px-3 py-1 h-7 rounded-full text-xs font-semibold border transition-colors select-none cursor-pointer min-w-[100px]';
+        const base = 'inline-flex items-center justify-center px-3 h-9 w-full rounded-full text-xs font-semibold border transition-colors select-none cursor-pointer';
         // Sin prioridad = verde sutil con relleno suave
         if (p === 'none') return `${base} border-emerald-500/50 bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/25`;
         // Baja = amarillo con relleno suave
@@ -1954,41 +1954,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'rounded-lg border border-border-dark bg-white dark:bg-surface-dark p-4';
 
-            // Main layout: 3 columnas [left: tipo+estado overlay | main: título+breadcrumb | right: prioridad+fecha+tiempo]
+            // Main layout: flex con izquierda (tipo+estado+datos) y derecha (prioridad+fecha+tiempo)
             const mainRow = document.createElement('div');
-            mainRow.className = 'grid grid-cols-1 gap-3 items-center sm:grid-cols-2 lg:grid-cols-[160px_1fr_auto]';
+            mainRow.className = 'flex flex-wrap items-center gap-4';
 
-            // ===== COLUMNA IZQUIERDA: Tipo + Estado (overlay centrado) =====
+            // ===== BLOQUE IZQUIERDO: Tipo + Estado (2 líneas) =====
             const leftCol = document.createElement('div');
-            leftCol.className = 'relative w-[160px] shrink-0 flex justify-end';
+            leftCol.className = 'w-[140px] shrink-0 flex flex-col items-start justify-center gap-1.5';
 
-            // Wrapper para overlay de badge y estado
-            const overlaySlot = document.createElement('div');
-            overlaySlot.className = 'relative h-[38px] w-[150px]';
+            // Línea 1: Badge tipo (Tarea/Subtarea)
+            const badge = document.createElement('span');
+            const isSubtask = item.type === 'subtask';
+            badge.className = isSubtask
+                ? 'h-7 px-3 rounded-md text-xs font-semibold inline-flex items-center justify-center bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                : 'h-7 px-3 rounded-md text-xs font-semibold inline-flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
+            badge.textContent = isSubtask ? 'Subtarea' : 'Tarea';
 
-            // Control de estado (capa inferior, clicable)
+            // Línea 2: Control de estado
             const statusControl = createStatusControl({
                 status: item.status,
                 onChange: async (nextStatus) => {
                     await applyStatusChange(item, nextStatus);
                 },
             });
-            statusControl.classList.add('absolute', 'inset-0', 'flex', 'items-center', 'justify-center');
+            statusControl.classList.add('h-7');
 
-            // Badge para Tarea o Subtarea (capa superior, sin capturar clicks)
-            const badge = document.createElement('span');
-            const isSubtask = item.type === 'subtask';
-            badge.className = isSubtask
-                ? 'absolute inset-0 flex items-center justify-center pointer-events-none h-7 px-3 rounded-md text-xs font-semibold leading-none bg-purple-100/90 dark:bg-purple-900/90 text-purple-800 dark:text-purple-200'
-                : 'absolute inset-0 flex items-center justify-center pointer-events-none h-7 px-3 rounded-md text-xs font-semibold leading-none bg-blue-100/90 dark:bg-blue-900/90 text-blue-800 dark:text-blue-200';
-            badge.textContent = isSubtask ? 'Subtarea' : 'Tarea';
+            leftCol.append(badge, statusControl);
 
-            overlaySlot.append(statusControl, badge);
-            leftCol.appendChild(overlaySlot);
-
-            // ===== COLUMNA CENTRAL: Nombre + Contexto (clickable, pegado al left) =====
+            // ===== COLUMNA CENTRAL: Nombre + Contexto (flex-1 para ocupar espacio) =====
             const centerCol = document.createElement('div');
-            centerCol.className = 'min-w-0 flex flex-col gap-1 pl-2';
+            centerCol.className = 'min-w-0 flex-1 flex flex-col gap-1';
 
             // Hacer el nombre clickable
             const titleRow = document.createElement('div');
@@ -2021,13 +2016,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             centerCol.append(titleRow, context);
 
-            // ===== COLUMNA DERECHA: Prioridad + Fecha + Tiempo (gap uniforme) =====
+            // ===== BLOQUE DERECHO: Prioridad + Fecha + Tiempo (grid 3 columnas alineado) =====
             const rightCol = document.createElement('div');
-            rightCol.className = 'flex items-center gap-3 justify-end shrink-0';
+            rightCol.className = 'ml-auto grid grid-cols-[120px_150px_130px] items-start gap-3 shrink-0';
 
-            // --- Prioridad como chip/pill clickable con menú contextual ---
+            // --- Columna 1: Prioridad ---
+            const priorityCol = document.createElement('div');
+            priorityCol.className = 'flex flex-col items-start gap-1';
+
+            const priorityLabel = document.createElement('span');
+            priorityLabel.className = 'text-xs font-semibold text-text-muted';
+            priorityLabel.textContent = 'Prioridad';
+
             const priorityWrapper = document.createElement('div');
-            priorityWrapper.className = 'relative';
+            priorityWrapper.className = 'relative w-full';
 
             let currentPriority = item.priority || 'none';
 
@@ -2113,20 +2115,21 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             priorityWrapper.append(priorityChip, priorityMenu);
+            priorityCol.append(priorityLabel, priorityWrapper);
 
-            // --- Fecha (sin botón X, "Fecha" es clicable para limpiar) ---
+            // --- Columna 2: Fecha ---
             const dateCol = document.createElement('div');
-            dateCol.className = 'flex flex-col items-center gap-0.5';
+            dateCol.className = 'flex flex-col items-start gap-1';
 
             const dateLabel = document.createElement('button');
             dateLabel.type = 'button';
-            dateLabel.className = 'text-xs text-text-muted whitespace-nowrap cursor-pointer hover:text-red-500 hover:underline transition-colors';
+            dateLabel.className = 'text-xs font-semibold text-text-muted whitespace-nowrap cursor-pointer hover:text-red-500 hover:underline transition-colors';
             dateLabel.textContent = 'Fecha';
             dateLabel.title = item.date ? 'Clic para quitar fecha' : 'Fecha de ejecución';
 
             const dateInput = document.createElement('input');
             dateInput.type = 'date';
-            dateInput.className = 'bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-2 py-1 text-sm w-[130px] focus:border-primary focus:ring-1 focus:ring-primary';
+            dateInput.className = 'h-9 w-full bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary';
             dateInput.value = item.date || '';
 
             // Status para fecha
@@ -2168,13 +2171,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             dateCol.append(dateLabel, dateInput, dateStatus);
 
-            // --- Tiempo Estimado ---
+            // --- Columna 3: Tiempo Estimado ---
             const timeCol = document.createElement('div');
-            timeCol.className = 'flex flex-col items-center gap-0.5 min-w-[120px]';
+            timeCol.className = 'flex flex-col items-start gap-1';
 
             const timeLabel = document.createElement('label');
-            timeLabel.className = 'text-xs text-text-muted whitespace-nowrap';
-            timeLabel.textContent = 'Tiempo estimado';
+            timeLabel.className = 'text-xs font-semibold text-text-muted whitespace-nowrap';
+            timeLabel.textContent = 'Tiempo';
 
             // Helper para formatear minutos
             const formatMinutes = (mins) => {
@@ -2297,8 +2300,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             timeCol.append(timeLabel, inputWrapper);
 
-            // Añadir prioridad, fecha y tiempo al bloque derecho con gap uniforme
-            rightCol.append(priorityWrapper, dateCol, timeCol);
+            // Añadir las 3 columnas al bloque derecho (grid)
+            rightCol.append(priorityCol, dateCol, timeCol);
 
             mainRow.append(leftCol, centerCol, rightCol);
             card.appendChild(mainRow);
