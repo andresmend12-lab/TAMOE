@@ -3713,7 +3713,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Actualizar items y re-render
     const updateTimelineItems = () => {
         if (!hasTimeline()) return;
+        console.log('[TIMELINE] Building items from', allClients.length, 'clients');
         timelineItems = buildTimelineItems();
+        console.log('[TIMELINE] Built', timelineItems.length, 'timeline items');
+        console.log('[TIMELINE] Users loaded:', Object.keys(usersByUid).length);
         initTimelineFilters();
         renderTimeline();
     };
@@ -7292,12 +7295,15 @@ document.addEventListener('DOMContentLoaded', () => {
         onValue(clientsRef, (snapshot) => {
             clientsLoading = false;
             const data = snapshot.val();
+            console.log('[DATA] Firebase snapshot received:', data ? Object.keys(data).length : 0, 'clients');
             if (data) {
                 allClients = Object.keys(data).map(key => ({ id: key, ...data[key] }));
                 // Normalize nested RTDB maps (extra push levels) before rendering.
                 allClients = normalizeClientData(allClients);
+                console.log('[DATA] Normalized clients:', allClients.length);
             } else {
                 allClients = [];
+                console.log('[DATA] No client data from Firebase');
             }
             syncSelectionAfterDataChange();
             renderClients();
