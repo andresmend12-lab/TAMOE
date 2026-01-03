@@ -322,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const treeExpandIcon = document.getElementById('tree-expand-icon');
     const treeExpandLabel = document.getElementById('tree-expand-label');
     const treeView = document.getElementById('tree-view');
+    const treeCreateProjectBtn = document.getElementById('tree-create-project-btn');
     const clientSearchInput = document.getElementById('client-search-input');
     const searchRoot = document.getElementById('search-root');
     const searchResultsPanel = document.getElementById('search-results');
@@ -329,7 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchResultsEmpty = document.getElementById('search-results-empty');
     const tamoeHomeButton = document.getElementById('tamoe-home');
     const activityPathEls = Array.from(document.querySelectorAll('[data-activity-path]'));
-    const statusMetricBlocked = document.getElementById('status-metric-blocked');
     const statusMetricPendingTasks = document.getElementById('status-metric-pending-tasks');
     const statusMetricInProgressTasks = document.getElementById('status-metric-inprogress-tasks');
     const statusMetricUnassigned = document.getElementById('status-metric-unassigned');
@@ -339,9 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusAttentionList = document.getElementById('status-attention-list');
     const statusAttentionEmpty = document.getElementById('status-attention-empty');
     const statusAttentionCount = document.getElementById('status-attention-count');
-    const statusBlockedList = document.getElementById('status-blocked-list');
-    const statusBlockedEmpty = document.getElementById('status-blocked-empty');
-    const statusBlockedCount = document.getElementById('status-blocked-count');
     const statusUnassignedList = document.getElementById('status-unassigned-list');
     const statusUnassignedEmpty = document.getElementById('status-unassigned-empty');
     const statusUnassignedCount = document.getElementById('status-unassigned-count');
@@ -362,14 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const myTasksFilterSearch = document.getElementById('my-tasks-filter-search');
     const myTasksKpiInProgress = document.getElementById('my-tasks-kpi-inprogress');
     const myTasksKpiPending = document.getElementById('my-tasks-kpi-pending');
-    const myTasksKpiBlocked = document.getElementById('my-tasks-kpi-blocked');
     const myTasksKpiRecent = document.getElementById('my-tasks-kpi-recent');
     const myTasksInProgressList = document.getElementById('my-tasks-inprogress-list');
     const myTasksInProgressEmpty = document.getElementById('my-tasks-inprogress-empty');
     const myTasksInProgressCount = document.getElementById('my-tasks-inprogress-count');
-    const myTasksBlockedList = document.getElementById('my-tasks-blocked-list');
-    const myTasksBlockedEmpty = document.getElementById('my-tasks-blocked-empty');
-    const myTasksBlockedCount = document.getElementById('my-tasks-blocked-count');
     const myTasksRecentList = document.getElementById('my-tasks-recent-list');
     const myTasksRecentEmpty = document.getElementById('my-tasks-recent-empty');
     const myTasksRecentCount = document.getElementById('my-tasks-recent-count');
@@ -1040,7 +1033,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (
                 !statusAttentionList &&
-                !statusMetricBlocked &&
                 !statusMetricPendingTasks &&
                 !statusMetricInProgressTasks &&
                 !statusMetricUnassigned &&
@@ -1060,7 +1052,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const RECENT_WINDOW_DAYS = 14;
             const recentCutoff = Date.now() - (RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
             const attentionItems = [];
-            let blockedCount = 0;
             let pendingCount = 0;
             let inProgressCount = 0;
             let unassignedCount = 0;
@@ -1089,20 +1080,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const activityDate = parseActivityTimestamp(activityValue) || 0;
                 const assignee = String(assigneeUid || '').trim();
                 const isUnassigned = Boolean(supportsAssignee) && !assignee;
-                const isBlocked = normalizedStatus === 'Bloqueada';
                 const isInProgress = normalizedStatus === 'En proceso';
                 const isPending = normalizedStatus === 'Pendiente';
                 const isRecent = activityDate >= recentCutoff;
 
-                if (isBlocked) blockedCount += 1;
                 if (isInProgress) inProgressCount += 1;
                 if (isPending) pendingCount += 1;
                 if (isUnassigned) unassignedCount += 1;
                 if (isRecent) recentCount += 1;
 
                 let group = null;
-                if (isBlocked) group = 'blocked';
-                else if (isInProgress) group = 'in_progress';
+                if (isInProgress) group = 'in_progress';
                 else if (isUnassigned) group = 'unassigned';
                 else if (isPending && isRecent) group = 'recent';
 
@@ -1255,7 +1243,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            if (statusMetricBlocked) statusMetricBlocked.textContent = String(blockedCount);
             if (statusMetricPendingTasks) statusMetricPendingTasks.textContent = String(pendingCount);
             if (statusMetricInProgressTasks) statusMetricInProgressTasks.textContent = String(inProgressCount);
             if (statusMetricUnassigned) statusMetricUnassigned.textContent = String(unassignedCount);
@@ -1327,7 +1314,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return true;
             });
 
-            const groupRank = { blocked: 0, in_progress: 1, unassigned: 2, recent: 3 };
+            const groupRank = { in_progress: 0, unassigned: 1, recent: 2 };
             const sortedAttention = [...filtered].sort((a, b) => {
                 const rankA = groupRank[a.group] ?? 99;
                 const rankB = groupRank[b.group] ?? 99;
@@ -1431,9 +1418,6 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             renderList(sortedAttention, statusAttentionList, statusAttentionEmpty, statusAttentionCount, 'elementos');
-
-            const blockedItems = sortActivities(filtered.filter((item) => item.status === 'Bloqueada'));
-            renderList(blockedItems, statusBlockedList, statusBlockedEmpty, statusBlockedCount);
 
             const unassignedItems = sortActivities(filtered.filter((item) => item.supportsAssignee && !item.assigneeUid));
             renderList(unassignedItems, statusUnassignedList, statusUnassignedEmpty, statusUnassignedCount);
@@ -9392,6 +9376,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         addProjectBtn?.addEventListener('click', () => {
+            if (!currentUser) {
+                alert("Debes iniciar sesión para añadir proyectos.");
+                return;
+            }
+            openProjectModal();
+        });
+
+        treeCreateProjectBtn?.addEventListener('click', () => {
             if (!currentUser) {
                 alert("Debes iniciar sesión para añadir proyectos.");
                 return;

@@ -347,6 +347,10 @@
                          </div>
                          <div class="flex items-center gap-2">
                              <div id="activity-sort-projects" data-activity-sort class="relative"></div>
+                             <button id="tree-create-project-btn" type="button" class="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-semibold shadow-lg shadow-primary/20 transition-colors">
+                                 <span class="material-symbols-outlined text-[18px]">add</span>
+                                 Crear proyecto
+                             </button>
                              <button id="tree-expand-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
                                  <span id="tree-expand-icon" class="material-symbols-outlined text-[18px]">unfold_more</span>
                                  <span id="tree-expand-label">Expandir todo</span>
@@ -415,11 +419,7 @@
                             <p id="status-scope-subtitle" class="text-text-muted text-sm mt-2">Visión operativa del trabajo activo y los puntos que requieren atención.</p>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
-                                <p class="text-text-muted text-sm font-medium mb-2">Bloqueadas</p>
-                                <p id="status-metric-blocked" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
-                            </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-border-dark shadow-lg">
                                 <p class="text-text-muted text-sm font-medium mb-2">En curso</p>
                                 <p id="status-metric-inprogress-tasks" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
@@ -467,7 +467,6 @@
                                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">tune</span>
                                     <select id="status-filter-status" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-sm text-gray-900 dark:text-white pl-10 pr-3 focus:border-primary focus:ring-1 focus:ring-primary">
                                         <option value="all">Estado: Todos</option>
-                                        <option value="Bloqueada">Bloqueada</option>
                                         <option value="En proceso">En curso</option>
                                         <option value="Pendiente">Pendiente</option>
                                         <option value="Finalizado">Finalizado</option>
@@ -491,23 +490,13 @@
                             <p id="status-attention-empty" class="text-text-muted text-sm">No hay elementos que requieran atención.</p>
                         </div>
 
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-dark p-4 flex flex-col gap-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Bloqueadas</h4>
-                                    <span id="status-blocked-count" class="text-text-muted text-xs font-semibold">0</span>
-                                </div>
-                                <div id="status-blocked-list" class="flex flex-col gap-2"></div>
-                                <p id="status-blocked-empty" class="text-text-muted text-sm">Sin bloqueos activos.</p>
+                        <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-dark p-4 flex flex-col gap-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Sin asignar</h4>
+                                <span id="status-unassigned-count" class="text-text-muted text-xs font-semibold">0</span>
                             </div>
-                            <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-dark p-4 flex flex-col gap-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Sin asignar</h4>
-                                    <span id="status-unassigned-count" class="text-text-muted text-xs font-semibold">0</span>
-                                </div>
-                                <div id="status-unassigned-list" class="flex flex-col gap-2"></div>
-                                <p id="status-unassigned-empty" class="text-text-muted text-sm">Sin pendientes de asignación.</p>
-                            </div>
+                            <div id="status-unassigned-list" class="flex flex-col gap-2"></div>
+                            <p id="status-unassigned-empty" class="text-text-muted text-sm">Sin pendientes de asignación.</p>
                         </div>
                     </div>
                 </section>
