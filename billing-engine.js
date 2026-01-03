@@ -20,13 +20,14 @@ import { ref, get, set, update, push, onValue } from 'https://www.gstatic.com/fi
 export const DEFAULT_CURRENCY = 'EUR';
 
 export const DEFAULT_DEPARTMENTS = [
-    { key: 'Científico', label: 'Científico', defaultRate: 85 },
-    { key: 'Creativo', label: 'Creativo', defaultRate: 75 },
-    { key: 'PM', label: 'Project Manager', defaultRate: 65 },
-    { key: 'Diseño', label: 'Diseño', defaultRate: 70 },
-    { key: 'Desarrollo', label: 'Desarrollo', defaultRate: 80 },
-    { key: 'Marketing', label: 'Marketing', defaultRate: 60 },
-    { key: 'Default', label: 'Sin departamento', defaultRate: 50 }
+    { key: 'Científico', label: 'Científico', internalRate: 85, clientRate: 120 },
+    { key: 'Creativo', label: 'Creativo', internalRate: 75, clientRate: 110 },
+    { key: 'PM', label: 'Project Manager', internalRate: 65, clientRate: 95 },
+    { key: 'Diseño', label: 'Diseño', internalRate: 70, clientRate: 100 },
+    { key: 'Desarrollo', label: 'Desarrollo', internalRate: 80, clientRate: 115 },
+    { key: 'Marketing', label: 'Marketing', internalRate: 60, clientRate: 90 },
+    { key: 'Medical', label: 'Medical', internalRate: 90, clientRate: 130 },
+    { key: 'Default', label: 'Sin departamento', internalRate: 50, clientRate: 75 }
 ];
 
 // ============================================
@@ -66,19 +67,27 @@ export async function loadBillingConfig() {
 }
 
 /**
- * Guarda una tarifa por departamento
+ * Guarda una tarifa por departamento con coste interno y precio cliente
  * @param {string} departmentKey
- * @param {number} hourlyRate
+ * @param {number} internalRate - Coste interno €/hora
+ * @param {number} clientRate - Precio cliente €/hora
  * @param {string} currency
  */
-export async function saveRate(departmentKey, hourlyRate, currency = DEFAULT_CURRENCY) {
-    if (!departmentKey || hourlyRate < 0) {
+export async function saveRate(departmentKey, internalRate, clientRate = null, currency = DEFAULT_CURRENCY) {
+    if (!departmentKey || internalRate < 0) {
         throw new Error('Datos de tarifa inválidos');
     }
 
+    // Si solo se pasa un valor (retrocompatibilidad), usarlo para ambos
+    const internalRateNum = Number(internalRate) || 0;
+    const clientRateNum = clientRate !== null ? Number(clientRate) || 0 : internalRateNum * 1.5;
+
     const rateRef = ref(database, `billing/rates/${departmentKey}`);
     await set(rateRef, {
-        hourlyRate: Number(hourlyRate),
+        internalRateEurPerHour: internalRateNum,
+        clientRateEurPerHour: clientRateNum,
+        // Mantener hourlyRate para retrocompatibilidad
+        hourlyRate: internalRateNum,
         currency,
         updatedAt: new Date().toISOString()
     });
@@ -115,7 +124,9 @@ export async function initializeDefaultRates() {
         const updates = {};
         DEFAULT_DEPARTMENTS.forEach(dept => {
             updates[`billing/rates/${dept.key}`] = {
-                hourlyRate: dept.defaultRate,
+                internalRateEurPerHour: dept.internalRate,
+                clientRateEurPerHour: dept.clientRate,
+                hourlyRate: dept.internalRate, // Retrocompatibilidad
                 currency: DEFAULT_CURRENCY,
                 updatedAt: new Date().toISOString()
             };
@@ -123,7 +134,9 @@ export async function initializeDefaultRates() {
 
         updates['billing/settings'] = {
             defaultDepartmentKey: 'Default',
-            defaultHourlyRate: 50,
+            defaultInternalRate: 50,
+            defaultClientRate: 75,
+            defaultHourlyRate: 50, // Retrocompatibilidad
             currency: DEFAULT_CURRENCY,
             updatedAt: new Date().toISOString()
         };
@@ -138,17 +151,22 @@ export async function initializeDefaultRates() {
 // ============================================
 
 /**
- * Obtiene la tarifa horaria para un usuario
+ * Obtiene las tarifas horarias para un usuario
  * @param {string} uid
  * @param {Object} usersMap - { uid: userData }
- * @param {Object} rates - { departmentKey: { hourlyRate } }
- * @param {Object} settings - { defaultHourlyRate }
- * @returns {Object} - { hourlyRate, department, hasRate }
+ * @param {Object} rates - { departmentKey: { internalRateEurPerHour, clientRateEurPerHour } }
+ * @param {Object} settings - { defaultInternalRate, defaultClientRate }
+ * @returns {Object} - { internalRate, clientRate, hourlyRate, department, hasRate }
  */
 export function getHourlyRateForUid(uid, usersMap, rates, settings) {
+    const defaultInternalRate = settings?.defaultInternalRate || settings?.defaultHourlyRate || 50;
+    const defaultClientRate = settings?.defaultClientRate || defaultInternalRate * 1.5;
+
     if (!uid || !usersMap[uid]) {
         return {
-            hourlyRate: settings?.defaultHourlyRate || 50,
+            internalRate: defaultInternalRate,
+            clientRate: defaultClientRate,
+            hourlyRate: defaultInternalRate, // Retrocompatibilidad
             department: null,
             hasRate: false
         };
@@ -158,8 +176,13 @@ export function getHourlyRateForUid(uid, usersMap, rates, settings) {
     const department = user.department || null;
 
     if (department && rates[department]) {
+        const rate = rates[department];
+        const internalRate = rate.internalRateEurPerHour || rate.hourlyRate || defaultInternalRate;
+        const clientRate = rate.clientRateEurPerHour || internalRate * 1.5;
         return {
-            hourlyRate: rates[department].hourlyRate || settings?.defaultHourlyRate || 50,
+            internalRate,
+            clientRate,
+            hourlyRate: internalRate, // Retrocompatibilidad
             department,
             hasRate: true
         };
@@ -167,7 +190,9 @@ export function getHourlyRateForUid(uid, usersMap, rates, settings) {
 
     // Usar tarifa por defecto
     return {
-        hourlyRate: settings?.defaultHourlyRate || 50,
+        internalRate: defaultInternalRate,
+        clientRate: defaultClientRate,
+        hourlyRate: defaultInternalRate, // Retrocompatibilidad
         department: department || null,
         hasRate: false
     };
@@ -221,6 +246,7 @@ export function formatCurrency(amount, currency = 'EUR') {
 
 /**
  * Calcula los costes de una actividad (tarea/subtarea)
+ * Incluye tanto coste interno como precio cliente
  * @param {Object} activity - { estimatedMinutes, spentMinutes, assigneeUid }
  * @param {Object} usersMap
  * @param {Object} rates
@@ -231,7 +257,7 @@ export function computeActivityCosts(activity, usersMap, rates, settings) {
     const estimatedMinutes = Number(activity.estimatedMinutes) || 0;
     const spentMinutes = Number(activity.spentMinutes) || 0;
 
-    const { hourlyRate, department, hasRate } = getHourlyRateForUid(
+    const { internalRate, clientRate, hourlyRate, department, hasRate } = getHourlyRateForUid(
         activity.assigneeUid,
         usersMap,
         rates,
@@ -241,20 +267,40 @@ export function computeActivityCosts(activity, usersMap, rates, settings) {
     const estimatedHours = minutesToHours(estimatedMinutes);
     const actualHours = minutesToHours(spentMinutes);
 
-    const estimatedCost = estimatedHours * hourlyRate;
-    const actualCost = actualHours * hourlyRate;
+    // Costes internos
+    const estimatedInternalCost = estimatedHours * internalRate;
+    const actualInternalCost = actualHours * internalRate;
+
+    // Precios cliente
+    const estimatedClientCost = estimatedHours * clientRate;
+    const actualClientCost = actualHours * clientRate;
+
+    // Retrocompatibilidad
+    const estimatedCost = estimatedInternalCost;
+    const actualCost = actualInternalCost;
 
     return {
         estimatedMinutes,
         spentMinutes,
         estimatedHours,
         actualHours,
+        // Costes internos
+        estimatedInternalCost,
+        actualInternalCost,
+        internalRate,
+        // Precios cliente
+        estimatedClientCost,
+        actualClientCost,
+        clientRate,
+        // Retrocompatibilidad
         estimatedCost,
         actualCost,
         hourlyRate,
+        // Metadatos
         department,
         hasRate,
-        difference: actualCost - estimatedCost
+        difference: actualInternalCost - estimatedInternalCost,
+        margin: actualClientCost - actualInternalCost
     };
 }
 
@@ -283,6 +329,13 @@ export function aggregateBillingData(clients, usersMap, rates, settings, filters
     let totals = {
         estimatedMinutes: 0,
         spentMinutes: 0,
+        // Costes internos
+        estimatedInternalCost: 0,
+        actualInternalCost: 0,
+        // Precios cliente
+        estimatedClientCost: 0,
+        actualClientCost: 0,
+        // Retrocompatibilidad
         estimatedCost: 0,
         actualCost: 0,
         taskCount: 0,
@@ -299,6 +352,10 @@ export function aggregateBillingData(clients, usersMap, rates, settings, filters
                 department: key,
                 estimatedMinutes: 0,
                 spentMinutes: 0,
+                estimatedInternalCost: 0,
+                actualInternalCost: 0,
+                estimatedClientCost: 0,
+                actualClientCost: 0,
                 estimatedCost: 0,
                 actualCost: 0,
                 count: 0
@@ -306,6 +363,10 @@ export function aggregateBillingData(clients, usersMap, rates, settings, filters
         }
         byDepartment[key].estimatedMinutes += costs.estimatedMinutes;
         byDepartment[key].spentMinutes += costs.spentMinutes;
+        byDepartment[key].estimatedInternalCost += costs.estimatedInternalCost || costs.estimatedCost || 0;
+        byDepartment[key].actualInternalCost += costs.actualInternalCost || costs.actualCost || 0;
+        byDepartment[key].estimatedClientCost += costs.estimatedClientCost || 0;
+        byDepartment[key].actualClientCost += costs.actualClientCost || 0;
         byDepartment[key].estimatedCost += costs.estimatedCost;
         byDepartment[key].actualCost += costs.actualCost;
         byDepartment[key].count++;
@@ -470,10 +531,19 @@ export function aggregateBillingData(clients, usersMap, rates, settings, filters
                 parentTotals.spentMinutes += costs.spentMinutes;
                 parentTotals.estimatedCost += costs.estimatedCost;
                 parentTotals.actualCost += costs.actualCost;
+                parentTotals.estimatedInternalCost = (parentTotals.estimatedInternalCost || 0) + (costs.estimatedInternalCost || 0);
+                parentTotals.actualInternalCost = (parentTotals.actualInternalCost || 0) + (costs.actualInternalCost || 0);
+                parentTotals.estimatedClientCost = (parentTotals.estimatedClientCost || 0) + (costs.estimatedClientCost || 0);
+                parentTotals.actualClientCost = (parentTotals.actualClientCost || 0) + (costs.actualClientCost || 0);
+
                 totals.estimatedMinutes += costs.estimatedMinutes;
                 totals.spentMinutes += costs.spentMinutes;
                 totals.estimatedCost += costs.estimatedCost;
                 totals.actualCost += costs.actualCost;
+                totals.estimatedInternalCost += costs.estimatedInternalCost || 0;
+                totals.actualInternalCost += costs.actualInternalCost || 0;
+                totals.estimatedClientCost += costs.estimatedClientCost || 0;
+                totals.actualClientCost += costs.actualClientCost || 0;
                 totals.subtaskCount++;
 
                 addToDepartment(costs.department, costs);
@@ -540,10 +610,19 @@ export function aggregateBillingData(clients, usersMap, rates, settings, filters
             parentTotals.spentMinutes += costs.spentMinutes;
             parentTotals.estimatedCost += costs.estimatedCost;
             parentTotals.actualCost += costs.actualCost;
+            parentTotals.estimatedInternalCost = (parentTotals.estimatedInternalCost || 0) + (costs.estimatedInternalCost || 0);
+            parentTotals.actualInternalCost = (parentTotals.actualInternalCost || 0) + (costs.actualInternalCost || 0);
+            parentTotals.estimatedClientCost = (parentTotals.estimatedClientCost || 0) + (costs.estimatedClientCost || 0);
+            parentTotals.actualClientCost = (parentTotals.actualClientCost || 0) + (costs.actualClientCost || 0);
+
             totals.estimatedMinutes += costs.estimatedMinutes;
             totals.spentMinutes += costs.spentMinutes;
             totals.estimatedCost += costs.estimatedCost;
             totals.actualCost += costs.actualCost;
+            totals.estimatedInternalCost += costs.estimatedInternalCost || 0;
+            totals.actualInternalCost += costs.actualInternalCost || 0;
+            totals.estimatedClientCost += costs.estimatedClientCost || 0;
+            totals.actualClientCost += costs.actualClientCost || 0;
             totals.taskCount++;
 
             addToDepartment(costs.department, costs);
@@ -611,7 +690,7 @@ export function aggregateBillingData(clients, usersMap, rates, settings, filters
  * @returns {Object}
  */
 export function generateInvoiceData(options, clients, usersMap, rates, settings) {
-    const { clientId, dateFrom, dateTo, useActual = true, onlyCompleted = false } = options;
+    const { clientId, dateFrom, dateTo, useActual = true, onlyCompleted = false, useClientRate = true } = options;
 
     // Filtrar cliente
     const targetClients = clientId
@@ -634,6 +713,15 @@ export function generateInvoiceData(options, clients, usersMap, rates, settings)
 
     const client = clients.find(c => c.id === clientId);
 
+    // Determinar qué tarifa usar: cliente o interna
+    const getRateForLine = (item) => useClientRate ? (item.clientRate || item.hourlyRate) : (item.internalRate || item.hourlyRate);
+    const getCostForLine = (item) => {
+        if (useActual) {
+            return useClientRate ? (item.actualClientCost || item.actualCost) : (item.actualInternalCost || item.actualCost);
+        }
+        return useClientRate ? (item.estimatedClientCost || item.estimatedCost) : (item.estimatedInternalCost || item.estimatedCost);
+    };
+
     return {
         invoiceDate: new Date().toISOString(),
         client: {
@@ -646,9 +734,11 @@ export function generateInvoiceData(options, clients, usersMap, rates, settings)
         },
         useActual,
         onlyCompleted,
+        useClientRate,
         currency: settings.currency || DEFAULT_CURRENCY,
         lines: lineItems.map(item => ({
             type: item.type,
+            id: item.id,
             name: item.name,
             parentTaskName: item.parentTaskName,
             projectName: item.projectName,
@@ -656,25 +746,48 @@ export function generateInvoiceData(options, clients, usersMap, rates, settings)
             department: item.department || 'Sin departamento',
             hours: useActual ? item.actualHours : item.estimatedHours,
             minutes: useActual ? item.spentMinutes : item.estimatedMinutes,
-            hourlyRate: item.hourlyRate,
-            subtotal: useActual ? item.actualCost : item.estimatedCost,
-            manageId: item.manageId
+            internalRate: item.internalRate || item.hourlyRate,
+            clientRate: item.clientRate || item.hourlyRate,
+            hourlyRate: getRateForLine(item),
+            internalCost: useActual ? (item.actualInternalCost || item.actualCost) : (item.estimatedInternalCost || item.estimatedCost),
+            clientCost: useActual ? (item.actualClientCost || item.actualCost) : (item.estimatedClientCost || item.estimatedCost),
+            subtotal: getCostForLine(item),
+            manageId: item.manageId,
+            selected: true // Para selección de líneas
         })),
         totals: {
+            estimatedMinutes: billingData.totals.estimatedMinutes,
+            spentMinutes: billingData.totals.spentMinutes,
             hours: useActual
                 ? minutesToHours(billingData.totals.spentMinutes)
                 : minutesToHours(billingData.totals.estimatedMinutes),
-            amount: useActual
-                ? billingData.totals.actualCost
-                : billingData.totals.estimatedCost
+            estimatedInternalCost: billingData.totals.estimatedInternalCost,
+            actualInternalCost: billingData.totals.actualInternalCost,
+            estimatedClientCost: billingData.totals.estimatedClientCost,
+            actualClientCost: billingData.totals.actualClientCost,
+            amount: useClientRate
+                ? (useActual ? billingData.totals.actualClientCost : billingData.totals.estimatedClientCost)
+                : (useActual ? billingData.totals.actualInternalCost : billingData.totals.estimatedInternalCost),
+            // Retrocompatibilidad
+            estimatedCost: billingData.totals.estimatedCost,
+            actualCost: billingData.totals.actualCost
         },
         byDepartment: billingData.byDepartment.map(dept => ({
             department: dept.department,
             hours: useActual
                 ? minutesToHours(dept.spentMinutes)
                 : minutesToHours(dept.estimatedMinutes),
-            amount: useActual ? dept.actualCost : dept.estimatedCost
-        }))
+            internalCost: useActual ? dept.actualInternalCost : dept.estimatedInternalCost,
+            clientCost: useActual ? dept.actualClientCost : dept.estimatedClientCost,
+            amount: useClientRate
+                ? (useActual ? dept.actualClientCost : dept.estimatedClientCost)
+                : (useActual ? dept.actualInternalCost : dept.estimatedInternalCost),
+            // Retrocompatibilidad
+            estimatedCost: dept.estimatedCost,
+            actualCost: dept.actualCost
+        })),
+        rawTotals: billingData.totals,
+        rawByDepartment: billingData.byDepartment
     };
 }
 
@@ -813,12 +926,14 @@ export function generateInvoiceCSV(invoiceData) {
  * Genera CSV del desglose de facturación
  * @param {Object} billingData - resultado de aggregateBillingData
  * @param {Object} settings
+ * @param {Object} options - { includeHierarchy: boolean }
  * @returns {string}
  */
-export function generateBillingReportCSV(billingData, settings) {
+export function generateBillingReportCSV(billingData, settings, options = {}) {
     const lines = [];
     const sep = ';';
     const currency = settings?.currency || DEFAULT_CURRENCY;
+    const includeHierarchy = options.includeHierarchy || false;
 
     // Cabecera
     lines.push([
@@ -827,40 +942,122 @@ export function generateBillingReportCSV(billingData, settings) {
         'Proyecto',
         'Producto',
         'Tarea',
+        'Asignado',
         'Departamento',
         'Estado',
         'Prioridad',
-        'Horas Est.',
-        'Horas Real',
-        'Tarifa €/h',
-        `Coste Est. ${currency}`,
-        `Coste Real ${currency}`,
+        'Fecha',
+        'Minutos Est.',
+        'Minutos Real',
+        'Tarifa Interna €/h',
+        'Tarifa Cliente €/h',
+        `Coste Interno Est. ${currency}`,
+        `Coste Interno Real ${currency}`,
+        `Precio Cliente Est. ${currency}`,
+        `Precio Cliente Real ${currency}`,
         `Diferencia ${currency}`
     ].join(sep));
 
+    // Filtrar datos
+    const itemsToExport = includeHierarchy
+        ? billingData.items
+        : billingData.items.filter(item => item.type === 'task' || item.type === 'subtask');
+
     // Datos
-    billingData.items
-        .filter(item => item.type === 'task' || item.type === 'subtask')
-        .forEach(item => {
-            lines.push([
-                escapeCSV(item.type === 'task' ? 'Tarea' : 'Subtarea'),
-                escapeCSV(item.clientName),
-                escapeCSV(item.projectName),
-                escapeCSV(item.productName || ''),
-                escapeCSV(item.parentTaskName ? `${item.parentTaskName} > ${item.name}` : item.name),
-                escapeCSV(item.department || 'Sin departamento'),
-                escapeCSV(item.status),
-                escapeCSV(item.priority),
-                item.estimatedHours.toFixed(2),
-                item.actualHours.toFixed(2),
-                item.hourlyRate.toFixed(2),
-                item.estimatedCost.toFixed(2),
-                item.actualCost.toFixed(2),
-                item.difference.toFixed(2)
-            ].join(sep));
-        });
+    itemsToExport.forEach(item => {
+        lines.push([
+            escapeCSV(item.type === 'task' ? 'Tarea' : (item.type === 'subtask' ? 'Subtarea' : item.type)),
+            escapeCSV(item.clientName || ''),
+            escapeCSV(item.projectName || ''),
+            escapeCSV(item.productName || ''),
+            escapeCSV(item.parentTaskName ? `${item.parentTaskName} > ${item.name}` : item.name),
+            escapeCSV(item.assigneeUid || ''),
+            escapeCSV(item.department || 'Sin departamento'),
+            escapeCSV(item.status || ''),
+            escapeCSV(item.priority || ''),
+            escapeCSV(item.date || ''),
+            (item.estimatedMinutes || 0).toString(),
+            (item.spentMinutes || 0).toString(),
+            (item.internalRate || item.hourlyRate || 0).toFixed(2),
+            (item.clientRate || item.hourlyRate || 0).toFixed(2),
+            (item.estimatedInternalCost || item.estimatedCost || 0).toFixed(2),
+            (item.actualInternalCost || item.actualCost || 0).toFixed(2),
+            (item.estimatedClientCost || 0).toFixed(2),
+            (item.actualClientCost || 0).toFixed(2),
+            (item.difference || 0).toFixed(2)
+        ].join(sep));
+    });
 
     return lines.join('\n');
+}
+
+/**
+ * Genera JSON del desglose de facturación
+ * @param {Object} billingData - resultado de aggregateBillingData
+ * @param {Object} settings
+ * @param {Object} options - { includeHierarchy: boolean }
+ * @returns {string}
+ */
+export function generateBillingReportJSON(billingData, settings, options = {}) {
+    const includeHierarchy = options.includeHierarchy || false;
+
+    const itemsToExport = includeHierarchy
+        ? billingData.items
+        : billingData.items.filter(item => item.type === 'task' || item.type === 'subtask');
+
+    const exportData = {
+        exportDate: new Date().toISOString(),
+        currency: settings?.currency || DEFAULT_CURRENCY,
+        totals: billingData.totals,
+        byDepartment: billingData.byDepartment,
+        items: itemsToExport.map(item => ({
+            type: item.type,
+            id: item.id,
+            name: item.name,
+            clientId: item.clientId,
+            clientName: item.clientName,
+            projectId: item.projectId,
+            projectName: item.projectName,
+            productId: item.productId,
+            productName: item.productName,
+            parentTaskName: item.parentTaskName,
+            assigneeUid: item.assigneeUid,
+            department: item.department,
+            status: item.status,
+            priority: item.priority,
+            date: item.date,
+            estimatedMinutes: item.estimatedMinutes,
+            spentMinutes: item.spentMinutes,
+            internalRate: item.internalRate || item.hourlyRate,
+            clientRate: item.clientRate || item.hourlyRate,
+            estimatedInternalCost: item.estimatedInternalCost || item.estimatedCost,
+            actualInternalCost: item.actualInternalCost || item.actualCost,
+            estimatedClientCost: item.estimatedClientCost,
+            actualClientCost: item.actualClientCost
+        }))
+    };
+
+    return JSON.stringify(exportData, null, 2);
+}
+
+/**
+ * Descarga un archivo JSON
+ * @param {string} jsonContent
+ * @param {string} filename
+ */
+export function downloadJSON(jsonContent, filename) {
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
 }
 
 /**
@@ -949,7 +1146,9 @@ export default {
     generateInvoiceData,
     generateInvoiceCSV,
     generateBillingReportCSV,
+    generateBillingReportJSON,
     downloadCSV,
+    downloadJSON,
     saveInvoiceSnapshot,
     loadSavedInvoices
 };

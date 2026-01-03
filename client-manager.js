@@ -14,7 +14,9 @@ import {
     generateInvoiceData,
     generateInvoiceCSV,
     generateBillingReportCSV,
+    generateBillingReportJSON,
     downloadCSV,
+    downloadJSON,
     formatCurrency,
     formatDuration,
     minutesToHours,
@@ -419,23 +421,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // Billing modals
     const billingRatesModal = document.getElementById('billing-rates-modal');
     const billingRatesTableBody = document.getElementById('billing-rates-table-body');
-    const billingDefaultRate = document.getElementById('billing-default-rate');
+    const billingDefaultInternalRate = document.getElementById('billing-default-internal-rate');
+    const billingDefaultClientRate = document.getElementById('billing-default-client-rate');
     const billingNewDept = document.getElementById('billing-new-dept');
-    const billingNewRate = document.getElementById('billing-new-rate');
+    const billingNewInternalRate = document.getElementById('billing-new-internal-rate');
+    const billingNewClientRate = document.getElementById('billing-new-client-rate');
     const billingAddRateBtn = document.getElementById('billing-add-rate-btn');
     const billingRatesSaveBtn = document.getElementById('billing-rates-save-btn');
     const billingRatesCancelBtn = document.getElementById('billing-rates-cancel-btn');
     const closeRatesModalBtn = document.getElementById('close-rates-modal-btn');
+    const ratesSaveSpinner = document.getElementById('rates-save-spinner');
+    // Export modal
+    const billingExportModal = document.getElementById('billing-export-modal');
+    const closeExportModalBtn = document.getElementById('close-export-modal-btn');
+    const billingExportCancelBtn = document.getElementById('billing-export-cancel-btn');
+    const billingExportDownloadBtn = document.getElementById('billing-export-download-btn');
+    const exportPreviewCount = document.getElementById('export-preview-count');
+    // Invoice modal
     const billingInvoiceModal = document.getElementById('billing-invoice-modal');
+    const invoiceNumber = document.getElementById('invoice-number');
+    const invoiceIssueDate = document.getElementById('invoice-issue-date');
     const invoiceClientSelect = document.getElementById('invoice-client-select');
     const invoiceDateFrom = document.getElementById('invoice-date-from');
     const invoiceDateTo = document.getElementById('invoice-date-to');
+    const invoiceCurrency = document.getElementById('invoice-currency');
+    const invoiceNotes = document.getElementById('invoice-notes');
     const invoicePreviewTotal = document.getElementById('invoice-preview-total');
     const invoicePreviewCount = document.getElementById('invoice-preview-count');
     const invoiceOnlyCompleted = document.getElementById('invoice-only-completed');
-    const billingInvoiceDownloadBtn = document.getElementById('billing-invoice-download-btn');
+    const invoiceLinesBody = document.getElementById('invoice-lines-body');
+    const invoiceSelectAll = document.getElementById('invoice-select-all');
+    const invoiceTotalAmount = document.getElementById('invoice-total-amount');
+    const invoiceTotalWarning = document.getElementById('invoice-total-warning');
     const billingInvoiceCancelBtn = document.getElementById('billing-invoice-cancel-btn');
     const closeInvoiceModalBtn = document.getElementById('close-invoice-modal-btn');
+    // Invoice preview modal
+    const invoicePreviewModal = document.getElementById('invoice-preview-modal');
+    const closePreviewModalBtn = document.getElementById('close-preview-modal-btn');
+    const invoicePrintBtn = document.getElementById('invoice-print-btn');
 
     const projectAutomationToggle = document.getElementById('project-automation-toggle');
     const projectAutomationPanel = document.getElementById('project-automation-panel');
@@ -4245,9 +4268,9 @@ document.addEventListener('DOMContentLoaded', () => {
             billingManageRatesBtn.addEventListener('click', openRatesModal);
         }
 
-        // Export button
+        // Export button - opens modal instead of direct download
         if (billingExportBtn) {
-            billingExportBtn.addEventListener('click', exportBillingReport);
+            billingExportBtn.addEventListener('click', openExportModal);
         }
 
         // Generate invoice button
@@ -4270,6 +4293,14 @@ document.addEventListener('DOMContentLoaded', () => {
             billingAddRateBtn.addEventListener('click', addNewRate);
         }
 
+        // Export modal buttons
+        [closeExportModalBtn, billingExportCancelBtn].forEach(btn => {
+            if (btn) btn.addEventListener('click', closeExportModal);
+        });
+        if (billingExportDownloadBtn) {
+            billingExportDownloadBtn.addEventListener('click', executeExport);
+        }
+
         // Invoice modal close buttons
         [closeInvoiceModalBtn, billingInvoiceCancelBtn].forEach(btn => {
             if (btn) btn.addEventListener('click', closeInvoiceModal);
@@ -4281,6 +4312,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const invoiceGenerateBtn = document.getElementById('invoice-generate-btn');
         const invoiceCloseBtn = document.getElementById('invoice-close-btn');
         const invoiceDownloadCsvBtn = document.getElementById('invoice-download-csv-btn');
+        const invoicePreviewBtn = document.getElementById('invoice-preview-btn');
+        const invoicePreviewFinalBtn = document.getElementById('invoice-preview-final-btn');
 
         if (invoiceNextBtn) {
             invoiceNextBtn.addEventListener('click', invoiceWizardNext);
@@ -4296,6 +4329,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (invoiceDownloadCsvBtn) {
             invoiceDownloadCsvBtn.addEventListener('click', downloadCurrentInvoice);
+        }
+        if (invoicePreviewBtn) {
+            invoicePreviewBtn.addEventListener('click', openInvoicePreview);
+        }
+        if (invoicePreviewFinalBtn) {
+            invoicePreviewFinalBtn.addEventListener('click', openInvoicePreview);
+        }
+
+        // Invoice preview modal buttons
+        if (closePreviewModalBtn) {
+            closePreviewModalBtn.addEventListener('click', closeInvoicePreview);
+        }
+        if (invoicePrintBtn) {
+            invoicePrintBtn.addEventListener('click', printInvoice);
         }
 
         // Invoice form changes - update preview
@@ -4321,9 +4368,12 @@ document.addEventListener('DOMContentLoaded', () => {
         billingSettings = config.settings;
         pendingRateChanges = {};
 
-        // Populate default rate
-        if (billingDefaultRate) {
-            billingDefaultRate.value = billingSettings.defaultHourlyRate || 50;
+        // Populate default rates
+        if (billingDefaultInternalRate) {
+            billingDefaultInternalRate.value = billingSettings.defaultInternalRate || billingSettings.defaultHourlyRate || 50;
+        }
+        if (billingDefaultClientRate) {
+            billingDefaultClientRate.value = billingSettings.defaultClientRate || (billingSettings.defaultHourlyRate || 50) * 1.5;
         }
 
         // Render rates table
@@ -4345,7 +4395,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rateEntries.length === 0) {
             billingRatesTableBody.innerHTML = `
                 <tr>
-                    <td colspan="3" class="px-4 py-4 text-center text-text-muted text-sm">
+                    <td colspan="4" class="px-4 py-4 text-center text-text-muted text-sm">
                         No hay tarifas configuradas. Agrega una nueva tarifa.
                     </td>
                 </tr>
@@ -4353,15 +4403,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        billingRatesTableBody.innerHTML = rateEntries.map(([deptKey, rate]) => `
+        billingRatesTableBody.innerHTML = rateEntries.map(([deptKey, rate]) => {
+            const internalRate = rate.internalRateEurPerHour || rate.hourlyRate || 0;
+            const clientRate = rate.clientRateEurPerHour || internalRate * 1.5;
+            return `
             <tr data-dept="${deptKey}">
                 <td class="px-4 py-3">
                     <span class="font-medium text-gray-900 dark:text-white">${deptKey}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                    <input type="number" min="0" step="0.01" value="${rate.hourlyRate || 0}"
-                           class="rate-input w-24 h-9 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-right text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                           data-dept="${deptKey}">
+                    <input type="number" min="0" step="0.01" value="${internalRate}"
+                           class="internal-rate-input w-24 h-9 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-right text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                           data-dept="${deptKey}" data-type="internal">
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <input type="number" min="0" step="0.01" value="${clientRate}"
+                           class="client-rate-input w-24 h-9 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-right text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                           data-dept="${deptKey}" data-type="client">
                 </td>
                 <td class="px-4 py-3 text-center">
                     <button type="button" class="delete-rate-btn size-8 rounded-full hover:bg-red-500/10 text-red-400 hover:text-red-500 transition-colors" data-dept="${deptKey}">
@@ -4369,13 +4427,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
 
         // Add event listeners for rate inputs
-        billingRatesTableBody.querySelectorAll('.rate-input').forEach(input => {
+        billingRatesTableBody.querySelectorAll('.internal-rate-input, .client-rate-input').forEach(input => {
             input.addEventListener('change', (e) => {
                 const dept = e.target.dataset.dept;
-                pendingRateChanges[dept] = Number(e.target.value) || 0;
+                const type = e.target.dataset.type;
+                if (!pendingRateChanges[dept]) {
+                    pendingRateChanges[dept] = {
+                        internal: billingRates[dept]?.internalRateEurPerHour || billingRates[dept]?.hourlyRate || 0,
+                        client: billingRates[dept]?.clientRateEurPerHour || 0
+                    };
+                }
+                if (type === 'internal') {
+                    pendingRateChanges[dept].internal = Number(e.target.value) || 0;
+                } else {
+                    pendingRateChanges[dept].client = Number(e.target.value) || 0;
+                }
             });
         });
 
@@ -4386,6 +4455,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (confirm(`¿Eliminar la tarifa para "${dept}"?`)) {
                     await deleteRate(dept);
                     delete billingRates[dept];
+                    delete pendingRateChanges[dept];
                     renderRatesTable();
                 }
             });
@@ -4394,15 +4464,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const addNewRate = async () => {
         const deptName = billingNewDept?.value?.trim();
-        const rate = Number(billingNewRate?.value) || 0;
+        const internalRate = Number(billingNewInternalRate?.value) || 0;
+        const clientRate = Number(billingNewClientRate?.value) || internalRate * 1.5;
 
         if (!deptName) {
             alert('Por favor ingresa un nombre de departamento');
             return;
         }
 
-        if (rate < 0) {
-            alert('La tarifa debe ser mayor o igual a 0');
+        if (internalRate < 0 || clientRate < 0) {
+            alert('Las tarifas deben ser mayores o iguales a 0');
             return;
         }
 
@@ -4411,44 +4482,138 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        await saveRate(deptName, rate);
-        billingRates[deptName] = { hourlyRate: rate };
+        await saveRate(deptName, internalRate, clientRate);
+        billingRates[deptName] = {
+            internalRateEurPerHour: internalRate,
+            clientRateEurPerHour: clientRate,
+            hourlyRate: internalRate
+        };
 
         // Clear inputs
         if (billingNewDept) billingNewDept.value = '';
-        if (billingNewRate) billingNewRate.value = '';
+        if (billingNewInternalRate) billingNewInternalRate.value = '';
+        if (billingNewClientRate) billingNewClientRate.value = '';
 
         renderRatesTable();
     };
 
     const saveRatesAndClose = async () => {
+        if (ratesSaveSpinner) ratesSaveSpinner.classList.remove('hidden');
+        if (billingRatesSaveBtn) billingRatesSaveBtn.disabled = true;
+
         try {
-            // Save default rate
-            const defaultRate = Number(billingDefaultRate?.value) || 50;
+            // Save default rates
+            const defaultInternalRate = Number(billingDefaultInternalRate?.value) || 50;
+            const defaultClientRate = Number(billingDefaultClientRate?.value) || defaultInternalRate * 1.5;
             await saveBillingSettings({
-                defaultHourlyRate: defaultRate,
+                defaultInternalRate,
+                defaultClientRate,
+                defaultHourlyRate: defaultInternalRate, // Retrocompatibilidad
                 currency: billingSettings.currency || 'EUR'
             });
-            billingSettings.defaultHourlyRate = defaultRate;
+            billingSettings.defaultInternalRate = defaultInternalRate;
+            billingSettings.defaultClientRate = defaultClientRate;
+            billingSettings.defaultHourlyRate = defaultInternalRate;
 
             // Save pending rate changes
-            for (const [dept, rate] of Object.entries(pendingRateChanges)) {
-                await saveRate(dept, rate);
-                billingRates[dept] = { ...billingRates[dept], hourlyRate: rate };
+            for (const [dept, rates] of Object.entries(pendingRateChanges)) {
+                await saveRate(dept, rates.internal, rates.client);
+                billingRates[dept] = {
+                    ...billingRates[dept],
+                    internalRateEurPerHour: rates.internal,
+                    clientRateEurPerHour: rates.client,
+                    hourlyRate: rates.internal
+                };
             }
 
             closeRatesModal();
             renderBilling(); // Refresh billing view with new rates
+
+            // Show toast
+            showToast('Tarifas actualizadas correctamente', 'success');
         } catch (error) {
             console.error('[BILLING] Error saving rates:', error);
-            alert('Error al guardar las tarifas');
+            alert('Error al guardar las tarifas: ' + error.message);
+        } finally {
+            if (ratesSaveSpinner) ratesSaveSpinner.classList.add('hidden');
+            if (billingRatesSaveBtn) billingRatesSaveBtn.disabled = false;
         }
+    };
+
+    // Toast helper
+    const showToast = (message, type = 'info') => {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all transform translate-y-0 ${
+            type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-primary'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    };
+
+    // ========== Export Modal Functions ==========
+    const openExportModal = () => {
+        if (!billingExportModal) return;
+
+        // Update preview count
+        if (exportPreviewCount && billingData) {
+            const activityCount = billingData.items.filter(i => i.type === 'task' || i.type === 'subtask').length;
+            exportPreviewCount.textContent = activityCount;
+        }
+
+        billingExportModal.classList.remove('hidden');
+    };
+
+    const closeExportModal = () => {
+        if (billingExportModal) billingExportModal.classList.add('hidden');
+    };
+
+    const executeExport = () => {
+        if (!billingData) {
+            alert('No hay datos para exportar');
+            return;
+        }
+
+        const format = document.querySelector('input[name="export-format"]:checked')?.value || 'csv';
+        const scope = document.querySelector('input[name="export-scope"]:checked')?.value || 'filtered';
+        const structure = document.querySelector('input[name="export-structure"]:checked')?.value || 'flat';
+
+        // Si scope es "all", recalcular sin filtros
+        let dataToExport = billingData;
+        if (scope === 'all') {
+            dataToExport = aggregateBillingData(allClients, usersByUid, billingRates, billingSettings, {});
+        }
+
+        const dateStr = new Date().toISOString().split('T')[0];
+        const includeHierarchy = structure === 'hierarchy';
+
+        if (format === 'csv') {
+            const csv = generateBillingReportCSV(dataToExport, billingSettings, { includeHierarchy });
+            downloadCSV(csv, `tamoe_facturacion_${dateStr}.csv`);
+        } else {
+            const json = generateBillingReportJSON(dataToExport, billingSettings, { includeHierarchy });
+            downloadJSON(json, `tamoe_facturacion_${dateStr}.json`);
+        }
+
+        closeExportModal();
+        showToast('Archivo descargado correctamente', 'success');
     };
 
     // ========== Invoice Wizard State & Functions ==========
     let invoiceWizardStep = 1;
     let currentInvoiceData = null;
     let lastSavedInvoiceId = null;
+    let lastSavedInvoiceNumber = null;
+    let invoiceGroupBy = 'project'; // 'project', 'product', 'activity'
+
+    const generateInvoiceNumber = () => {
+        const year = new Date().getFullYear();
+        const num = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
+        return `TAMOE-${year}-${num}`;
+    };
 
     const openInvoiceModal = () => {
         if (!billingInvoiceModal) return;
@@ -4457,8 +4622,22 @@ document.addEventListener('DOMContentLoaded', () => {
         invoiceWizardStep = 1;
         currentInvoiceData = null;
         lastSavedInvoiceId = null;
+        lastSavedInvoiceNumber = null;
+        invoiceGroupBy = 'project';
 
-        // Populate client selector
+        // Generate invoice number
+        if (invoiceNumber) invoiceNumber.value = generateInvoiceNumber();
+
+        // Set today as issue date
+        if (invoiceIssueDate) invoiceIssueDate.value = new Date().toISOString().split('T')[0];
+
+        // Set currency
+        if (invoiceCurrency) invoiceCurrency.value = billingSettings.currency || 'EUR';
+
+        // Clear notes
+        if (invoiceNotes) invoiceNotes.value = '';
+
+        // Populate client selector and preselect if filter is set
         if (invoiceClientSelect) {
             invoiceClientSelect.innerHTML = '<option value="">Selecciona un cliente</option>';
             allClients.forEach(client => {
@@ -4467,11 +4646,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.textContent = client.name || client.id;
                 invoiceClientSelect.appendChild(opt);
             });
+            // Preselect from billing filter
+            if (billingFilters.clientId) {
+                invoiceClientSelect.value = billingFilters.clientId;
+            }
         }
 
-        // Reset form
-        if (invoiceDateFrom) invoiceDateFrom.value = '';
-        if (invoiceDateTo) invoiceDateTo.value = '';
+        // Preload dates from billing filters
+        if (invoiceDateFrom) invoiceDateFrom.value = billingFilters.dateFrom || '';
+        if (invoiceDateTo) invoiceDateTo.value = billingFilters.dateTo || '';
         if (invoiceOnlyCompleted) invoiceOnlyCompleted.checked = false;
 
         // Clear errors
@@ -4537,8 +4720,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update step label
         const labels = {
-            1: 'Paso 1 de 3: Configuración',
-            2: 'Paso 2 de 3: Resumen',
+            1: 'Paso 1 de 3: Datos de Factura',
+            2: 'Paso 2 de 3: Líneas de Factura',
             3: 'Paso 3 de 3: Resultado'
         };
         if (stepLabel) stepLabel.textContent = labels[invoiceWizardStep];
@@ -4583,15 +4766,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
 
             currentInvoiceData = generateInvoiceData(
-                { clientId, dateFrom, dateTo, useActual, onlyCompleted },
+                { clientId, dateFrom, dateTo, useActual, onlyCompleted, useClientRate: true },
                 allClients,
                 usersByUid,
                 billingRates,
                 billingSettings
             );
 
-            // Populate step 2 summary
-            renderInvoiceSummary();
+            // Store additional data
+            currentInvoiceData.invoiceNumber = invoiceNumber?.value || generateInvoiceNumber();
+            currentInvoiceData.issueDate = invoiceIssueDate?.value || new Date().toISOString().split('T')[0];
+            currentInvoiceData.notes = invoiceNotes?.value || '';
+            currentInvoiceData.currency = invoiceCurrency?.value || 'EUR';
+
+            // Populate step 2 with lines
+            renderInvoiceLines();
 
             invoiceWizardStep = 2;
             updateInvoiceWizardUI();
@@ -4605,40 +4794,112 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const renderInvoiceSummary = () => {
+    const renderInvoiceLines = () => {
         if (!currentInvoiceData) return;
 
-        const { totals, byDepartment, lines, client } = currentInvoiceData;
+        const { totals, byDepartment, lines, client, rawTotals } = currentInvoiceData;
+        const currency = currentInvoiceData.currency || billingSettings.currency || 'EUR';
 
         // KPIs
         const estHours = document.getElementById('invoice-summary-est-hours');
         const realHours = document.getElementById('invoice-summary-real-hours');
-        const estCost = document.getElementById('invoice-summary-est-cost');
-        const realCost = document.getElementById('invoice-summary-real-cost');
-        const summaryCount = document.getElementById('invoice-summary-count');
+        const internalCost = document.getElementById('invoice-summary-internal-cost');
+        const clientCost = document.getElementById('invoice-summary-client-cost');
 
-        if (estHours) estHours.textContent = formatDuration(totals.estimatedMinutes || 0, 'decimal') + 'h';
-        if (realHours) realHours.textContent = formatDuration(totals.spentMinutes || 0, 'decimal') + 'h';
-        if (estCost) estCost.textContent = formatCurrency(totals.estimatedCost || 0, billingSettings.currency);
-        if (realCost) realCost.textContent = formatCurrency(totals.actualCost || totals.amount || 0, billingSettings.currency);
-        if (summaryCount) summaryCount.textContent = lines.length;
+        if (estHours) estHours.textContent = (minutesToHours(rawTotals?.estimatedMinutes || totals.estimatedMinutes || 0)).toFixed(1) + 'h';
+        if (realHours) realHours.textContent = (minutesToHours(rawTotals?.spentMinutes || totals.spentMinutes || 0)).toFixed(1) + 'h';
+        if (internalCost) internalCost.textContent = formatCurrency(rawTotals?.actualInternalCost || totals.actualInternalCost || 0, currency);
+        if (clientCost) clientCost.textContent = formatCurrency(rawTotals?.actualClientCost || totals.actualClientCost || totals.amount || 0, currency);
 
-        // By Department
-        const byDeptContainer = document.getElementById('invoice-summary-by-dept');
-        if (byDeptContainer) {
-            if (byDepartment && byDepartment.length > 0) {
-                byDeptContainer.innerHTML = byDepartment.map(d => `
-                    <div class="flex items-center justify-between p-2 rounded-lg bg-surface-dark/30">
-                        <span class="text-sm text-gray-900 dark:text-white">${d.department || 'Sin departamento'}</span>
-                        <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">${formatCurrency(d.actualCost || d.cost || 0, billingSettings.currency)}</span>
-                    </div>
+        // Render lines table
+        if (invoiceLinesBody) {
+            if (lines && lines.length > 0) {
+                invoiceLinesBody.innerHTML = lines.map((line, idx) => `
+                    <tr class="hover:bg-white/5" data-line-idx="${idx}">
+                        <td class="p-2 text-center">
+                            <input type="checkbox" class="invoice-line-check w-4 h-4 rounded text-primary border-border-dark focus:ring-primary" data-idx="${idx}" ${line.selected !== false ? 'checked' : ''}>
+                        </td>
+                        <td class="p-2 text-gray-900 dark:text-white">
+                            <div class="truncate max-w-[200px]" title="${line.projectName || ''} — ${line.name || ''}">
+                                ${line.projectName ? `<span class="text-text-muted">${line.projectName} ›</span> ` : ''}${line.name || '-'}
+                            </div>
+                        </td>
+                        <td class="p-2 text-right text-gray-900 dark:text-white">${(line.hours || 0).toFixed(2)}</td>
+                        <td class="p-2 text-right text-gray-900 dark:text-white">${(line.clientRate || line.hourlyRate || 0).toFixed(2)}</td>
+                        <td class="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">${formatCurrency(line.clientCost || line.subtotal || 0, currency)}</td>
+                    </tr>
                 `).join('');
+
+                // Add event listeners
+                invoiceLinesBody.querySelectorAll('.invoice-line-check').forEach(chk => {
+                    chk.addEventListener('change', (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        if (currentInvoiceData.lines[idx]) {
+                            currentInvoiceData.lines[idx].selected = e.target.checked;
+                            updateInvoiceTotals();
+                        }
+                    });
+                });
             } else {
-                byDeptContainer.innerHTML = '<p class="text-text-muted text-sm">Sin datos por departamento</p>';
+                invoiceLinesBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-text-muted">No hay actividades para facturar</td></tr>`;
             }
         }
 
-        // Items list
+        // Select all checkbox
+        if (invoiceSelectAll) {
+            invoiceSelectAll.checked = lines.every(l => l.selected !== false);
+            invoiceSelectAll.addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                currentInvoiceData.lines.forEach(line => line.selected = checked);
+                invoiceLinesBody?.querySelectorAll('.invoice-line-check').forEach(chk => chk.checked = checked);
+                updateInvoiceTotals();
+            });
+        }
+
+        // Group buttons
+        document.querySelectorAll('.invoice-group-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                invoiceGroupBy = e.target.dataset.group;
+                document.querySelectorAll('.invoice-group-btn').forEach(b => {
+                    b.classList.remove('border-primary', 'bg-primary/10', 'text-primary');
+                    b.classList.add('border-border-dark', 'text-text-muted');
+                });
+                e.target.classList.add('border-primary', 'bg-primary/10', 'text-primary');
+                e.target.classList.remove('border-border-dark', 'text-text-muted');
+                // Re-render with new grouping (simplified for now)
+                renderInvoiceLines();
+            });
+        });
+
+        updateInvoiceTotals();
+    };
+
+    const updateInvoiceTotals = () => {
+        if (!currentInvoiceData) return;
+
+        const currency = currentInvoiceData.currency || billingSettings.currency || 'EUR';
+        const selectedLines = currentInvoiceData.lines.filter(l => l.selected !== false);
+        const total = selectedLines.reduce((sum, l) => sum + (l.clientCost || l.subtotal || 0), 0);
+
+        if (invoiceTotalAmount) {
+            invoiceTotalAmount.textContent = formatCurrency(total, currency);
+        }
+
+        if (invoiceTotalWarning) {
+            invoiceTotalWarning.classList.toggle('hidden', total > 0);
+        }
+    };
+
+    // Legacy function for compatibility
+    const renderInvoiceSummary = () => {
+        renderInvoiceLines();
+    };
+
+    // Items list - legacy kept for backwards compatibility
+    const renderLegacyItems = () => {
+        if (!currentInvoiceData) return;
+        const { lines } = currentInvoiceData;
+        const currency = currentInvoiceData.currency || billingSettings.currency || 'EUR';
         const itemsContainer = document.getElementById('invoice-summary-items');
         if (itemsContainer) {
             if (lines && lines.length > 0) {
@@ -4657,26 +4918,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const generateAndSaveInvoice = async () => {
         if (!currentInvoiceData) return;
 
-        const generateBtn = document.getElementById('invoice-generate-btn');
-        if (generateBtn) {
-            generateBtn.disabled = true;
-            generateBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Generando...';
+        // Get selected lines only
+        const selectedLines = currentInvoiceData.lines.filter(l => l.selected !== false);
+        const total = selectedLines.reduce((sum, l) => sum + (l.clientCost || l.subtotal || 0), 0);
+
+        // Confirm if total is 0
+        if (total === 0) {
+            if (!confirm('La factura tiene total 0€. ¿Deseas crearla igualmente?')) {
+                return;
+            }
         }
 
+        const generateBtn = document.getElementById('invoice-generate-btn');
+        const generateSpinner = document.getElementById('invoice-generate-spinner');
+        const generateIcon = document.getElementById('invoice-generate-icon');
+
+        if (generateBtn) generateBtn.disabled = true;
+        if (generateSpinner) generateSpinner.classList.remove('hidden');
+        if (generateIcon) generateIcon.classList.add('hidden');
+
         try {
-            // Prepare invoice data for saving
             const clientId = invoiceClientSelect?.value || '';
             const dateFrom = invoiceDateFrom?.value || '';
             const dateTo = invoiceDateTo?.value || '';
             const onlyCompleted = invoiceOnlyCompleted?.checked || false;
             const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
+            const invNumber = currentInvoiceData.invoiceNumber || invoiceNumber?.value || generateInvoiceNumber();
+            const issueDate = currentInvoiceData.issueDate || invoiceIssueDate?.value || new Date().toISOString().split('T')[0];
+            const notes = currentInvoiceData.notes || invoiceNotes?.value || '';
+            const currency = currentInvoiceData.currency || invoiceCurrency?.value || 'EUR';
 
             const invoiceToSave = {
+                invoiceNumber: invNumber,
                 clientId,
                 clientName: allClients.find(c => c.id === clientId)?.name || clientId,
-                from: dateFrom,
-                to: dateTo,
-                currency: billingSettings.currency || 'EUR',
+                issueDate,
+                periodFrom: dateFrom,
+                periodTo: dateTo,
+                currency,
+                notes,
+                status: 'draft',
                 createdAt: new Date().toISOString(),
                 createdBy: currentUser?.uid || 'unknown',
                 useActual,
@@ -4684,53 +4965,131 @@ document.addEventListener('DOMContentLoaded', () => {
                 totals: {
                     estimatedMinutes: currentInvoiceData.totals.estimatedMinutes || 0,
                     realMinutes: currentInvoiceData.totals.spentMinutes || 0,
-                    estimatedCost: currentInvoiceData.totals.estimatedCost || 0,
-                    realCost: currentInvoiceData.totals.actualCost || currentInvoiceData.totals.amount || 0
+                    estimatedInternalCost: currentInvoiceData.totals.estimatedInternalCost || 0,
+                    actualInternalCost: currentInvoiceData.totals.actualInternalCost || 0,
+                    estimatedClientCost: currentInvoiceData.totals.estimatedClientCost || 0,
+                    actualClientCost: currentInvoiceData.totals.actualClientCost || 0,
+                    subtotal: total,
+                    total: total
                 },
                 byDepartment: (currentInvoiceData.byDepartment || []).reduce((acc, d) => {
                     acc[d.department || 'Default'] = {
                         estMinutes: d.estimatedMinutes || 0,
                         realMinutes: d.spentMinutes || 0,
-                        estCost: d.estimatedCost || 0,
-                        realCost: d.actualCost || d.cost || 0
+                        internalCost: d.internalCost || d.actualCost || 0,
+                        clientCost: d.clientCost || d.amount || 0
                     };
                     return acc;
                 }, {}),
-                items: (currentInvoiceData.lines || []).map(line => ({
+                lines: selectedLines.map(line => ({
                     type: line.type || 'task',
-                    id: line.id || line.taskId || '',
-                    name: line.name || line.taskName || '',
+                    id: line.id || '',
+                    name: line.name || '',
+                    projectName: line.projectName || '',
+                    productName: line.productName || '',
                     department: line.department || 'Default',
-                    estimatedMinutes: line.estimatedMinutes || 0,
-                    realMinutes: line.spentMinutes || 0,
-                    estimatedCost: line.estimatedCost || 0,
-                    realCost: line.cost || 0,
-                    path: line.path || ''
+                    hours: line.hours || 0,
+                    internalRate: line.internalRate || 0,
+                    clientRate: line.clientRate || line.hourlyRate || 0,
+                    internalCost: line.internalCost || 0,
+                    clientCost: line.clientCost || line.subtotal || 0
                 })),
                 filtersSnapshot: { clientId, dateFrom, dateTo, onlyCompleted, useActual }
             };
 
             // Save to Firebase
             lastSavedInvoiceId = await saveInvoiceSnapshot(invoiceToSave);
+            lastSavedInvoiceNumber = invNumber;
             console.log('[BILLING] Invoice saved with ID:', lastSavedInvoiceId);
 
             // Update result display
+            const resultNumber = document.getElementById('invoice-result-number');
             const resultId = document.getElementById('invoice-result-id');
+            if (resultNumber) resultNumber.textContent = invNumber;
             if (resultId) resultId.textContent = lastSavedInvoiceId;
 
             // Move to step 3
             invoiceWizardStep = 3;
             updateInvoiceWizardUI();
 
+            showToast('Factura creada correctamente', 'success');
+
         } catch (error) {
             console.error('[BILLING] Error saving invoice:', error);
             alert('Error al guardar la factura: ' + error.message);
         } finally {
-            if (generateBtn) {
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">receipt_long</span> Generar Factura';
-            }
+            if (generateBtn) generateBtn.disabled = false;
+            if (generateSpinner) generateSpinner.classList.add('hidden');
+            if (generateIcon) generateIcon.classList.remove('hidden');
         }
+    };
+
+    // Invoice Preview Functions
+    const openInvoicePreview = () => {
+        if (!currentInvoiceData || !invoicePreviewModal) return;
+
+        const selectedLines = currentInvoiceData.lines.filter(l => l.selected !== false);
+        const total = selectedLines.reduce((sum, l) => sum + (l.clientCost || l.subtotal || 0), 0);
+        const currency = currentInvoiceData.currency || billingSettings.currency || 'EUR';
+
+        // Populate preview
+        const previewNumber = document.getElementById('preview-invoice-number');
+        const previewNumberPrint = document.getElementById('preview-invoice-number-print');
+        const previewClientName = document.getElementById('preview-client-name');
+        const previewIssueDate = document.getElementById('preview-issue-date');
+        const previewPeriod = document.getElementById('preview-period');
+        const previewLinesBody = document.getElementById('preview-lines-body');
+        const previewSubtotal = document.getElementById('preview-subtotal');
+        const previewTotal = document.getElementById('preview-total');
+        const previewNotesSection = document.getElementById('preview-notes-section');
+        const previewNotes = document.getElementById('preview-notes');
+
+        const invNumber = currentInvoiceData.invoiceNumber || invoiceNumber?.value || '-';
+        if (previewNumber) previewNumber.textContent = invNumber;
+        if (previewNumberPrint) previewNumberPrint.textContent = invNumber;
+        if (previewClientName) previewClientName.textContent = currentInvoiceData.client?.name || '-';
+        if (previewIssueDate) previewIssueDate.textContent = formatDateES(currentInvoiceData.issueDate || invoiceIssueDate?.value);
+        if (previewPeriod) previewPeriod.textContent = `${formatDateES(currentInvoiceData.period?.from || invoiceDateFrom?.value)} - ${formatDateES(currentInvoiceData.period?.to || invoiceDateTo?.value)}`;
+
+        if (previewLinesBody) {
+            previewLinesBody.innerHTML = selectedLines.map(line => `
+                <tr>
+                    <td class="px-4 py-3 text-gray-700">
+                        ${line.projectName ? `<span class="text-gray-400">${line.projectName} ›</span> ` : ''}${line.name || '-'}
+                    </td>
+                    <td class="px-4 py-3 text-right text-gray-700">${(line.hours || 0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-right text-gray-700">${formatCurrency(line.clientRate || line.hourlyRate || 0, currency)}</td>
+                    <td class="px-4 py-3 text-right font-medium text-gray-900">${formatCurrency(line.clientCost || line.subtotal || 0, currency)}</td>
+                </tr>
+            `).join('');
+        }
+
+        if (previewSubtotal) previewSubtotal.textContent = formatCurrency(total, currency);
+        if (previewTotal) previewTotal.textContent = formatCurrency(total, currency);
+
+        const notes = currentInvoiceData.notes || invoiceNotes?.value || '';
+        if (notes && previewNotesSection && previewNotes) {
+            previewNotesSection.classList.remove('hidden');
+            previewNotes.textContent = notes;
+        } else if (previewNotesSection) {
+            previewNotesSection.classList.add('hidden');
+        }
+
+        invoicePreviewModal.classList.remove('hidden');
+    };
+
+    const closeInvoicePreview = () => {
+        if (invoicePreviewModal) invoicePreviewModal.classList.add('hidden');
+    };
+
+    const printInvoice = () => {
+        window.print();
+    };
+
+    const formatDateES = (dateStr) => {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
 
     const downloadCurrentInvoice = () => {
