@@ -793,6 +793,77 @@
             return 'Pendiente';
         };
 
+        // ========== FUNCIONES DE PARSEO DE DURACIÓN ==========
+        /**
+         * Parsea una cadena de duración a minutos.
+         * Soporta: "1h 30m", "1h30m", "90m", "1.5h", "1:30", "90"
+         * @param {string} input - La cadena a parsear
+         * @returns {number|null} - Minutos o null si inválido
+         */
+        const parseDurationToMinutes = (input) => {
+            if (input === null || input === undefined) return null;
+            const str = String(input).trim().toLowerCase();
+            if (!str) return 0; // Vacío = 0 minutos
+
+            let totalMinutes = 0;
+            let matched = false;
+
+            // Patrón 1: "1h 30m", "2h", "45m", "1h30m"
+            const hPattern = /(\d+(?:\.\d+)?)\s*h/g;
+            const mPattern = /(\d+(?:\.\d+)?)\s*m/g;
+
+            let hMatch;
+            while ((hMatch = hPattern.exec(str)) !== null) {
+                totalMinutes += parseFloat(hMatch[1]) * 60;
+                matched = true;
+            }
+
+            let mMatch;
+            while ((mMatch = mPattern.exec(str)) !== null) {
+                totalMinutes += parseFloat(mMatch[1]);
+                matched = true;
+            }
+
+            if (matched) {
+                return Math.round(totalMinutes);
+            }
+
+            // Patrón 2: "1:30" (hh:mm)
+            const colonMatch = str.match(/^(\d+):(\d{1,2})$/);
+            if (colonMatch) {
+                const hours = parseInt(colonMatch[1], 10);
+                const mins = parseInt(colonMatch[2], 10);
+                if (mins < 60) {
+                    return hours * 60 + mins;
+                }
+            }
+
+            // Patrón 3: Número solo (interpretar como minutos)
+            const numMatch = str.match(/^(\d+(?:\.\d+)?)$/);
+            if (numMatch) {
+                return Math.round(parseFloat(numMatch[1]));
+            }
+
+            // No se pudo parsear
+            return null;
+        };
+
+        /**
+         * Formatea minutos a una cadena legible.
+         * @param {number} mins - Minutos totales
+         * @returns {string} - Cadena formateada (ej: "1h 30m")
+         */
+        const formatMinutesToDuration = (mins) => {
+            if (mins === null || mins === undefined || isNaN(mins)) return '';
+            const total = Math.round(mins);
+            if (total <= 0) return '';
+            const h = Math.floor(total / 60);
+            const m = total % 60;
+            if (h > 0 && m > 0) return `${h}h ${m}m`;
+            if (h > 0) return `${h}h`;
+            return `${m}m`;
+        };
+
         const getInitials = (value) => {
             const text = String(value || '').trim();
             if (!text) return '?';
@@ -2427,12 +2498,14 @@
 
         const createChildActivity = async ({ label, path, type }) => {
             if (!currentUser) {
-                alert('Debes iniciar sesi\u00F3n para crear actividades.');
+                alert('Debes iniciar sesión para crear actividades.');
                 return;
             }
-            // ✅ USAR MODAL EN LUGAR DE PROMPT
-            const name = await openCreateActivityModal(label);
-            if (!name) return; // Usuario canceló
+            // ✅ USAR MODAL CON CAMPOS DE TIEMPO Y ASIGNACIÓN
+            const result = await openCreateActivityModal(label, type);
+            if (!result || !result.name) return; // Usuario canceló o nombre vacío
+
+            const { name, estimatedMinutes, assigneeUid } = result;
             const safePath = String(path || '').trim();
             if (!safePath) return;
 
@@ -2451,9 +2524,16 @@
                     manageId: manageIdValue,
                     [idField]: newRef.key
                 };
+
+                // ✅ Agregar campos de asignación y tiempo estimado para tareas/subtareas
                 if (type === 'task' || type === 'subtask') {
-                    data.assigneeUid = '';
+                    data.assigneeUid = assigneeUid || '';
+                    if (typeof estimatedMinutes === 'number' && estimatedMinutes > 0) {
+                        data.estimatedMinutes = estimatedMinutes;
+                    }
                 }
+
+                console.log('[CREATE ACTIVITY] Guardando en Firebase:', { path: safePath, data });
                 await set(newRef, data);
                 await loadData();
 
@@ -4102,20 +4182,57 @@
         // Variables globales para el modal de creación
         let createActivityResolve = null;
         let createActivityReject = null;
+        let createActivityCurrentType = null; // 'task' | 'subtask' | 'project' | 'product'
 
-        // Abrir modal de creación de actividad
-        const openCreateActivityModal = (label) => {
+        /**
+         * Pobla el selector de usuarios del modal de creación
+         */
+        const populateActivityAssigneeSelect = () => {
+            const select = document.getElementById('activity-assignee-select');
+            if (!select) return;
+
+            // Limpiar opciones excepto la primera (Sin asignar)
+            select.innerHTML = '<option value="">Sin asignar</option>';
+
+            // Agregar usuarios
+            if (usersByUid && typeof usersByUid === 'object') {
+                Object.entries(usersByUid).forEach(([uid, user]) => {
+                    const displayName = user?.username || user?.email || uid;
+                    const department = user?.department ? ` (${user.department})` : '';
+                    const option = document.createElement('option');
+                    option.value = uid;
+                    option.textContent = `${displayName}${department}`;
+                    select.appendChild(option);
+                });
+            }
+        };
+
+        /**
+         * Abrir modal de creación de actividad
+         * @param {string} label - Etiqueta del tipo (ej: 'tarea', 'subtarea', 'proyecto')
+         * @param {string} type - Tipo de actividad ('task', 'subtask', 'project', 'product')
+         * @returns {Promise<{name: string, estimatedMinutes: number|null, assigneeUid: string}|null>}
+         */
+        const openCreateActivityModal = (label, type = null) => {
             return new Promise((resolve, reject) => {
                 const modal = document.getElementById('create-activity-modal');
                 const title = document.getElementById('create-activity-title');
                 const nameLabel = document.getElementById('activity-name-label');
                 const nameInput = document.getElementById('activity-name-input');
                 const form = document.getElementById('create-activity-form');
+                const estimatedContainer = document.getElementById('activity-estimated-container');
+                const estimatedInput = document.getElementById('activity-estimated-input');
+                const estimatedError = document.getElementById('activity-estimated-error');
+                const assigneeContainer = document.getElementById('activity-assignee-container');
+                const assigneeSelect = document.getElementById('activity-assignee-select');
 
                 if (!modal || !title || !nameLabel || !nameInput || !form) {
                     reject(new Error('Modal elements not found'));
                     return;
                 }
+
+                // Guardar el tipo actual
+                createActivityCurrentType = type;
 
                 // Configurar textos según el tipo
                 const labelCapitalized = label.charAt(0).toUpperCase() + label.slice(1);
@@ -4123,8 +4240,25 @@
                 nameLabel.textContent = `Nombre del ${labelCapitalized}`;
                 nameInput.placeholder = `Escribe el nombre del ${label}...`;
 
-                // Limpiar input
+                // Limpiar inputs
                 nameInput.value = '';
+                if (estimatedInput) estimatedInput.value = '';
+                if (assigneeSelect) assigneeSelect.value = '';
+                if (estimatedError) estimatedError.classList.add('hidden');
+
+                // Mostrar/ocultar campos según el tipo (solo para task y subtask)
+                const showExtraFields = type === 'task' || type === 'subtask';
+                if (estimatedContainer) {
+                    estimatedContainer.classList.toggle('hidden', !showExtraFields);
+                }
+                if (assigneeContainer) {
+                    assigneeContainer.classList.toggle('hidden', !showExtraFields);
+                }
+
+                // Poblar el selector de usuarios si es tarea o subtarea
+                if (showExtraFields) {
+                    populateActivityAssigneeSelect();
+                }
 
                 // Guardar resolve/reject
                 createActivityResolve = resolve;
@@ -4138,21 +4272,32 @@
             });
         };
 
-        // Cerrar modal de creación de actividad
-        const closeCreateActivityModal = (name = null) => {
+        /**
+         * Cerrar modal de creación de actividad
+         * @param {Object|null} result - Objeto con los datos del formulario o null si canceló
+         */
+        const closeCreateActivityModal = (result = null) => {
             const modal = document.getElementById('create-activity-modal');
             const nameInput = document.getElementById('activity-name-input');
+            const estimatedInput = document.getElementById('activity-estimated-input');
+            const estimatedError = document.getElementById('activity-estimated-error');
+            const assigneeSelect = document.getElementById('activity-assignee-select');
 
             if (modal) {
                 modal.classList.add('hidden');
             }
 
-            if (nameInput) {
-                nameInput.value = '';
-            }
+            // Limpiar todos los inputs
+            if (nameInput) nameInput.value = '';
+            if (estimatedInput) estimatedInput.value = '';
+            if (assigneeSelect) assigneeSelect.value = '';
+            if (estimatedError) estimatedError.classList.add('hidden');
+
+            // Resetear tipo
+            createActivityCurrentType = null;
 
             if (createActivityResolve) {
-                createActivityResolve(name);
+                createActivityResolve(result);
                 createActivityResolve = null;
                 createActivityReject = null;
             }
@@ -4177,8 +4322,46 @@
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const nameInput = document.getElementById('activity-name-input');
+                    const estimatedInput = document.getElementById('activity-estimated-input');
+                    const estimatedError = document.getElementById('activity-estimated-error');
+                    const assigneeSelect = document.getElementById('activity-assignee-select');
+
                     const name = nameInput?.value?.trim() || '';
-                    closeCreateActivityModal(name);
+                    if (!name) return; // No permitir nombre vacío
+
+                    // Validar tiempo estimado si hay valor
+                    let estimatedMinutes = 0;
+                    const estimatedValue = estimatedInput?.value?.trim() || '';
+                    if (estimatedValue) {
+                        const parsed = parseDurationToMinutes(estimatedValue);
+                        if (parsed === null) {
+                            // Error de parseo
+                            if (estimatedError) {
+                                estimatedError.classList.remove('hidden');
+                            }
+                            estimatedInput?.focus();
+                            return; // No cerrar modal
+                        }
+                        estimatedMinutes = parsed;
+                    }
+
+                    // Ocultar error si había
+                    if (estimatedError) {
+                        estimatedError.classList.add('hidden');
+                    }
+
+                    // Obtener asignación
+                    const assigneeUid = assigneeSelect?.value || '';
+
+                    // Crear resultado
+                    const result = {
+                        name,
+                        estimatedMinutes,
+                        assigneeUid
+                    };
+
+                    console.log('[CREATE ACTIVITY] Resultado del modal:', result);
+                    closeCreateActivityModal(result);
                 });
             }
 
@@ -4187,6 +4370,17 @@
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
                         closeCreateActivityModal(null);
+                    }
+                });
+            }
+
+            // Limpiar error al escribir en el campo de tiempo
+            const estimatedInput = document.getElementById('activity-estimated-input');
+            if (estimatedInput) {
+                estimatedInput.addEventListener('input', () => {
+                    const estimatedError = document.getElementById('activity-estimated-error');
+                    if (estimatedError) {
+                        estimatedError.classList.add('hidden');
                     }
                 });
             }
@@ -4209,6 +4403,7 @@
             </div>
             <form id="create-activity-form">
                 <div class="flex flex-col gap-4">
+                    <!-- Nombre (obligatorio) -->
                     <div>
                         <label for="activity-name-input" id="activity-name-label" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Actividad</label>
                         <input
@@ -4220,6 +4415,30 @@
                             class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                             placeholder="Escribe el nombre..."
                         />
+                    </div>
+                    <!-- Tiempo estimado (opcional) -->
+                    <div id="activity-estimated-container" class="hidden">
+                        <label for="activity-estimated-input" class="text-sm font-medium text-text-muted mb-2 block">Tiempo estimado</label>
+                        <input
+                            type="text"
+                            id="activity-estimated-input"
+                            name="activity-estimated"
+                            autocomplete="off"
+                            class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            placeholder="Ej: 1h 30m, 2h, 45m"
+                        />
+                        <p id="activity-estimated-error" class="text-xs text-red-500 mt-1 hidden">Formato inválido. Usa formatos como: 1h 30m, 2h, 45m, 90</p>
+                    </div>
+                    <!-- Asignación (opcional) -->
+                    <div id="activity-assignee-container" class="hidden">
+                        <label for="activity-assignee-select" class="text-sm font-medium text-text-muted mb-2 block">Asignar a</label>
+                        <select
+                            id="activity-assignee-select"
+                            name="activity-assignee"
+                            class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        >
+                            <option value="">Sin asignar</option>
+                        </select>
                     </div>
                     <div class="flex justify-end gap-4 mt-4">
                         <button
