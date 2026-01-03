@@ -329,7 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchResultsEmpty = document.getElementById('search-results-empty');
     const tamoeHomeButton = document.getElementById('tamoe-home');
     const activityPathEls = Array.from(document.querySelectorAll('[data-activity-path]'));
-    const statusMetricBlocked = document.getElementById('status-metric-blocked');
     const statusMetricPendingTasks = document.getElementById('status-metric-pending-tasks');
     const statusMetricInProgressTasks = document.getElementById('status-metric-inprogress-tasks');
     const statusMetricUnassigned = document.getElementById('status-metric-unassigned');
@@ -339,9 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusAttentionList = document.getElementById('status-attention-list');
     const statusAttentionEmpty = document.getElementById('status-attention-empty');
     const statusAttentionCount = document.getElementById('status-attention-count');
-    const statusBlockedList = document.getElementById('status-blocked-list');
-    const statusBlockedEmpty = document.getElementById('status-blocked-empty');
-    const statusBlockedCount = document.getElementById('status-blocked-count');
     const statusUnassignedList = document.getElementById('status-unassigned-list');
     const statusUnassignedEmpty = document.getElementById('status-unassigned-empty');
     const statusUnassignedCount = document.getElementById('status-unassigned-count');
@@ -1040,7 +1036,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (
                 !statusAttentionList &&
-                !statusMetricBlocked &&
                 !statusMetricPendingTasks &&
                 !statusMetricInProgressTasks &&
                 !statusMetricUnassigned &&
@@ -1060,7 +1055,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const RECENT_WINDOW_DAYS = 14;
             const recentCutoff = Date.now() - (RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
             const attentionItems = [];
-            let blockedCount = 0;
             let pendingCount = 0;
             let inProgressCount = 0;
             let unassignedCount = 0;
@@ -1089,20 +1083,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const activityDate = parseActivityTimestamp(activityValue) || 0;
                 const assignee = String(assigneeUid || '').trim();
                 const isUnassigned = Boolean(supportsAssignee) && !assignee;
-                const isBlocked = normalizedStatus === 'Bloqueada';
                 const isInProgress = normalizedStatus === 'En proceso';
                 const isPending = normalizedStatus === 'Pendiente';
                 const isRecent = activityDate >= recentCutoff;
 
-                if (isBlocked) blockedCount += 1;
                 if (isInProgress) inProgressCount += 1;
                 if (isPending) pendingCount += 1;
                 if (isUnassigned) unassignedCount += 1;
                 if (isRecent) recentCount += 1;
 
                 let group = null;
-                if (isBlocked) group = 'blocked';
-                else if (isInProgress) group = 'in_progress';
+                if (isInProgress) group = 'in_progress';
                 else if (isUnassigned) group = 'unassigned';
                 else if (isPending && isRecent) group = 'recent';
 
@@ -1255,7 +1246,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            if (statusMetricBlocked) statusMetricBlocked.textContent = String(blockedCount);
             if (statusMetricPendingTasks) statusMetricPendingTasks.textContent = String(pendingCount);
             if (statusMetricInProgressTasks) statusMetricInProgressTasks.textContent = String(inProgressCount);
             if (statusMetricUnassigned) statusMetricUnassigned.textContent = String(unassignedCount);
@@ -1431,9 +1421,6 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             renderList(sortedAttention, statusAttentionList, statusAttentionEmpty, statusAttentionCount, 'elementos');
-
-            const blockedItems = sortActivities(filtered.filter((item) => item.status === 'Bloqueada'));
-            renderList(blockedItems, statusBlockedList, statusBlockedEmpty, statusBlockedCount);
 
             const unassignedItems = sortActivities(filtered.filter((item) => item.supportsAssignee && !item.assigneeUid));
             renderList(unassignedItems, statusUnassignedList, statusUnassignedEmpty, statusUnassignedCount);
@@ -6552,10 +6539,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                             selectedProductId = null;
                                             selectedTaskId = null;
                                             selectedSubtaskId = null;
-                                            if (projectDetail) projectDetail.classList.remove('hidden');
-                                            if (projectDetailName) projectDetailName.textContent = proj?.name || 'Selecciona un proyecto';
-                                            if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto.';
-                                            renderTasks(client.id, proj.id, null);
                                         }
                                         renderClients();
                                         renderTree();
@@ -6756,7 +6739,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (productClientNameHeader) productClientNameHeader.textContent = client.name;
         if (projectNameHeader) projectNameHeader.textContent = project.name;
 
-        if (projectDetail) projectDetail.classList.remove('hidden');
         if (projectDetailName) projectDetailName.textContent = project.name;
         const hasProducts = !!Object.keys(project.products || {}).length;
         if (projectDetailSub) {
@@ -6804,10 +6786,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebarAutoOpenKeys = new Set([`client:${clientId}`, `project:${clientId}:${projectId}`]);
         ensureClientManageConfig(clientId).catch(error => console.error('Error ensuring manageId config:', error));
 
-        if (projectDetail) projectDetail.classList.remove('hidden');
         if (projectDetailName) projectDetailName.textContent = product.name || 'Producto';
         if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
-        renderTasks(clientId, projectId, productId);
 
         showEl(treeView);
         hideEl(productListSection);
@@ -7090,10 +7070,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedProductId = prod.id;
                 selectedTaskId = null;
                 selectedSubtaskId = null;
-                if (projectDetail) projectDetail.classList.remove('hidden');
                 if (projectDetailName) projectDetailName.textContent = prod.name;
                 if (projectDetailSub) projectDetailSub.textContent = 'Tareas del producto.';
-                renderTasks(clientId, projectId, prod.id);
                 updateActivityPath();
                 renderStatusDashboard();
             });
@@ -7149,10 +7127,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             selectedProductId = null;
                             selectedTaskId = null;
                             selectedSubtaskId = null;
-                            if (projectDetail) projectDetail.classList.remove('hidden');
                             if (projectDetailName) projectDetailName.textContent = project?.name || 'Selecciona un proyecto';
                             if (projectDetailSub) projectDetailSub.textContent = 'Tareas del proyecto.';
-                            renderTasks(clientId, projectId, null);
                         }
                         renderClients();
                         renderTree();
@@ -8112,6 +8088,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
+            clientContent.appendChild(makeTreeActionRow([
+                {
+                    label: 'Crear proyecto',
+                    icon: 'layers',
+                    onClick: () => {
+                        showProjectView(client.id);
+                        openProjectModal();
+                    }
+                }
+            ], 1));
+
             clientDetails.appendChild(clientContent);
             treeBody.appendChild(clientDetails);
         });
@@ -8361,7 +8348,6 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedSubtaskId = null;
         }
 
-        if (projectDetail) projectDetail.classList.remove('hidden');
         if (selectedProductId) {
             const product = project.products?.[selectedProductId];
             if (projectDetailName) projectDetailName.textContent = product?.name || project.name;
