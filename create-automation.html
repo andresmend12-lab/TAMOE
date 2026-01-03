@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html class="dark" lang="es">
+<html lang="es">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Crear Nueva Automatización - TaskMaster</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect"/>
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Automatización - TAMOE</title>
+    <link rel="icon" href="imagotipo_tamoe.png" type="image/png"/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script id="tailwind-config">
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -17,14 +16,13 @@
                     colors: {
                         "primary": "#e619a1",
                         "primary-hover": "#c9168d",
-                        "background-light": "#ffffff",
-                        "background-dark": "#21111c",
-                        "surface-dark": "#2f1a28",
-                        "surface-darker": "#1a0d15",
-                        "border-dark": "#47243b",
-                        "text-muted": "#c893b6",
-                        "border-muted": "#5e3a50",
-                        "surface-input": "#3a2433",
+                        "background-light": "#f7f3f5",
+                        "background-dark": "#3a2a34",
+                        "surface-light": "#faf8f9",
+                        "surface-dark": "#4a3242",
+                        "surface-darker": "#402a3a",
+                        "border-dark": "#7a4666",
+                        "text-muted": "#e0b9d2",
                     },
                     fontFamily: { "display": ["Manrope", "sans-serif"] },
                     borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
@@ -33,20 +31,19 @@
         }
     </script>
     <style>
-        /* Custom scrollbar for webkit browsers */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        body:not(.dark) .text-text-muted { color: #6a3f59; }
+        body:not(.dark) .placeholder\:text-text-muted::placeholder { color: #6a3f59; }
+        .dark main :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select),
+        .dark header :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select) {
+            color: #ffffff !important;
+            font-weight: 700 !important;
         }
-        ::-webkit-scrollbar-track {
-            background: #21111c; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #5e3a50; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #e619a1; 
+        html.dark .material-symbols-outlined,
+        body.dark .material-symbols-outlined,
+        .dark header .material-symbols-outlined,
+        .dark main .material-symbols-outlined {
+            color: #f4b6d2 !important;
+            font-weight: 400 !important;
         }
         select {
             -webkit-appearance: none;
@@ -56,509 +53,296 @@
         summary::-webkit-details-marker { display: none; }
         summary::marker { content: ""; }
         summary { list-style: none; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f7f3f5; }
+        ::-webkit-scrollbar-thumb { background: #d1a5c4; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #e619a1; }
+        .dark ::-webkit-scrollbar-track { background: #3a2a34; }
+        .dark ::-webkit-scrollbar-thumb { background: #7a4666; }
     </style>
     <script src="auth-guard.js" type="module"></script>
 </head>
-<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden selection:bg-primary selection:text-white">
-<div class="flex h-screen w-full">
-<!-- SideNavBar -->
-<aside class="w-64 h-full flex flex-col bg-white dark:bg-surface-darker border-r border-border-dark flex-shrink-0 z-20">
-    <div id="client-view" class="flex flex-col h-full">
-        <div class="p-4 flex items-center justify-between gap-3 relative">
-            <div class="flex items-center gap-2">
-                <div id="sidebar-user-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat" aria-label="Usuario"></div>
-                <div class="flex flex-col">
-                    <h1 id="sidebar-user-name" class="text-gray-900 dark:text-white text-base font-bold leading-none tracking-wide">Loading...</h1>
-                    <p id="sidebar-user-department" class="text-text-muted text-xs font-normal mt-1">Loading...</p>
-                </div>
-            </div>
-            <button id="user-menu-toggle" class="flex items-center gap-1 text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors">
-                <span class="material-symbols-outlined text-[18px]">expand_more</span>
-            </button>
-            <div id="user-menu" class="hidden absolute top-14 right-4 w-44 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-30 text-gray-900 dark:text-white">
-                <a href="profile.html" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
-                    <span class="material-symbols-outlined text-[18px]">person</span>
-                    Editar perfil
-                </a>
-                <button id="logout-button" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left">
-                    <span class="material-symbols-outlined text-[18px]">logout</span>
-                    Cerrar Sesión
-                </button>
-            </div>
-        </div>
-        <div id="client-list-section" class="flex flex-col flex-1">
-            <div class="px-4 py-2">
-                <button id="add-client-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
-                    <span class="material-symbols-outlined text-[20px]">add</span>
-                    <span>Añadir Cliente</span>
-                </button>
-            </div>
-            <nav id="client-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-                <!-- Client links will be dynamically injected here -->
-            </nav>
-            <div class="px-2 py-2">
-                <div id="no-clients-message" class="px-3 py-2 text-sm text-text-muted">
-                    <div class="flex flex-col gap-2 animate-pulse">
-                        <div class="h-4 w-40 rounded bg-white/10"></div>
-                        <div class="h-3 w-28 rounded bg-white/5"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-900 dark:text-white min-h-screen">
 
-        <div id="project-list-section" class="hidden flex flex-col flex-1">
-            <div class="px-4 py-2 flex items-center gap-2">
-                <button id="back-to-clients-btn" class="flex items-center justify-center text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors" type="button" aria-label="Volver a clientes">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                </button>
-                <h2 id="client-name-header" class="text-gray-900 dark:text-white text-lg font-bold">Nombre del Cliente</h2>
+    <!-- Top Navigation -->
+    <header class="h-14 flex items-center justify-between px-6 border-b border-gray-200 dark:border-border-dark bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <a href="maindashboard.html" class="shrink-0 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60" aria-label="Ir al inicio">
+                <img src="logotipo_tamoe.png" alt="Tamoe" class="h-8 w-auto"/>
+            </a>
+            <div class="hidden sm:flex items-center gap-2 text-sm">
+                <a href="maindashboard.html" class="text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors">Dashboard</a>
+                <span class="material-symbols-outlined text-text-muted text-[16px]">chevron_right</span>
+                <a href="maindashboard.html#automatizaciones" class="text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors">Automatizaciones</a>
+                <span class="material-symbols-outlined text-text-muted text-[16px]">chevron_right</span>
+                <span class="text-gray-900 dark:text-white font-semibold" id="breadcrumb-current">Nueva</span>
             </div>
-            <div class="px-4 py-2">
-                <div class="flex flex-col gap-2">
-                    <button id="add-project-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-all shadow-lg shadow-primary/20">
-                        <span class="material-symbols-outlined text-[20px]">add</span>
-                        <span>Añadir Proyecto</span>
-                    </button>
-                </div>
-            </div>
-            <nav id="project-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-                <p id="no-projects-message" class="px-3 py-2 text-sm text-text-muted">No hay proyectos.</p>
-            </nav>
-        </div>
-
-        <div id="product-list-section" class="hidden flex flex-col flex-1">
-            <div class="px-4 py-2 flex items-center gap-2">
-                <span class="material-symbols-outlined text-text-muted">folder_open</span>
-                <h2 id="product-client-name-header" class="text-gray-900 dark:text-white text-lg font-bold">Nombre del Cliente</h2>
-            </div>
-            <div class="px-4 py-2 flex items-center gap-2">
-                <button id="back-to-projects-btn" class="flex items-center justify-center text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors" type="button" aria-label="Volver a proyectos">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                </button>
-                <h3 id="project-name-header" class="text-gray-900 dark:text-white text-base font-semibold">Nombre del Proyecto</h3>
-            </div>
-            <div class="px-4 py-2">
-                <button id="add-product-btn" class="flex w-full items-center justify-center gap-2 rounded-lg h-10 bg-white dark:bg-surface-dark hover:bg-gray-100 dark:hover:bg-border-dark text-gray-900 dark:text-white text-sm font-bold transition-all border border-border-dark">
-                    <span class="material-symbols-outlined text-[20px]">category</span>
-                    <span>Crear Producto</span>
-                </button>
-            </div>
-            <nav id="product-list-nav" class="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-                <p id="no-products-message" class="px-3 py-2 text-sm text-text-muted">No hay productos.</p>
-            </nav>
-        </div>
-    </div>
-</aside>
-<!-- Main Content Area -->
-<main class="flex-1 flex flex-col h-full overflow-hidden bg-[#261421] relative">
-    <!-- Header -->
-    <header class="flex items-center justify-between px-8 py-6 bg-background-dark/80 backdrop-blur-md sticky top-0 z-10 border-b border-border-muted">
-        <div>
-            <div class="flex items-center gap-2 text-sm text-primary font-medium mb-1">
-                <span class="material-symbols-outlined text-[18px]">bolt</span>
-                <span>Automatizaciones</span>
-                <span class="text-gray-500">/</span>
-                <span class="text-white">Nueva</span>
-            </div>
-            <h2 class="text-3xl font-black text-white tracking-tight">Crear Nueva Automatización</h2>
         </div>
         <div class="flex items-center gap-2">
-            <button id="theme-toggle" class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-                <span class="material-symbols-outlined">brightness_4</span>
+            <button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
+                <span class="material-symbols-outlined text-[20px]">brightness_4</span>
             </button>
-            <a href="maindashboard.html" id="close-ca-btn" class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-                <span class="material-symbols-outlined">close</span>
+            <a href="maindashboard.html" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors" title="Volver al Dashboard">
+                <span class="material-symbols-outlined text-[20px]">close</span>
             </a>
         </div>
     </header>
-    <!-- Scrollable Form Content -->
-    <div class="flex-1 overflow-y-auto p-8 flex justify-center">
-        <div class="w-full max-w-3xl flex flex-col gap-8 pb-20">
-            <!-- Name Section -->
-            <div class="flex flex-col gap-2">
-                <label class="text-sm font-bold uppercase tracking-wider text-gray-400" for="auto-name">Nombre</label>
-                <input autofocus="" class="w-full bg-transparent text-4xl font-bold text-white placeholder:text-white/20 border-0 border-b-2 border-border-muted focus:border-primary focus:ring-0 px-0 py-2 transition-colors" id="auto-name" placeholder="Ej. Notificar al gerente al completar" type="text"/>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+        <!-- Page Header -->
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined text-primary text-[20px]">bolt</span>
+                <span class="text-sm font-medium text-primary">Automatizaciones</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white" id="page-title">Nueva Automatización</h1>
+            <p class="text-text-muted text-sm mt-1">Define las reglas que automatizarán tu flujo de trabajo</p>
+        </div>
+
+        <!-- Name Input -->
+        <div class="mb-6">
+            <label class="text-xs font-bold uppercase tracking-wider text-text-muted mb-2 block" for="auto-name">Nombre de la automatización</label>
+            <input autofocus class="w-full h-12 bg-white dark:bg-surface-darker border border-gray-200 dark:border-border-dark rounded-xl px-4 text-lg font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" id="auto-name" placeholder="Ej. Notificar al gerente al completar tarea" type="text"/>
+        </div>
+
+        <!-- Workflow Container -->
+        <div id="workflow-container" class="flex flex-col gap-4">
+
+            <!-- Triggers Section -->
+            <div id="triggers-container">
+                <!-- Trigger blocks will be inserted here -->
             </div>
 
-            <!-- Workflow Visualizer -->
-            <div id="workflow-container" class="relative flex flex-col gap-0">
-                <!-- Connecting Line Background -->
-                <div id="workflow-line" class="absolute left-8 top-10 bottom-10 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-border-muted -z-0"></div>
+            <button id="add-trigger-btn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-muted hover:text-primary border border-dashed border-gray-300 dark:border-border-dark hover:border-primary rounded-xl transition-colors w-fit">
+                <span class="material-symbols-outlined text-lg">add</span>
+                Agregar disparador
+            </button>
 
-                <div id="triggers-container">
-                    <!-- Trigger blocks will be inserted here -->
-                </div>
-
-                <div class="py-6 flex justify-start pl-[22px] relative z-10">
-                    <button id="add-trigger-btn" class="size-10 rounded-full bg-surface-dark border-2 border-dashed border-gray-600 text-gray-400 flex items-center justify-center hover:border-primary hover:text-primary hover:scale-110 transition-all group" title="Agregar Disparador">
-                        <span class="material-symbols-outlined text-xl">add</span>
+            <!-- Conditions Section -->
+            <section id="conditions-section" class="rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-darker overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[20px]">filter_alt</span>
+                        <h3 class="text-sm font-bold text-amber-800 dark:text-amber-300">Solo si (Condiciones)</h3>
+                        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-200/50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">Opcional</span>
+                    </div>
+                    <button type="button" id="toggle-conditions-btn" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/10 transition-colors">
+                        <span class="material-symbols-outlined text-base" id="toggle-conditions-icon">add</span>
+                        <span id="toggle-conditions-text">Agregar</span>
                     </button>
                 </div>
 
-                <!-- Conditions Section (v2) -->
-                <div id="conditions-section" class="relative z-10 mb-4">
-                    <div class="flex items-start gap-6">
-                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-amber-500/30 flex items-center justify-center shadow-[0_0_15px_-3px_rgba(245,158,11,0.3)]">
-                            <span class="material-symbols-outlined text-amber-500 text-3xl">filter_alt</span>
+                <!-- Conditions Builder (hidden by default) -->
+                <div id="conditions-builder" class="hidden p-4">
+                    <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200 dark:border-border-dark">
+                        <span class="text-xs text-text-muted">Ejecutar si</span>
+                        <div class="flex rounded-lg overflow-hidden border border-gray-200 dark:border-border-dark">
+                            <button type="button" data-operator="AND" class="logical-op-btn px-3 py-1.5 text-xs font-semibold bg-primary text-white">TODAS</button>
+                            <button type="button" data-operator="OR" class="logical-op-btn px-3 py-1.5 text-xs font-semibold bg-gray-100 dark:bg-surface-dark text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-border-dark">ALGUNA</button>
                         </div>
-                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl">
-                            <div class="flex justify-between items-center mb-4">
-                                <div class="flex items-center gap-3">
-                                    <h3 class="text-xl font-bold text-white">Solo si (Condiciones)</h3>
-                                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">Opcional</span>
-                                </div>
-                                <button type="button" id="toggle-conditions-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
-                                    <span class="material-symbols-outlined text-lg" id="toggle-conditions-icon">add</span>
-                                    <span id="toggle-conditions-text">Agregar condiciones</span>
-                                </button>
-                            </div>
-
-                            <!-- Conditions Builder (hidden by default) -->
-                            <div id="conditions-builder" class="hidden">
-                                <!-- Logical operator selector -->
-                                <div class="flex items-center gap-3 mb-4 pb-4 border-b border-border-muted">
-                                    <span class="text-sm text-gray-400">Ejecutar si</span>
-                                    <div class="flex rounded-lg overflow-hidden border border-border-muted">
-                                        <button type="button" data-operator="AND" class="logical-op-btn px-4 py-2 text-sm font-semibold bg-primary text-white">TODAS</button>
-                                        <button type="button" data-operator="OR" class="logical-op-btn px-4 py-2 text-sm font-semibold bg-surface-input text-gray-400 hover:bg-white/10">ALGUNA</button>
-                                    </div>
-                                    <span class="text-sm text-gray-400">las condiciones se cumplen</span>
-                                </div>
-
-                                <!-- Condition rules container -->
-                                <div id="condition-rules-container" class="flex flex-col gap-3 mb-4">
-                                    <!-- Condition rules will be inserted here dynamically -->
-                                </div>
-
-                                <!-- Add condition button -->
-                                <button type="button" id="add-condition-btn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-400 hover:text-primary border border-dashed border-gray-600 hover:border-primary rounded-lg transition-colors">
-                                    <span class="material-symbols-outlined text-lg">add</span>
-                                    Agregar condición
-                                </button>
-                            </div>
-
-                            <!-- No conditions message -->
-                            <div id="no-conditions-message" class="text-sm text-gray-500 italic">
-                                Sin condiciones: la automatización se ejecutará siempre que ocurra el disparador.
-                            </div>
-                        </div>
+                        <span class="text-xs text-text-muted">las condiciones se cumplen</span>
                     </div>
-                </div>
 
-                <div id="actions-container">
-                    <!-- Action blocks will be inserted here -->
-                </div>
+                    <div id="condition-rules-container" class="flex flex-col gap-2 mb-3">
+                        <!-- Condition rules will be inserted here dynamically -->
+                    </div>
 
-                <!-- Add Action Connector -->
-                <div class="py-6 flex justify-start pl-[22px] relative z-10">
-                    <button id="add-action-btn" class="size-10 rounded-full bg-background-dark border-2 border-dashed border-gray-600 text-gray-400 flex items-center justify-center hover:border-primary hover:text-primary hover:scale-110 transition-all group" title="Agregar Acción">
-                        <span class="material-symbols-outlined text-xl">add</span>
+                    <button type="button" id="add-condition-btn" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-text-muted hover:text-primary border border-dashed border-gray-300 dark:border-border-dark hover:border-primary rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-base">add</span>
+                        Agregar condición
                     </button>
                 </div>
+
+                <!-- No conditions message -->
+                <div id="no-conditions-message" class="px-4 py-3 text-sm text-text-muted italic">
+                    Sin condiciones: la automatización se ejecutará siempre que ocurra el disparador.
+                </div>
+            </section>
+
+            <!-- Actions Section -->
+            <div id="actions-container">
+                <!-- Action blocks will be inserted here -->
             </div>
 
-            <!-- Templates (to be cloned by JS) -->
-            <template id="trigger-template">
-                <div class="group relative z-10 trigger-block mb-4">
-                    <div class="flex items-start gap-6">
-                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-primary/30 flex items-center justify-center shadow-[0_0_15px_-3px_rgba(230,25,161,0.3)]">
-                            <span class="material-symbols-outlined text-primary text-3xl">touch_app</span>
-                        </div>
-                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-xl font-bold text-white">Cuando (Disparador)</h3>
-                                <button type="button" class="delete-trigger-btn size-8 flex items-center justify-center rounded-full hover:bg-red-500/20 text-red-400 transition-colors" title="Eliminar Disparador">
-                                    <span class="material-symbols-outlined text-lg">delete</span>
-                                </button>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="flex flex-col gap-2">
-                                    <label class="text-sm font-medium text-gray-300">Tipo de Actividad</label>
-                                    <div class="relative">
-                                        <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer trigger-activity-type">
-                                            <option value="Project">Proyecto</option>
-                                            <option value="Product">Producto</option>
-                                            <option value="Task" selected>Tarea</option>
-                                        </select>
-                                        <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col gap-2">
-                                    <label class="text-sm font-medium text-gray-300">Tipo de Disparador</label>
-                                    <div class="relative">
-                                        <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer trigger-type">
-                                            <!-- Options populated by JS -->
-                                        </select>
-                                        <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
-                                    </div>
-                                </div>
-                                <div class="hidden grid-cols-2 gap-4 status-change-options md:col-span-2">
-                                    <div class="flex flex-col gap-2">
-                                        <label class="text-sm font-medium text-gray-300">De</label>
-                                        <div class="relative">
-                                            <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
-                                                <option>Pendiente</option>
-                                                <option>En Progreso</option>
-                                            </select>
-                                            <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col gap-2">
-                                        <label class="text-sm font-medium text-gray-300">A</label>
-                                        <div class="relative">
-                                            <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
-                                                <option>En Progreso</option>
-                                                <option>Finalizado</option>
-                                            </select>
-                                            <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <button id="add-action-btn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-muted hover:text-primary border border-dashed border-gray-300 dark:border-border-dark hover:border-primary rounded-xl transition-colors w-fit">
+                <span class="material-symbols-outlined text-lg">add</span>
+                Agregar acción
+            </button>
+        </div>
+
+        <!-- Scope Settings -->
+        <section class="mt-6 rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-darker p-4">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-primary text-[18px]">target</span>
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white">Ámbito de aplicación</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5">
+                    <label for="scope-client" class="text-xs font-medium text-text-muted">Cliente</label>
+                    <div class="relative">
+                        <select id="scope-client" class="w-full h-10 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-10 appearance-none cursor-pointer">
+                            <option value="">Cargando clientes...</option>
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-2.5 text-text-muted pointer-events-none text-[18px]">expand_more</span>
                     </div>
                 </div>
-            </template>
-
-            <template id="action-template">
-                 <div class="group relative z-10 action-block mb-4">
-                    <div class="flex items-start gap-6">
-                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-gray-700 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-white text-3xl">send</span>
-                        </div>
-                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-xl font-bold text-white">Entonces (Acción)</h3>
-                                <button type="button" class="delete-action-btn size-8 flex items-center justify-center rounded-full hover:bg-red-500/20 text-red-400 transition-colors" title="Eliminar Acción">
-                                    <span class="material-symbols-outlined text-lg">delete</span>
-                                </button>
-                            </div>
-                            <div class="flex flex-col gap-4">
-                                <div class="flex flex-col gap-2">
-                                    <label class="text-sm font-medium text-gray-300">Realizar acción</label>
-                                    <div class="relative">
-                                        <select class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer action-select">
-                                            <!-- Options will be dynamically populated by JS -->
-                                        </select>
-                                        <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
-                                    </div>
-                                </div>
-                                <div class="action-details"></div>
-                            </div>
-                        </div>
+                <div id="scope-projects-container" class="hidden flex flex-col gap-1.5 md:col-span-2">
+                    <label class="text-xs font-medium text-text-muted">Proyectos</label>
+                    <div id="scope-projects-list" class="max-h-40 overflow-y-auto p-3 bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-lg flex flex-col gap-2">
+                        <p class="text-text-muted text-xs">Selecciona un cliente para ver sus proyectos.</p>
                     </div>
                 </div>
-            </template>
+            </div>
+        </section>
 
-            <template id="condition-rule-template">
-                <div class="condition-rule flex items-center gap-3 p-3 bg-background-dark/50 rounded-lg border border-border-muted/50">
-                    <div class="flex-1 grid grid-cols-3 gap-3">
-                        <!-- Field selector -->
+        <!-- Footer Actions -->
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-border-dark flex items-center justify-end gap-3">
+            <a href="maindashboard.html" id="cancel-ca-btn" class="px-5 py-2.5 rounded-xl text-gray-700 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors">
+                Cancelar
+            </a>
+            <button id="save-ca-btn" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold shadow-lg shadow-primary/20 transition-all">
+                <span class="material-symbols-outlined text-[18px]">save</span>
+                Guardar
+            </button>
+        </div>
+    </main>
+
+    <!-- Templates (to be cloned by JS) -->
+    <template id="trigger-template">
+        <div class="trigger-block rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-darker overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-[20px]">touch_app</span>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white">Cuando (Disparador)</h3>
+                </div>
+                <button type="button" class="delete-trigger-btn size-7 flex items-center justify-center rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 text-red-500 transition-colors" title="Eliminar">
+                    <span class="material-symbols-outlined text-base">delete</span>
+                </button>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-medium text-text-muted">Tipo de Actividad</label>
+                    <div class="relative">
+                        <select class="w-full h-10 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-10 appearance-none cursor-pointer trigger-activity-type">
+                            <option value="Project">Proyecto</option>
+                            <option value="Product">Producto</option>
+                            <option value="Task" selected>Tarea</option>
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-2.5 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-medium text-text-muted">Tipo de Disparador</label>
+                    <div class="relative">
+                        <select class="w-full h-10 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-10 appearance-none cursor-pointer trigger-type">
+                            <!-- Options populated by JS -->
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-2.5 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+                    </div>
+                </div>
+                <div class="hidden grid-cols-2 gap-3 status-change-options md:col-span-2">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-medium text-text-muted">De</label>
                         <div class="relative">
-                            <select class="condition-field w-full h-10 rounded-lg bg-surface-input border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-8 appearance-none cursor-pointer">
-                                <!-- Options populated by JS based on trigger type -->
+                            <select class="w-full h-10 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-10 appearance-none cursor-pointer">
+                                <option>Pendiente</option>
+                                <option>En Progreso</option>
                             </select>
-                            <span class="material-symbols-outlined absolute right-2 top-2.5 text-gray-400 pointer-events-none text-sm">expand_more</span>
+                            <span class="material-symbols-outlined absolute right-3 top-2.5 text-text-muted pointer-events-none text-[18px]">expand_more</span>
                         </div>
-                        <!-- Operator selector -->
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-medium text-text-muted">A</label>
                         <div class="relative">
-                            <select class="condition-operator w-full h-10 rounded-lg bg-surface-input border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-8 appearance-none cursor-pointer">
-                                <!-- Options populated by JS based on field type -->
+                            <select class="w-full h-10 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-10 appearance-none cursor-pointer">
+                                <option>En Progreso</option>
+                                <option>Finalizado</option>
                             </select>
-                            <span class="material-symbols-outlined absolute right-2 top-2.5 text-gray-400 pointer-events-none text-sm">expand_more</span>
-                        </div>
-                        <!-- Value input -->
-                        <div class="condition-value-container">
-                            <input type="text" class="condition-value w-full h-10 rounded-lg bg-surface-input border border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary px-3" placeholder="Valor...">
-                        </div>
-                    </div>
-                    <button type="button" class="delete-condition-btn size-8 flex items-center justify-center rounded-full hover:bg-red-500/20 text-red-400 transition-colors" title="Eliminar condición">
-                        <span class="material-symbols-outlined text-lg">close</span>
-                    </button>
-                </div>
-            </template>
-            <!-- End Templates -->
-            <!-- Scope Settings -->
-            <div class="mt-4 pt-8 border-t border-border-muted">
-                <h3 class="text-lg font-bold text-white mb-4">Ámbito de aplicación</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="flex flex-col gap-2">
-                        <label for="scope-client" class="text-sm font-medium text-gray-300">1. Selecciona un Cliente</label>
-                        <div class="relative">
-                            <select id="scope-client" class="w-full h-12 rounded-lg bg-surface-input border-border-muted text-white focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
-                                <option value="">Cargando clientes...</option>
-                            </select>
-                            <span class="material-symbols-outlined absolute right-3 top-3 text-gray-400 pointer-events-none">expand_more</span>
-                        </div>
-                    </div>
-                    <div id="scope-projects-container" class="flex flex-col gap-2 md:col-span-2 hidden">
-                        <label class="text-sm font-medium text-gray-300">2. Selecciona Proyectos</label>
-                        <div id="scope-projects-list" class="max-h-60 overflow-y-auto p-4 bg-surface-input border border-border-muted rounded-lg flex flex-col gap-3">
-                            <!-- Project checkboxes will be rendered here -->
-                            <p class="text-text-muted text-sm">Selecciona un cliente para ver sus proyectos.</p>
+                            <span class="material-symbols-outlined absolute right-3 top-2.5 text-text-muted pointer-events-none text-[18px]">expand_more</span>
                         </div>
                     </div>
                 </div>
             </div>
-
         </div>
-    </div>
+    </template>
 
-    <!-- Footer Actions -->
-    <div class="p-6 bg-background-dark border-t border-border-muted flex items-center justify-end gap-4 z-20">
-        <a href="maindashboard.html" id="cancel-ca-btn" class="px-6 py-3 rounded-xl text-white font-semibold hover:bg-white/5 transition-colors">
-            Cancelar
-        </a>
-        <button id="save-ca-btn" class="px-8 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold shadow-[0_0_20px_-5px_rgba(230,25,161,0.5)] transition-all transform hover:scale-[1.02] flex items-center gap-2">
-            <span class="material-symbols-outlined text-[20px]">save</span>
-            Guardar Automatización
-        </button>
-    </div>
-</main>
-</div>
-<!-- Add Client Modal -->
-<div id="add-client-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
-        <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Nuevo Cliente</h2>
-             <button id="close-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
-                 <span class="material-symbols-outlined text-text-muted">close</span>
-             </button>
-        </div>
-        <form id="add-client-form">
-            <div class="flex flex-col gap-4">
-                <div>
-                    <label for="company-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Empresa</label>
-                    <input type="text" id="company-name" name="company-name" required
-                           class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+    <template id="action-template">
+        <div class="action-block rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-darker overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-emerald-50 dark:bg-emerald-500/10 border-b border-emerald-200 dark:border-emerald-500/20">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-[20px]">send</span>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white">Entonces (Acción)</h3>
                 </div>
-                <div class="flex justify-end gap-4 mt-4">
-                     <button type="button" id="cancel-add-client" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-                    <button type="submit"
-                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
-                        Guardar Cliente
-                    </button>
+                <button type="button" class="delete-action-btn size-7 flex items-center justify-center rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 text-red-500 transition-colors" title="Eliminar">
+                    <span class="material-symbols-outlined text-base">delete</span>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-col gap-1.5 mb-3">
+                    <label class="text-xs font-medium text-text-muted">Realizar acción</label>
+                    <div class="relative">
+                        <select class="w-full h-10 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-10 appearance-none cursor-pointer action-select">
+                            <!-- Options will be dynamically populated by JS -->
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-2.5 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+                    </div>
+                </div>
+                <div class="action-details"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="condition-rule-template">
+        <div class="condition-rule flex items-center gap-2 p-2 bg-gray-50 dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-border-dark">
+            <div class="flex-1 grid grid-cols-3 gap-2">
+                <div class="relative">
+                    <select class="condition-field w-full h-9 rounded-lg bg-white dark:bg-surface-darker border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-xs focus:border-primary focus:ring-1 focus:ring-primary pl-2 pr-7 appearance-none cursor-pointer">
+                        <!-- Options populated by JS based on trigger type -->
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2 top-2 text-text-muted pointer-events-none text-sm">expand_more</span>
+                </div>
+                <div class="relative">
+                    <select class="condition-operator w-full h-9 rounded-lg bg-white dark:bg-surface-darker border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-xs focus:border-primary focus:ring-1 focus:ring-primary pl-2 pr-7 appearance-none cursor-pointer">
+                        <!-- Options populated by JS based on field type -->
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2 top-2 text-text-muted pointer-events-none text-sm">expand_more</span>
+                </div>
+                <div class="condition-value-container">
+                    <input type="text" class="condition-value w-full h-9 rounded-lg bg-white dark:bg-surface-darker border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-xs focus:border-primary focus:ring-1 focus:ring-primary px-2" placeholder="Valor...">
                 </div>
             </div>
-        </form>
-    </div>
-</div>
-
-<!-- Add Project Modal -->
-<div id="add-project-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
-        <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Proyecto</h2>
-             <button id="close-project-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
-                 <span class="material-symbols-outlined text-text-muted">close</span>
-             </button>
+            <button type="button" class="delete-condition-btn size-7 flex items-center justify-center rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 text-red-500 transition-colors" title="Eliminar">
+                <span class="material-symbols-outlined text-base">close</span>
+            </button>
         </div>
-        <form id="add-project-form">
-            <div class="flex flex-col gap-4">
-                <div>
-                    <label for="project-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre del Proyecto</label>
-                    <input type="text" id="project-name" name="project-name" required
-                           class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
-                </div>
-                <div class="flex justify-end gap-4 mt-4">
-                     <button type="button" id="cancel-add-project" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-                    <button type="submit"
-                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
-                        Guardar Proyecto
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
+    </template>
 
-<!-- Add Product Modal -->
-<div id="add-product-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
-        <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Producto</h2>
-             <button id="close-product-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
-                 <span class="material-symbols-outlined text-text-muted">close</span>
-             </button>
-        </div>
-        <form id="add-product-form">
-            <div class="flex flex-col gap-4">
-                <div>
-                    <label for="product-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre del Producto</label>
-                    <input type="text" id="product-name" name="product-name" required
-                           class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
-                </div>
-                <div class="flex justify-end gap-4 mt-4">
-                     <button type="button" id="cancel-add-product" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-                    <button type="submit"
-                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
-                        Guardar Producto
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
+    <script type="module">
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
 
-<!-- Add Task Modal -->
-<div id="add-task-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
-        <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Tarea</h2>
-             <button id="close-task-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
-                 <span class="material-symbols-outlined text-text-muted">close</span>
-             </button>
-        </div>
-        <form id="add-task-form">
-            <div class="flex flex-col gap-4">
-                <div>
-                    <label for="task-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Tarea</label>
-                    <input type="text" id="task-name" name="task-name" required
-                           class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
-                </div>
-                <div class="flex justify-end gap-4 mt-4">
-                     <button type="button" id="cancel-add-task" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-                    <button type="submit"
-                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
-                        Guardar Tarea
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
+        function initTheme() {
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.documentElement.classList.add('dark');
+            }
+        }
 
-<!-- Add Subtask Modal -->
-<div id="add-subtask-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-md bg-white dark:bg-surface-darker rounded-2xl shadow-2xl p-8 m-4">
-        <div class="flex justify-between items-center mb-6">
-             <h2 class="text-gray-900 dark:text-white text-2xl font-bold">Añadir Subtarea</h2>
-             <button id="close-subtask-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
-                 <span class="material-symbols-outlined text-text-muted">close</span>
-             </button>
-        </div>
-        <form id="add-subtask-form">
-            <div class="flex flex-col gap-4">
-                <div>
-                    <label for="subtask-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Subtarea</label>
-                    <input type="text" id="subtask-name" name="subtask-name" required
-                           class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
-                </div>
-                <div class="flex justify-end gap-4 mt-4">
-                     <button type="button" id="cancel-add-subtask" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-                    <button type="submit"
-                            class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
-                        Guardar Subtarea
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
+        themeToggle?.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        });
 
-<script src="dashboard-data.js" type="module"></script>
-<script src="client-manager.js" type="module"></script>
-<script src="theme-toggle.js" type="module"></script>
-<script src="create-automation.js" type="module"></script>
+        initTheme();
+
+        // Check for edit mode
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('id');
+        if (editId) {
+            document.getElementById('page-title').textContent = 'Editar Automatización';
+            document.getElementById('breadcrumb-current').textContent = 'Editar';
+            document.title = 'Editar Automatización - TAMOE';
+        }
+    </script>
+    <script src="create-automation.js" type="module"></script>
 </body>
 </html>
