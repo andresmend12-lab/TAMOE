@@ -188,11 +188,61 @@
                 <div id="triggers-container">
                     <!-- Trigger blocks will be inserted here -->
                 </div>
-                
+
                 <div class="py-6 flex justify-start pl-[22px] relative z-10">
                     <button id="add-trigger-btn" class="size-10 rounded-full bg-surface-dark border-2 border-dashed border-gray-600 text-gray-400 flex items-center justify-center hover:border-primary hover:text-primary hover:scale-110 transition-all group" title="Agregar Disparador">
                         <span class="material-symbols-outlined text-xl">add</span>
                     </button>
+                </div>
+
+                <!-- Conditions Section (v2) -->
+                <div id="conditions-section" class="relative z-10 mb-4">
+                    <div class="flex items-start gap-6">
+                        <div class="flex-shrink-0 size-16 rounded-2xl bg-surface-dark border border-amber-500/30 flex items-center justify-center shadow-[0_0_15px_-3px_rgba(245,158,11,0.3)]">
+                            <span class="material-symbols-outlined text-amber-500 text-3xl">filter_alt</span>
+                        </div>
+                        <div class="flex-1 bg-surface-dark border border-border-muted rounded-2xl p-6 shadow-xl">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center gap-3">
+                                    <h3 class="text-xl font-bold text-white">Solo si (Condiciones)</h3>
+                                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">Opcional</span>
+                                </div>
+                                <button type="button" id="toggle-conditions-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                                    <span class="material-symbols-outlined text-lg" id="toggle-conditions-icon">add</span>
+                                    <span id="toggle-conditions-text">Agregar condiciones</span>
+                                </button>
+                            </div>
+
+                            <!-- Conditions Builder (hidden by default) -->
+                            <div id="conditions-builder" class="hidden">
+                                <!-- Logical operator selector -->
+                                <div class="flex items-center gap-3 mb-4 pb-4 border-b border-border-muted">
+                                    <span class="text-sm text-gray-400">Ejecutar si</span>
+                                    <div class="flex rounded-lg overflow-hidden border border-border-muted">
+                                        <button type="button" data-operator="AND" class="logical-op-btn px-4 py-2 text-sm font-semibold bg-primary text-white">TODAS</button>
+                                        <button type="button" data-operator="OR" class="logical-op-btn px-4 py-2 text-sm font-semibold bg-surface-input text-gray-400 hover:bg-white/10">ALGUNA</button>
+                                    </div>
+                                    <span class="text-sm text-gray-400">las condiciones se cumplen</span>
+                                </div>
+
+                                <!-- Condition rules container -->
+                                <div id="condition-rules-container" class="flex flex-col gap-3 mb-4">
+                                    <!-- Condition rules will be inserted here dynamically -->
+                                </div>
+
+                                <!-- Add condition button -->
+                                <button type="button" id="add-condition-btn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-400 hover:text-primary border border-dashed border-gray-600 hover:border-primary rounded-lg transition-colors">
+                                    <span class="material-symbols-outlined text-lg">add</span>
+                                    Agregar condición
+                                </button>
+                            </div>
+
+                            <!-- No conditions message -->
+                            <div id="no-conditions-message" class="text-sm text-gray-500 italic">
+                                Sin condiciones: la automatización se ejecutará siempre que ocurra el disparador.
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="actions-container">
@@ -297,6 +347,34 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </template>
+
+            <template id="condition-rule-template">
+                <div class="condition-rule flex items-center gap-3 p-3 bg-background-dark/50 rounded-lg border border-border-muted/50">
+                    <div class="flex-1 grid grid-cols-3 gap-3">
+                        <!-- Field selector -->
+                        <div class="relative">
+                            <select class="condition-field w-full h-10 rounded-lg bg-surface-input border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-8 appearance-none cursor-pointer">
+                                <!-- Options populated by JS based on trigger type -->
+                            </select>
+                            <span class="material-symbols-outlined absolute right-2 top-2.5 text-gray-400 pointer-events-none text-sm">expand_more</span>
+                        </div>
+                        <!-- Operator selector -->
+                        <div class="relative">
+                            <select class="condition-operator w-full h-10 rounded-lg bg-surface-input border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-8 appearance-none cursor-pointer">
+                                <!-- Options populated by JS based on field type -->
+                            </select>
+                            <span class="material-symbols-outlined absolute right-2 top-2.5 text-gray-400 pointer-events-none text-sm">expand_more</span>
+                        </div>
+                        <!-- Value input -->
+                        <div class="condition-value-container">
+                            <input type="text" class="condition-value w-full h-10 rounded-lg bg-surface-input border border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary px-3" placeholder="Valor...">
+                        </div>
+                    </div>
+                    <button type="button" class="delete-condition-btn size-8 flex items-center justify-center rounded-full hover:bg-red-500/20 text-red-400 transition-colors" title="Eliminar condición">
+                        <span class="material-symbols-outlined text-lg">close</span>
+                    </button>
                 </div>
             </template>
             <!-- End Templates -->

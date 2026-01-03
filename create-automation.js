@@ -1,6 +1,13 @@
 import { auth, database } from './firebase.js';
 import { ref, push, serverTimestamp, get, update } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+import {
+    TRIGGER_TYPES,
+    TRIGGER_CONTEXT_FIELDS,
+    OPERATORS_BY_FIELD_TYPE,
+    OPERATOR_LABELS,
+    CONDITION_OPERATORS
+} from './automation-engine.js';
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,12 +28,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const scopeProjectsContainer = document.getElementById('scope-projects-container');
     const scopeProjectsList = document.getElementById('scope-projects-list');
 
+    // Condition elements (v2)
+    const conditionsSection = document.getElementById('conditions-section');
+    const conditionsBuilder = document.getElementById('conditions-builder');
+    const conditionRulesContainer = document.getElementById('condition-rules-container');
+    const conditionRuleTemplate = document.getElementById('condition-rule-template');
+    const toggleConditionsBtn = document.getElementById('toggle-conditions-btn');
+    const toggleConditionsIcon = document.getElementById('toggle-conditions-icon');
+    const toggleConditionsText = document.getElementById('toggle-conditions-text');
+    const noConditionsMessage = document.getElementById('no-conditions-message');
+    const addConditionBtn = document.getElementById('add-condition-btn');
+    const logicalOpBtns = document.querySelectorAll('.logical-op-btn');
+
     // --- App State ---
     let currentUser = null;
     let clientsData = null; // To store fetched client data
     const urlParams = new URLSearchParams(window.location.search);
     const editingAutomationId = urlParams.get('id');
     let editingAutomationData = null;
+    let conditionsLogicalOperator = 'AND'; // 'AND' or 'OR'
+    let conditionsEnabled = false;
 
     // --- Authentication ---
     onAuthStateChanged(auth, async (user) => {
@@ -65,6 +86,249 @@ document.addEventListener('DOMContentLoaded', () => {
     const generalActions = [
         { value: 'notify', label: 'Enviar notificación por correo' }
     ];
+
+    // Mapeo de activityType a triggerType del engine
+    const activityToTriggerType = {
+        'Project': TRIGGER_TYPES.PROJECT_CREATED,
+        'Product': TRIGGER_TYPES.PRODUCT_CREATED,
+        'Task': TRIGGER_TYPES.TASK_CREATED
+    };
+
+    // --- Condition Functions (v2) ---
+
+    function getCurrentTriggerType() {
+        const triggerBlock = triggersContainer.querySelector('.trigger-block');
+        if (!triggerBlock) return null;
+
+        const activitySelect = triggerBlock.querySelector('.trigger-activity-type');
+        const triggerTypeSelect = triggerBlock.querySelector('.trigger-type');
+
+        if (!activitySelect || !triggerTypeSelect) return null;
+
+        const activityType = activitySelect.value;
+        const triggerType = triggerTypeSelect.value;
+
+        if (triggerType === 'statusChange' && activityType === 'Task') {
+            return TRIGGER_TYPES.TASK_STATUS_CHANGED;
+        }
+
+        return activityToTriggerType[activityType] || null;
+    }
+
+    function getContextFieldsForTrigger(triggerType) {
+        return TRIGGER_CONTEXT_FIELDS[triggerType] || [];
+    }
+
+    function getOperatorsForFieldType(fieldType) {
+        return OPERATORS_BY_FIELD_TYPE[fieldType] || OPERATORS_BY_FIELD_TYPE['string'];
+    }
+
+    function toggleConditionsVisibility(show) {
+        conditionsEnabled = show;
+        if (show) {
+            conditionsBuilder.classList.remove('hidden');
+            noConditionsMessage.classList.add('hidden');
+            toggleConditionsIcon.textContent = 'remove';
+            toggleConditionsText.textContent = 'Ocultar condiciones';
+        } else {
+            conditionsBuilder.classList.add('hidden');
+            noConditionsMessage.classList.remove('hidden');
+            toggleConditionsIcon.textContent = 'add';
+            toggleConditionsText.textContent = 'Agregar condiciones';
+            // Clear all condition rules when hiding
+            conditionRulesContainer.innerHTML = '';
+        }
+    }
+
+    function updateLogicalOperatorUI(operator) {
+        conditionsLogicalOperator = operator;
+        logicalOpBtns.forEach(btn => {
+            if (btn.dataset.operator === operator) {
+                btn.classList.remove('bg-surface-input', 'text-gray-400');
+                btn.classList.add('bg-primary', 'text-white');
+            } else {
+                btn.classList.remove('bg-primary', 'text-white');
+                btn.classList.add('bg-surface-input', 'text-gray-400');
+            }
+        });
+    }
+
+    function addConditionRule(ruleData = null) {
+        if (!conditionRuleTemplate) return;
+
+        const clone = conditionRuleTemplate.content.cloneNode(true);
+        conditionRulesContainer.appendChild(clone);
+
+        const newRule = conditionRulesContainer.lastElementChild;
+        const fieldSelect = newRule.querySelector('.condition-field');
+        const operatorSelect = newRule.querySelector('.condition-operator');
+
+        // Populate field options based on current trigger
+        updateConditionFieldOptions(fieldSelect);
+
+        // Populate operator options based on first field
+        updateConditionOperatorOptions(operatorSelect, fieldSelect);
+
+        // If we have data to pre-populate
+        if (ruleData) {
+            if (ruleData.field) {
+                fieldSelect.value = ruleData.field;
+                updateConditionOperatorOptions(operatorSelect, fieldSelect);
+            }
+            if (ruleData.op) {
+                operatorSelect.value = ruleData.op;
+            }
+            updateConditionValueInput(newRule, ruleData.value);
+        } else {
+            updateConditionValueInput(newRule);
+        }
+    }
+
+    function updateConditionFieldOptions(fieldSelect) {
+        const triggerType = getCurrentTriggerType();
+        const fields = getContextFieldsForTrigger(triggerType);
+
+        fieldSelect.innerHTML = '';
+
+        if (fields.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Selecciona un disparador primero';
+            opt.disabled = true;
+            fieldSelect.appendChild(opt);
+            return;
+        }
+
+        fields.forEach(field => {
+            const opt = document.createElement('option');
+            opt.value = field.field;
+            opt.textContent = field.label;
+            opt.dataset.type = field.type;
+            if (field.options) {
+                opt.dataset.options = JSON.stringify(field.options);
+            }
+            fieldSelect.appendChild(opt);
+        });
+    }
+
+    function updateConditionOperatorOptions(operatorSelect, fieldSelect) {
+        const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+        const fieldType = selectedOption?.dataset?.type || 'string';
+        const operators = getOperatorsForFieldType(fieldType);
+
+        operatorSelect.innerHTML = '';
+
+        operators.forEach(op => {
+            const opt = document.createElement('option');
+            opt.value = op;
+            opt.textContent = OPERATOR_LABELS[op] || op;
+            operatorSelect.appendChild(opt);
+        });
+    }
+
+    function updateConditionValueInput(ruleElement, existingValue = null) {
+        const fieldSelect = ruleElement.querySelector('.condition-field');
+        const operatorSelect = ruleElement.querySelector('.condition-operator');
+        const valueContainer = ruleElement.querySelector('.condition-value-container');
+
+        const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+        const fieldType = selectedOption?.dataset?.type || 'string';
+        const fieldOptions = selectedOption?.dataset?.options ? JSON.parse(selectedOption.dataset.options) : null;
+        const operator = operatorSelect.value;
+
+        // Operators that don't need a value input
+        const noValueOps = [CONDITION_OPERATORS.IS_EMPTY, CONDITION_OPERATORS.IS_NOT_EMPTY, CONDITION_OPERATORS.EXISTS];
+
+        if (noValueOps.includes(operator)) {
+            valueContainer.innerHTML = '<span class="text-gray-500 text-sm italic px-3 leading-10">Sin valor requerido</span>';
+            return;
+        }
+
+        // For enum fields with options, show a select
+        if (fieldType === 'enum' && fieldOptions) {
+            let html = `<select class="condition-value w-full h-10 rounded-lg bg-surface-input border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-3 pr-8 appearance-none cursor-pointer">`;
+            fieldOptions.forEach(opt => {
+                const selected = existingValue === opt ? 'selected' : '';
+                html += `<option value="${opt}" ${selected}>${opt}</option>`;
+            });
+            html += `</select>`;
+            valueContainer.innerHTML = html;
+        } else {
+            // Default text input
+            const value = existingValue !== null ? existingValue : '';
+            valueContainer.innerHTML = `<input type="text" class="condition-value w-full h-10 rounded-lg bg-surface-input border border-border-muted text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary px-3" placeholder="Valor..." value="${value}">`;
+        }
+    }
+
+    function refreshAllConditionFields() {
+        const rules = conditionRulesContainer.querySelectorAll('.condition-rule');
+        rules.forEach(rule => {
+            const fieldSelect = rule.querySelector('.condition-field');
+            const operatorSelect = rule.querySelector('.condition-operator');
+
+            // Store current values
+            const currentField = fieldSelect.value;
+            const currentOp = operatorSelect.value;
+            const valueInput = rule.querySelector('.condition-value');
+            const currentValue = valueInput?.value || '';
+
+            // Refresh field options
+            updateConditionFieldOptions(fieldSelect);
+
+            // Try to restore field selection
+            if (Array.from(fieldSelect.options).some(opt => opt.value === currentField)) {
+                fieldSelect.value = currentField;
+            }
+
+            // Refresh operator options
+            updateConditionOperatorOptions(operatorSelect, fieldSelect);
+
+            // Try to restore operator selection
+            if (Array.from(operatorSelect.options).some(opt => opt.value === currentOp)) {
+                operatorSelect.value = currentOp;
+            }
+
+            // Refresh value input
+            updateConditionValueInput(rule, currentValue);
+        });
+    }
+
+    function getConditionsData() {
+        if (!conditionsEnabled) return null;
+
+        const rules = [];
+        conditionRulesContainer.querySelectorAll('.condition-rule').forEach(rule => {
+            const field = rule.querySelector('.condition-field').value;
+            const op = rule.querySelector('.condition-operator').value;
+            const valueInput = rule.querySelector('.condition-value');
+            const value = valueInput?.value || '';
+
+            if (field && op) {
+                rules.push({ field, op, value });
+            }
+        });
+
+        if (rules.length === 0) return null;
+
+        return {
+            operator: conditionsLogicalOperator,
+            rules
+        };
+    }
+
+    function loadConditionsFromData(conditions) {
+        if (!conditions || !conditions.rules || conditions.rules.length === 0) {
+            toggleConditionsVisibility(false);
+            return;
+        }
+
+        toggleConditionsVisibility(true);
+        updateLogicalOperatorUI(conditions.operator || 'AND');
+
+        conditions.rules.forEach(rule => {
+            addConditionRule(rule);
+        });
+    }
 
     const actionTemplates = {
         notify: `<div class="p-4 rounded-lg bg-background-dark/50 border border-border-muted/50 flex flex-col gap-3"><label class="text-xs font-bold uppercase text-gray-500 mt-2">Mensaje</label><textarea class="w-full bg-surface-input border border-border-muted rounded-lg p-2 text-white" placeholder="Escribe tu mensaje..."></textarea></div>`,
@@ -208,6 +472,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             actions.forEach(action => addActionWithData(action, controllingTriggerBlock));
         }
+
+        // Load conditions (v2)
+        if (editingAutomationData?.conditions) {
+            loadConditionsFromData(editingAutomationData.conditions);
+        }
     }
 
     function populateClientScopeDropdown() {
@@ -315,10 +584,13 @@ document.addEventListener('DOMContentLoaded', () => {
             statusOptions.classList.add('hidden');
             statusOptions.classList.remove('grid');
         }
-        
+
         document.querySelectorAll('.action-block').forEach(actionBlock => {
             updateActionOptions(actionBlock, triggerBlock);
         });
+
+        // Refresh condition fields when trigger changes (v2)
+        refreshAllConditionFields();
     }
     
     function updateActionOptions(actionBlock, triggerBlock) {
@@ -447,10 +719,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // Get conditions (v2)
+        const conditions = getConditionsData();
+
         const automationData = {
             name,
             triggers,
             actions,
+            conditions, // v2: condiciones opcionales
             scope: {
                 client: selectedClientId,
                 projects: selectedProjects,
@@ -471,6 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     name,
                     triggers,
                     actions,
+                    conditions, // v2
                     scope: automationData.scope,
                     updatedAt: serverTimestamp()
                 });
@@ -521,6 +798,62 @@ document.addEventListener('DOMContentLoaded', () => {
     addTriggerBtn.addEventListener('click', addTrigger);
     addActionBtn.addEventListener('click', addAction);
     saveBtn.addEventListener('click', saveAutomation);
+
+    // --- Condition Event Listeners (v2) ---
+
+    // Toggle conditions visibility
+    if (toggleConditionsBtn) {
+        toggleConditionsBtn.addEventListener('click', () => {
+            toggleConditionsVisibility(!conditionsEnabled);
+            if (conditionsEnabled && conditionRulesContainer.children.length === 0) {
+                addConditionRule();
+            }
+        });
+    }
+
+    // Add condition button
+    if (addConditionBtn) {
+        addConditionBtn.addEventListener('click', () => {
+            addConditionRule();
+        });
+    }
+
+    // Logical operator buttons
+    logicalOpBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            updateLogicalOperatorUI(btn.dataset.operator);
+        });
+    });
+
+    // Condition field/operator changes (delegated)
+    if (conditionRulesContainer) {
+        conditionRulesContainer.addEventListener('change', (e) => {
+            const target = e.target;
+            const rule = target.closest('.condition-rule');
+            if (!rule) return;
+
+            if (target.matches('.condition-field')) {
+                const operatorSelect = rule.querySelector('.condition-operator');
+                updateConditionOperatorOptions(operatorSelect, target);
+                updateConditionValueInput(rule);
+            }
+
+            if (target.matches('.condition-operator')) {
+                updateConditionValueInput(rule);
+            }
+        });
+
+        // Delete condition button
+        conditionRulesContainer.addEventListener('click', (e) => {
+            if (e.target.closest('.delete-condition-btn')) {
+                e.target.closest('.condition-rule').remove();
+                // If no rules left, hide the builder
+                if (conditionRulesContainer.children.length === 0) {
+                    toggleConditionsVisibility(false);
+                }
+            }
+        });
+    }
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {

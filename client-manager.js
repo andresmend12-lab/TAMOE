@@ -3,6 +3,7 @@ import { ref, push, onValue, query, set, update, remove, runTransaction, serverT
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { createDurationInput } from './src/utils/duration.js';
 import { recomputeRollup as recomputeRollupShared, propagateRollupHierarchy } from './src/utils/rollup.js';
+import { evaluateConditions, hasExecuted, markExecuted, generateEventKey, TRIGGER_TYPES } from './automation-engine.js';
 
 /**
  * Helper único para actualizar campos de actividades (tareas/subtareas) en RTDB
@@ -7630,7 +7631,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const enabledCount = Object.values(allAutomations).filter(a => a.enabled).length;
         console.log('[AUTOMATIONS] Loaded:', Object.keys(allAutomations).length, '| Enabled:', enabledCount);
 
+        // Build context for condition evaluation (v2)
+        const pathParts = parseClientPath(eventData.path);
+        const conditionContext = {
+            clientId: pathParts?.clientId || '',
+            clientName: pathParts?.clientName || '',
+            projectId: pathParts?.projectId || '',
+            projectName: pathParts?.projectName || '',
+            productId: pathParts?.productId || '',
+            productName: pathParts?.productName || '',
+            taskId: pathParts?.taskId || '',
+            taskName: eventData.data?.name || '',
+            taskStatus: eventData.data?.status || 'Pendiente',
+            priority: eventData.data?.priority || 'none',
+            assigneeUid: eventData.data?.assigneeUid || '',
+            createdByUid: eventData.data?.createdByUid || '',
+            entityType: eventData.type,
+            entityName: eventData.data?.name || '',
+            // For status change
+            oldStatus: eventData.oldStatus || '',
+            newStatus: eventData.newStatus || eventData.data?.status || ''
+        };
+
+        // Map eventType to trigger type for idempotency
+        const getTriggerTypeForIdempotency = () => {
+            if (eventType === 'activityCreated') {
+                if (eventData.type === 'project') return TRIGGER_TYPES.PROJECT_CREATED;
+                if (eventData.type === 'product') return TRIGGER_TYPES.PRODUCT_CREATED;
+                if (eventData.type === 'task') return TRIGGER_TYPES.TASK_CREATED;
+            }
+            if (eventType === 'activityStatusChanged') return TRIGGER_TYPES.TASK_STATUS_CHANGED;
+            return null;
+        };
+        const triggerTypeForKey = getTriggerTypeForIdempotency();
+
         let matchedCount = 0;
+        let skippedByConditions = 0;
+        let skippedByIdempotency = 0;
+
         for (const automationId in allAutomations) {
             const automation = { id: automationId, ...allAutomations[automationId] };
 
@@ -7652,6 +7690,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const actions = Array.isArray(automation.actions)
                 ? automation.actions
                 : Object.values(automation.actions || {});
+
             for (const trigger of triggers) {
                 let triggerMet = false;
                 if (eventType === 'activityCreated' && trigger.triggerType === 'created' && trigger.activityType.toLowerCase() === eventData.type.toLowerCase()) {
@@ -7661,19 +7700,52 @@ document.addEventListener('DOMContentLoaded', () => {
                         triggerMet = true;
                     }
                 }
-                
+
                 if (triggerMet) {
+                    // v2: Evaluate conditions before executing
+                    if (automation.conditions && automation.conditions.rules && automation.conditions.rules.length > 0) {
+                        const conditionsMet = evaluateConditions(automation.conditions, conditionContext);
+                        if (!conditionsMet) {
+                            console.log('[AUTOMATIONS] Conditions not met for:', automation.name);
+                            skippedByConditions++;
+                            break; // Skip this automation
+                        }
+                        console.log('[AUTOMATIONS] Conditions met for:', automation.name);
+                    }
+
+                    // v2: Check idempotency
+                    if (triggerTypeForKey) {
+                        const eventKey = generateEventKey(triggerTypeForKey, conditionContext);
+                        const alreadyExecuted = await hasExecuted(automationId, eventKey);
+                        if (alreadyExecuted) {
+                            console.log('[AUTOMATIONS] Already executed for event:', automation.name, eventKey);
+                            skippedByIdempotency++;
+                            break; // Skip this automation
+                        }
+                    }
+
                     matchedCount++;
                     console.log('[AUTOMATIONS] Trigger met for automation:', automation.name, '| Actions:', actions.length);
+
                     for (const action of actions) {
                         await executeAction(action, eventData, automation);
                     }
+
+                    // v2: Mark as executed for idempotency
+                    if (triggerTypeForKey) {
+                        const eventKey = generateEventKey(triggerTypeForKey, conditionContext);
+                        await markExecuted(automationId, eventKey, { status: 'success', actionsExecuted: actions.length });
+                    }
+
+                    // Update lastRun timestamp
+                    await update(ref(database, `automations/${automationId}`), { lastRun: Date.now() });
+
                     // Stop checking other triggers for this automation
                     break;
                 }
             }
         }
-        console.log('[AUTOMATIONS] Execution complete. Matched automations:', matchedCount);
+        console.log('[AUTOMATIONS] Execution complete. Matched:', matchedCount, '| Skipped by conditions:', skippedByConditions, '| Skipped by idempotency:', skippedByIdempotency);
     };
 
     const isActivityInScope = (activityPath, scope) => {
