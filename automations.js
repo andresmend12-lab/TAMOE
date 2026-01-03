@@ -44,6 +44,22 @@ const ACTION_LABELS = {
     'createChild_Product': 'Crear producto'
 };
 
+// Mapeo de operadores a labels (v2 conditions)
+const OPERATOR_LABELS = {
+    'equals': 'es',
+    'notEquals': 'no es',
+    'contains': 'contiene',
+    'startsWith': 'empieza con',
+    'endsWith': 'termina con',
+    'in': 'es uno de',
+    'notIn': 'no es uno de',
+    'isEmpty': 'está vacío',
+    'isNotEmpty': 'no está vacío',
+    'greaterThan': 'mayor que',
+    'lessThan': 'menor que',
+    'exists': 'existe'
+};
+
 // --- DOM Elements ---
 let automationsGrid, automationSearchInput, filterButtons, emptyState, paginationSummary, paginationPrev, paginationNext, paginationPages;
 
@@ -91,6 +107,17 @@ function renderAutomationCard(automation) {
                     ${automation.triggerLabel || 'Sin disparador'}
                 </span>
             </div>
+
+            <!-- Condiciones (v2) -->
+            ${automation.conditionsSummary ? `
+            <div class="flex items-center gap-2 mb-2 text-xs">
+                <span class="text-text-muted font-medium">Condiciones:</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[11px] font-medium">
+                    <span class="material-symbols-outlined text-[12px]">filter_alt</span>
+                    ${automation.conditionsSummary.label}
+                </span>
+            </div>
+            ` : ''}
 
             <!-- Acciones -->
             <div class="flex items-start gap-2 mb-3 text-xs">
@@ -293,6 +320,24 @@ function buildActionsLabels(actions) {
 }
 
 /**
+ * Builds condition summary for display (v2)
+ */
+function buildConditionsSummary(conditions) {
+    if (!conditions || !conditions.rules || conditions.rules.length === 0) {
+        return null;
+    }
+
+    const operator = conditions.operator === 'OR' ? 'ALGUNA' : 'TODAS';
+    const rulesCount = conditions.rules.length;
+
+    return {
+        count: rulesCount,
+        operator: operator,
+        label: `${rulesCount} condición${rulesCount > 1 ? 'es' : ''} (${operator})`
+    };
+}
+
+/**
  * Fetches and processes project template as automation
  */
 function fetchProjectTemplate() {
@@ -348,6 +393,9 @@ function fetchAutomations() {
                     // Get dynamic icon based on trigger type
                     const triggerIcon = getTriggerIcon(triggers);
 
+                    // Build conditions summary (v2)
+                    const conditionsSummary = buildConditionsSummary(automation.conditions);
+
                     return {
                         id: key,
                         name: automation.name || 'Automatización sin nombre',
@@ -356,7 +404,8 @@ function fetchAutomations() {
                         lastRun: lastRunFormatted,
                         triggerIcon,
                         triggerLabel,
-                        actionsLabels
+                        actionsLabels,
+                        conditionsSummary // v2
                     };
                 });
         } else {

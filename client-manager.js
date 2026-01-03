@@ -3,6 +3,23 @@ import { ref, push, onValue, query, set, update, remove, runTransaction, serverT
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { createDurationInput } from './src/utils/duration.js';
 import { recomputeRollup as recomputeRollupShared, propagateRollupHierarchy } from './src/utils/rollup.js';
+import { evaluateConditions, hasExecuted, markExecuted, generateEventKey, TRIGGER_TYPES } from './automation-engine.js';
+import {
+    loadBillingConfig,
+    saveRate,
+    deleteRate,
+    saveBillingSettings,
+    initializeDefaultRates,
+    aggregateBillingData,
+    generateInvoiceData,
+    generateInvoiceCSV,
+    generateBillingReportCSV,
+    downloadCSV,
+    formatCurrency,
+    formatDuration,
+    minutesToHours,
+    DEFAULT_DEPARTMENTS
+} from './billing-engine.js';
 
 /**
  * Helper único para actualizar campos de actividades (tareas/subtareas) en RTDB
@@ -285,6 +302,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const timelineFilterType = document.getElementById('timeline-filter-type');
     const timelineFilterAssignee = document.getElementById('timeline-filter-assignee');
 
+    // Billing elements
+    const billingTableBody = document.getElementById('billing-table-body');
+    const billingByDepartment = document.getElementById('billing-by-department');
+    const billingWarnings = document.getElementById('billing-warnings');
+    const billingKpiEstimated = document.getElementById('billing-kpi-estimated');
+    const billingKpiActual = document.getElementById('billing-kpi-actual');
+    const billingKpiDifference = document.getElementById('billing-kpi-difference');
+    const billingKpiCount = document.getElementById('billing-kpi-count');
+    const billingKpiEstimatedHours = document.getElementById('billing-kpi-estimated-hours');
+    const billingKpiActualHours = document.getElementById('billing-kpi-actual-hours');
+    const billingFilterClient = document.getElementById('billing-filter-client');
+    const billingFilterProject = document.getElementById('billing-filter-project');
+    const billingFilterStatus = document.getElementById('billing-filter-status');
+    const billingFilterDateFrom = document.getElementById('billing-filter-date-from');
+    const billingFilterDateTo = document.getElementById('billing-filter-date-to');
+    const billingClearFiltersBtn = document.getElementById('billing-clear-filters-btn');
+    const billingManageRatesBtn = document.getElementById('billing-manage-rates-btn');
+    const billingExportBtn = document.getElementById('billing-export-btn');
+    const billingGenerateInvoiceBtn = document.getElementById('billing-generate-invoice-btn');
+    const billingViewHierarchy = document.getElementById('billing-view-hierarchy');
+    const billingViewFlat = document.getElementById('billing-view-flat');
+    // Billing modals
+    const billingRatesModal = document.getElementById('billing-rates-modal');
+    const billingRatesTableBody = document.getElementById('billing-rates-table-body');
+    const billingDefaultRate = document.getElementById('billing-default-rate');
+    const billingNewDept = document.getElementById('billing-new-dept');
+    const billingNewRate = document.getElementById('billing-new-rate');
+    const billingAddRateBtn = document.getElementById('billing-add-rate-btn');
+    const billingRatesSaveBtn = document.getElementById('billing-rates-save-btn');
+    const billingRatesCancelBtn = document.getElementById('billing-rates-cancel-btn');
+    const closeRatesModalBtn = document.getElementById('close-rates-modal-btn');
+    const billingInvoiceModal = document.getElementById('billing-invoice-modal');
+    const invoiceClientSelect = document.getElementById('invoice-client-select');
+    const invoiceDateFrom = document.getElementById('invoice-date-from');
+    const invoiceDateTo = document.getElementById('invoice-date-to');
+    const invoicePreviewTotal = document.getElementById('invoice-preview-total');
+    const invoicePreviewCount = document.getElementById('invoice-preview-count');
+    const invoiceOnlyCompleted = document.getElementById('invoice-only-completed');
+    const billingInvoiceDownloadBtn = document.getElementById('billing-invoice-download-btn');
+    const billingInvoiceCancelBtn = document.getElementById('billing-invoice-cancel-btn');
+    const closeInvoiceModalBtn = document.getElementById('close-invoice-modal-btn');
+
     const projectAutomationToggle = document.getElementById('project-automation-toggle');
     const projectAutomationPanel = document.getElementById('project-automation-panel');
     const projectAutomationList = document.getElementById('project-automation-list');
@@ -362,6 +421,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const timelineFilters = { client: 'all', project: 'all', priority: 'all', type: 'all', assignee: 'all' };
     let timelineFiltersInitialized = false;
     let timelineCollapsedGroups = new Set(); // IDs de grupos colapsados
+
+    // Billing state
+    let billingRates = {};
+    let billingSettings = { defaultDepartmentKey: 'Default', defaultHourlyRate: 50, currency: 'EUR' };
+    let billingData = null;
+    let billingView = 'hierarchy'; // 'hierarchy' or 'flat'
+    const billingFilters = { clientId: '', projectId: '', status: '', dateFrom: '', dateTo: '' };
+    let billingFiltersInitialized = false;
+    let pendingRateChanges = {}; // Track unsaved rate changes
 
     let availableProjectAutomations = [];
     let selectedProjectAutomationIds = new Set();
@@ -3732,6 +3800,641 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('[TIMELINE] Users loaded:', Object.keys(usersByUid).length);
         initTimelineFilters();
         renderTimeline();
+    };
+
+    // ============================================================
+    // BILLING / FACTURACIÓN
+    // ============================================================
+
+    const hasBilling = () => Boolean(billingTableBody);
+
+    const initBilling = async () => {
+        if (!hasBilling()) return;
+        console.log('[BILLING] Initializing billing module');
+
+        // Load config and initialize defaults if needed
+        await initializeDefaultRates();
+        const config = await loadBillingConfig();
+        billingRates = config.rates;
+        billingSettings = config.settings;
+
+        console.log('[BILLING] Loaded rates:', Object.keys(billingRates).length, 'departments');
+
+        initBillingFilters();
+        renderBilling();
+        setupBillingEventListeners();
+    };
+
+    const initBillingFilters = () => {
+        if (billingFiltersInitialized) return;
+        billingFiltersInitialized = true;
+
+        // Populate client filter
+        if (billingFilterClient) {
+            billingFilterClient.innerHTML = '<option value="">Todos</option>';
+            allClients.forEach(client => {
+                const opt = document.createElement('option');
+                opt.value = client.id;
+                opt.textContent = client.name || client.id;
+                billingFilterClient.appendChild(opt);
+            });
+        }
+
+        // Populate project filter (dynamically based on client selection)
+        updateBillingProjectFilter();
+    };
+
+    const updateBillingProjectFilter = () => {
+        if (!billingFilterProject) return;
+
+        const selectedClientId = billingFilters.clientId;
+        billingFilterProject.innerHTML = '<option value="">Todos</option>';
+
+        const client = allClients.find(c => c.id === selectedClientId);
+        if (client && client.projects) {
+            Object.entries(client.projects).forEach(([projectId, project]) => {
+                const opt = document.createElement('option');
+                opt.value = projectId;
+                opt.textContent = project.name || projectId;
+                billingFilterProject.appendChild(opt);
+            });
+        }
+    };
+
+    const renderBilling = () => {
+        if (!hasBilling()) return;
+        console.log('[BILLING] Rendering with', allClients.length, 'clients');
+
+        // Calculate billing data
+        billingData = aggregateBillingData(
+            allClients,
+            usersByUid,
+            billingRates,
+            billingSettings,
+            billingFilters
+        );
+
+        console.log('[BILLING] Calculated:', billingData.totals);
+
+        // Update KPIs
+        renderBillingKPIs();
+
+        // Update table
+        renderBillingTable();
+
+        // Update department breakdown
+        renderBillingByDepartment();
+
+        // Update warnings
+        renderBillingWarnings();
+    };
+
+    const renderBillingKPIs = () => {
+        if (!billingData) return;
+        const { totals } = billingData;
+        const currency = billingSettings.currency || 'EUR';
+
+        if (billingKpiEstimated) {
+            billingKpiEstimated.textContent = formatCurrency(totals.estimatedCost, currency);
+        }
+        if (billingKpiActual) {
+            billingKpiActual.textContent = formatCurrency(totals.actualCost, currency);
+        }
+        if (billingKpiDifference) {
+            const diff = totals.actualCost - totals.estimatedCost;
+            billingKpiDifference.textContent = formatCurrency(diff, currency);
+            billingKpiDifference.classList.toggle('text-red-500', diff > 0);
+            billingKpiDifference.classList.toggle('text-emerald-500', diff < 0);
+        }
+        if (billingKpiCount) {
+            billingKpiCount.textContent = totals.taskCount + totals.subtaskCount;
+        }
+        if (billingKpiEstimatedHours) {
+            billingKpiEstimatedHours.textContent = formatDuration(totals.estimatedMinutes) + ' estimadas';
+        }
+        if (billingKpiActualHours) {
+            billingKpiActualHours.textContent = formatDuration(totals.spentMinutes) + ' reales';
+        }
+    };
+
+    const renderBillingTable = () => {
+        if (!billingTableBody || !billingData) return;
+
+        const { items } = billingData;
+        const currency = billingSettings.currency || 'EUR';
+
+        // Filter items based on view mode
+        let displayItems = items;
+        if (billingView === 'flat') {
+            displayItems = items.filter(item => item.type === 'task' || item.type === 'subtask');
+        }
+
+        if (displayItems.length === 0) {
+            billingTableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-text-muted">
+                        <span class="material-symbols-outlined text-3xl mb-2 block opacity-50">inbox</span>
+                        No hay datos de facturación para mostrar
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Sort by level (hierarchy) or name (flat)
+        if (billingView === 'hierarchy') {
+            displayItems = [...displayItems].sort((a, b) => {
+                // Sort by client, project, product, task
+                const aPath = `${a.clientName || ''}-${a.projectName || ''}-${a.productName || ''}-${a.name}`;
+                const bPath = `${b.clientName || ''}-${b.projectName || ''}-${b.productName || ''}-${b.name}`;
+                return aPath.localeCompare(bPath);
+            });
+        }
+
+        billingTableBody.innerHTML = displayItems.map(item => {
+            const typeIcon = {
+                client: 'business',
+                project: 'folder',
+                product: 'inventory_2',
+                task: 'task_alt',
+                subtask: 'subdirectory_arrow_right'
+            }[item.type] || 'circle';
+
+            const typeColor = {
+                client: 'text-blue-500',
+                project: 'text-purple-500',
+                product: 'text-orange-500',
+                task: 'text-emerald-500',
+                subtask: 'text-gray-400'
+            }[item.type] || 'text-gray-500';
+
+            const indent = item.type === 'subtask' ? 'pl-8' : (item.type === 'task' ? 'pl-4' : '');
+            const rowBg = (item.type === 'client' || item.type === 'project')
+                ? 'bg-gray-50/50 dark:bg-surface-dark/30'
+                : '';
+
+            return `
+                <tr class="${rowBg} hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <td class="px-4 py-3 ${indent}">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined ${typeColor} text-[16px]">${typeIcon}</span>
+                            <div class="flex flex-col">
+                                <span class="font-medium text-gray-900 dark:text-white">${item.name}</span>
+                                ${item.parentTaskName ? `<span class="text-[10px] text-text-muted">${item.parentTaskName}</span>` : ''}
+                                ${item.type === 'task' || item.type === 'subtask' ? `
+                                    <span class="text-[10px] text-text-muted">${item.clientName} / ${item.projectName}${item.productName ? ` / ${item.productName}` : ''}</span>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-3 py-3 text-left">
+                        ${item.department ? `
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${item.hasRate !== false ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-500'}">
+                                ${item.department}
+                            </span>
+                        ` : '<span class="text-text-muted">-</span>'}
+                    </td>
+                    <td class="px-3 py-3 text-right text-text-muted">${formatDuration(item.estimatedMinutes)}</td>
+                    <td class="px-3 py-3 text-right text-text-muted">${formatDuration(item.spentMinutes)}</td>
+                    <td class="px-3 py-3 text-right font-medium text-gray-900 dark:text-white">${formatCurrency(item.estimatedCost, currency)}</td>
+                    <td class="px-3 py-3 text-right font-medium text-emerald-500">${formatCurrency(item.actualCost, currency)}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const renderBillingByDepartment = () => {
+        if (!billingByDepartment || !billingData) return;
+
+        const { byDepartment } = billingData;
+        const currency = billingSettings.currency || 'EUR';
+
+        if (byDepartment.length === 0) {
+            billingByDepartment.innerHTML = '<p class="text-text-muted text-xs text-center py-4">Sin datos</p>';
+            return;
+        }
+
+        // Sort by actual cost descending
+        const sorted = [...byDepartment].sort((a, b) => b.actualCost - a.actualCost);
+
+        billingByDepartment.innerHTML = sorted.map(dept => `
+            <div class="flex items-center justify-between p-3 rounded-lg bg-white/50 dark:bg-surface-darker/50 border border-border-dark/50">
+                <div>
+                    <span class="font-medium text-gray-900 dark:text-white text-sm">${dept.department}</span>
+                    <div class="flex items-center gap-2 mt-0.5 text-[10px] text-text-muted">
+                        <span>${formatDuration(dept.estimatedMinutes)} est.</span>
+                        <span>•</span>
+                        <span>${formatDuration(dept.spentMinutes)} real</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-emerald-500 text-sm">${formatCurrency(dept.actualCost, currency)}</p>
+                    <p class="text-[10px] text-text-muted">${formatCurrency(dept.estimatedCost, currency)} est.</p>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    const renderBillingWarnings = () => {
+        if (!billingWarnings || !billingData) return;
+
+        const { warnings } = billingData;
+
+        if (warnings.length === 0) {
+            billingWarnings.innerHTML = '<p class="text-text-muted text-xs text-center py-2">Sin alertas</p>';
+            return;
+        }
+
+        // Group by type and limit display
+        const noRate = warnings.filter(w => w.type === 'no_rate').slice(0, 5);
+        const noAssignee = warnings.filter(w => w.type === 'no_assignee').slice(0, 5);
+
+        let html = '';
+
+        if (noRate.length > 0) {
+            html += `
+                <div class="text-xs">
+                    <p class="font-semibold text-amber-600 dark:text-amber-400 mb-1">Sin tarifa configurada (${warnings.filter(w => w.type === 'no_rate').length})</p>
+                    <ul class="space-y-1 text-text-muted">
+                        ${noRate.map(w => `<li class="truncate">• ${w.entityName}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        if (noAssignee.length > 0) {
+            html += `
+                <div class="text-xs mt-3">
+                    <p class="font-semibold text-amber-600 dark:text-amber-400 mb-1">Sin asignación (${warnings.filter(w => w.type === 'no_assignee').length})</p>
+                    <ul class="space-y-1 text-text-muted">
+                        ${noAssignee.map(w => `<li class="truncate">• ${w.entityName}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        billingWarnings.innerHTML = html;
+    };
+
+    const setupBillingEventListeners = () => {
+        // Filter change handlers
+        if (billingFilterClient) {
+            billingFilterClient.addEventListener('change', (e) => {
+                billingFilters.clientId = e.target.value;
+                updateBillingProjectFilter();
+                billingFilters.projectId = '';
+                if (billingFilterProject) billingFilterProject.value = '';
+                renderBilling();
+            });
+        }
+
+        if (billingFilterProject) {
+            billingFilterProject.addEventListener('change', (e) => {
+                billingFilters.projectId = e.target.value;
+                renderBilling();
+            });
+        }
+
+        if (billingFilterStatus) {
+            billingFilterStatus.addEventListener('change', (e) => {
+                billingFilters.status = e.target.value;
+                renderBilling();
+            });
+        }
+
+        if (billingFilterDateFrom) {
+            billingFilterDateFrom.addEventListener('change', (e) => {
+                billingFilters.dateFrom = e.target.value;
+                renderBilling();
+            });
+        }
+
+        if (billingFilterDateTo) {
+            billingFilterDateTo.addEventListener('change', (e) => {
+                billingFilters.dateTo = e.target.value;
+                renderBilling();
+            });
+        }
+
+        if (billingClearFiltersBtn) {
+            billingClearFiltersBtn.addEventListener('click', () => {
+                billingFilters.clientId = '';
+                billingFilters.projectId = '';
+                billingFilters.status = '';
+                billingFilters.dateFrom = '';
+                billingFilters.dateTo = '';
+                if (billingFilterClient) billingFilterClient.value = '';
+                if (billingFilterProject) billingFilterProject.value = '';
+                if (billingFilterStatus) billingFilterStatus.value = '';
+                if (billingFilterDateFrom) billingFilterDateFrom.value = '';
+                if (billingFilterDateTo) billingFilterDateTo.value = '';
+                updateBillingProjectFilter();
+                renderBilling();
+            });
+        }
+
+        // View toggle
+        if (billingViewHierarchy) {
+            billingViewHierarchy.addEventListener('click', () => {
+                billingView = 'hierarchy';
+                billingViewHierarchy.classList.add('border-primary', 'bg-primary/10', 'text-primary');
+                billingViewHierarchy.classList.remove('border-border-dark', 'text-text-muted');
+                billingViewFlat?.classList.remove('border-primary', 'bg-primary/10', 'text-primary');
+                billingViewFlat?.classList.add('border-border-dark', 'text-text-muted');
+                renderBillingTable();
+            });
+        }
+
+        if (billingViewFlat) {
+            billingViewFlat.addEventListener('click', () => {
+                billingView = 'flat';
+                billingViewFlat.classList.add('border-primary', 'bg-primary/10', 'text-primary');
+                billingViewFlat.classList.remove('border-border-dark', 'text-text-muted');
+                billingViewHierarchy?.classList.remove('border-primary', 'bg-primary/10', 'text-primary');
+                billingViewHierarchy?.classList.add('border-border-dark', 'text-text-muted');
+                renderBillingTable();
+            });
+        }
+
+        // Manage rates button
+        if (billingManageRatesBtn) {
+            billingManageRatesBtn.addEventListener('click', openRatesModal);
+        }
+
+        // Export button
+        if (billingExportBtn) {
+            billingExportBtn.addEventListener('click', exportBillingReport);
+        }
+
+        // Generate invoice button
+        if (billingGenerateInvoiceBtn) {
+            billingGenerateInvoiceBtn.addEventListener('click', openInvoiceModal);
+        }
+
+        // Rates modal close buttons
+        [closeRatesModalBtn, billingRatesCancelBtn].forEach(btn => {
+            if (btn) btn.addEventListener('click', closeRatesModal);
+        });
+
+        // Rates modal save
+        if (billingRatesSaveBtn) {
+            billingRatesSaveBtn.addEventListener('click', saveRatesAndClose);
+        }
+
+        // Add new rate button
+        if (billingAddRateBtn) {
+            billingAddRateBtn.addEventListener('click', addNewRate);
+        }
+
+        // Invoice modal close buttons
+        [closeInvoiceModalBtn, billingInvoiceCancelBtn].forEach(btn => {
+            if (btn) btn.addEventListener('click', closeInvoiceModal);
+        });
+
+        // Invoice download button
+        if (billingInvoiceDownloadBtn) {
+            billingInvoiceDownloadBtn.addEventListener('click', downloadInvoice);
+        }
+
+        // Invoice form changes - update preview
+        [invoiceClientSelect, invoiceDateFrom, invoiceDateTo, invoiceOnlyCompleted].forEach(el => {
+            if (el) {
+                el.addEventListener('change', updateInvoicePreview);
+            }
+        });
+
+        // Cost type radio buttons
+        document.querySelectorAll('input[name="invoice-cost-type"]').forEach(radio => {
+            radio.addEventListener('change', updateInvoicePreview);
+        });
+    };
+
+    // Rates Modal Functions
+    const openRatesModal = async () => {
+        if (!billingRatesModal) return;
+
+        // Reload config
+        const config = await loadBillingConfig();
+        billingRates = config.rates;
+        billingSettings = config.settings;
+        pendingRateChanges = {};
+
+        // Populate default rate
+        if (billingDefaultRate) {
+            billingDefaultRate.value = billingSettings.defaultHourlyRate || 50;
+        }
+
+        // Render rates table
+        renderRatesTable();
+
+        billingRatesModal.classList.remove('hidden');
+    };
+
+    const closeRatesModal = () => {
+        if (billingRatesModal) billingRatesModal.classList.add('hidden');
+        pendingRateChanges = {};
+    };
+
+    const renderRatesTable = () => {
+        if (!billingRatesTableBody) return;
+
+        const rateEntries = Object.entries(billingRates);
+
+        if (rateEntries.length === 0) {
+            billingRatesTableBody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="px-4 py-4 text-center text-text-muted text-sm">
+                        No hay tarifas configuradas. Agrega una nueva tarifa.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        billingRatesTableBody.innerHTML = rateEntries.map(([deptKey, rate]) => `
+            <tr data-dept="${deptKey}">
+                <td class="px-4 py-3">
+                    <span class="font-medium text-gray-900 dark:text-white">${deptKey}</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <input type="number" min="0" step="0.01" value="${rate.hourlyRate || 0}"
+                           class="rate-input w-24 h-9 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-right text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                           data-dept="${deptKey}">
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button" class="delete-rate-btn size-8 rounded-full hover:bg-red-500/10 text-red-400 hover:text-red-500 transition-colors" data-dept="${deptKey}">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        // Add event listeners for rate inputs
+        billingRatesTableBody.querySelectorAll('.rate-input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const dept = e.target.dataset.dept;
+                pendingRateChanges[dept] = Number(e.target.value) || 0;
+            });
+        });
+
+        // Add event listeners for delete buttons
+        billingRatesTableBody.querySelectorAll('.delete-rate-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const dept = e.target.closest('.delete-rate-btn').dataset.dept;
+                if (confirm(`¿Eliminar la tarifa para "${dept}"?`)) {
+                    await deleteRate(dept);
+                    delete billingRates[dept];
+                    renderRatesTable();
+                }
+            });
+        });
+    };
+
+    const addNewRate = async () => {
+        const deptName = billingNewDept?.value?.trim();
+        const rate = Number(billingNewRate?.value) || 0;
+
+        if (!deptName) {
+            alert('Por favor ingresa un nombre de departamento');
+            return;
+        }
+
+        if (rate < 0) {
+            alert('La tarifa debe ser mayor o igual a 0');
+            return;
+        }
+
+        if (billingRates[deptName]) {
+            alert('Ya existe una tarifa para este departamento');
+            return;
+        }
+
+        await saveRate(deptName, rate);
+        billingRates[deptName] = { hourlyRate: rate };
+
+        // Clear inputs
+        if (billingNewDept) billingNewDept.value = '';
+        if (billingNewRate) billingNewRate.value = '';
+
+        renderRatesTable();
+    };
+
+    const saveRatesAndClose = async () => {
+        try {
+            // Save default rate
+            const defaultRate = Number(billingDefaultRate?.value) || 50;
+            await saveBillingSettings({
+                defaultHourlyRate: defaultRate,
+                currency: billingSettings.currency || 'EUR'
+            });
+            billingSettings.defaultHourlyRate = defaultRate;
+
+            // Save pending rate changes
+            for (const [dept, rate] of Object.entries(pendingRateChanges)) {
+                await saveRate(dept, rate);
+                billingRates[dept] = { ...billingRates[dept], hourlyRate: rate };
+            }
+
+            closeRatesModal();
+            renderBilling(); // Refresh billing view with new rates
+        } catch (error) {
+            console.error('[BILLING] Error saving rates:', error);
+            alert('Error al guardar las tarifas');
+        }
+    };
+
+    // Invoice Modal Functions
+    const openInvoiceModal = () => {
+        if (!billingInvoiceModal) return;
+
+        // Populate client selector
+        if (invoiceClientSelect) {
+            invoiceClientSelect.innerHTML = '<option value="">Todos los clientes</option>';
+            allClients.forEach(client => {
+                const opt = document.createElement('option');
+                opt.value = client.id;
+                opt.textContent = client.name || client.id;
+                invoiceClientSelect.appendChild(opt);
+            });
+        }
+
+        // Reset form
+        if (invoiceDateFrom) invoiceDateFrom.value = '';
+        if (invoiceDateTo) invoiceDateTo.value = '';
+        if (invoiceOnlyCompleted) invoiceOnlyCompleted.checked = false;
+
+        updateInvoicePreview();
+        billingInvoiceModal.classList.remove('hidden');
+    };
+
+    const closeInvoiceModal = () => {
+        if (billingInvoiceModal) billingInvoiceModal.classList.add('hidden');
+    };
+
+    const updateInvoicePreview = () => {
+        const clientId = invoiceClientSelect?.value || '';
+        const dateFrom = invoiceDateFrom?.value || '';
+        const dateTo = invoiceDateTo?.value || '';
+        const onlyCompleted = invoiceOnlyCompleted?.checked || false;
+        const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
+
+        const invoiceData = generateInvoiceData(
+            { clientId, dateFrom, dateTo, useActual, onlyCompleted },
+            allClients,
+            usersByUid,
+            billingRates,
+            billingSettings
+        );
+
+        if (invoicePreviewTotal) {
+            invoicePreviewTotal.textContent = formatCurrency(invoiceData.totals.amount, billingSettings.currency);
+        }
+        if (invoicePreviewCount) {
+            invoicePreviewCount.textContent = invoiceData.lines.length;
+        }
+    };
+
+    const downloadInvoice = () => {
+        const clientId = invoiceClientSelect?.value || '';
+        const dateFrom = invoiceDateFrom?.value || '';
+        const dateTo = invoiceDateTo?.value || '';
+        const onlyCompleted = invoiceOnlyCompleted?.checked || false;
+        const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
+
+        const invoiceData = generateInvoiceData(
+            { clientId, dateFrom, dateTo, useActual, onlyCompleted },
+            allClients,
+            usersByUid,
+            billingRates,
+            billingSettings
+        );
+
+        const csv = generateInvoiceCSV(invoiceData);
+        const clientName = allClients.find(c => c.id === clientId)?.name || 'Todos';
+        const dateStr = new Date().toISOString().split('T')[0];
+        const filename = `Factura_${clientName}_${dateStr}.csv`;
+
+        downloadCSV(csv, filename);
+        closeInvoiceModal();
+    };
+
+    const exportBillingReport = () => {
+        if (!billingData) {
+            alert('No hay datos para exportar');
+            return;
+        }
+
+        const csv = generateBillingReportCSV(billingData, billingSettings);
+        const dateStr = new Date().toISOString().split('T')[0];
+        const filename = `Reporte_Facturacion_${dateStr}.csv`;
+
+        downloadCSV(csv, filename);
+    };
+
+    const updateBillingData = () => {
+        if (!hasBilling()) return;
+        initBillingFilters();
+        renderBilling();
     };
 
     const normalizeAutomationIdList = (value) => {
@@ -7326,6 +8029,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSearchResults();
             updateCalendarItems();
             updateTimelineItems();
+            updateBillingData();
         }, (error) => {
             console.error("Error fetching clients: ", error);
             clientsLoading = false;
@@ -7630,7 +8334,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const enabledCount = Object.values(allAutomations).filter(a => a.enabled).length;
         console.log('[AUTOMATIONS] Loaded:', Object.keys(allAutomations).length, '| Enabled:', enabledCount);
 
+        // Build context for condition evaluation (v2)
+        const pathParts = parseClientPath(eventData.path);
+        const conditionContext = {
+            clientId: pathParts?.clientId || '',
+            clientName: pathParts?.clientName || '',
+            projectId: pathParts?.projectId || '',
+            projectName: pathParts?.projectName || '',
+            productId: pathParts?.productId || '',
+            productName: pathParts?.productName || '',
+            taskId: pathParts?.taskId || '',
+            taskName: eventData.data?.name || '',
+            taskStatus: eventData.data?.status || 'Pendiente',
+            priority: eventData.data?.priority || 'none',
+            assigneeUid: eventData.data?.assigneeUid || '',
+            createdByUid: eventData.data?.createdByUid || '',
+            entityType: eventData.type,
+            entityName: eventData.data?.name || '',
+            // For status change
+            oldStatus: eventData.oldStatus || '',
+            newStatus: eventData.newStatus || eventData.data?.status || ''
+        };
+
+        // Map eventType to trigger type for idempotency
+        const getTriggerTypeForIdempotency = () => {
+            if (eventType === 'activityCreated') {
+                if (eventData.type === 'project') return TRIGGER_TYPES.PROJECT_CREATED;
+                if (eventData.type === 'product') return TRIGGER_TYPES.PRODUCT_CREATED;
+                if (eventData.type === 'task') return TRIGGER_TYPES.TASK_CREATED;
+            }
+            if (eventType === 'activityStatusChanged') return TRIGGER_TYPES.TASK_STATUS_CHANGED;
+            return null;
+        };
+        const triggerTypeForKey = getTriggerTypeForIdempotency();
+
         let matchedCount = 0;
+        let skippedByConditions = 0;
+        let skippedByIdempotency = 0;
+
         for (const automationId in allAutomations) {
             const automation = { id: automationId, ...allAutomations[automationId] };
 
@@ -7652,6 +8393,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const actions = Array.isArray(automation.actions)
                 ? automation.actions
                 : Object.values(automation.actions || {});
+
             for (const trigger of triggers) {
                 let triggerMet = false;
                 if (eventType === 'activityCreated' && trigger.triggerType === 'created' && trigger.activityType.toLowerCase() === eventData.type.toLowerCase()) {
@@ -7661,19 +8403,52 @@ document.addEventListener('DOMContentLoaded', () => {
                         triggerMet = true;
                     }
                 }
-                
+
                 if (triggerMet) {
+                    // v2: Evaluate conditions before executing
+                    if (automation.conditions && automation.conditions.rules && automation.conditions.rules.length > 0) {
+                        const conditionsMet = evaluateConditions(automation.conditions, conditionContext);
+                        if (!conditionsMet) {
+                            console.log('[AUTOMATIONS] Conditions not met for:', automation.name);
+                            skippedByConditions++;
+                            break; // Skip this automation
+                        }
+                        console.log('[AUTOMATIONS] Conditions met for:', automation.name);
+                    }
+
+                    // v2: Check idempotency
+                    if (triggerTypeForKey) {
+                        const eventKey = generateEventKey(triggerTypeForKey, conditionContext);
+                        const alreadyExecuted = await hasExecuted(automationId, eventKey);
+                        if (alreadyExecuted) {
+                            console.log('[AUTOMATIONS] Already executed for event:', automation.name, eventKey);
+                            skippedByIdempotency++;
+                            break; // Skip this automation
+                        }
+                    }
+
                     matchedCount++;
                     console.log('[AUTOMATIONS] Trigger met for automation:', automation.name, '| Actions:', actions.length);
+
                     for (const action of actions) {
                         await executeAction(action, eventData, automation);
                     }
+
+                    // v2: Mark as executed for idempotency
+                    if (triggerTypeForKey) {
+                        const eventKey = generateEventKey(triggerTypeForKey, conditionContext);
+                        await markExecuted(automationId, eventKey, { status: 'success', actionsExecuted: actions.length });
+                    }
+
+                    // Update lastRun timestamp
+                    await update(ref(database, `automations/${automationId}`), { lastRun: Date.now() });
+
                     // Stop checking other triggers for this automation
                     break;
                 }
             }
         }
-        console.log('[AUTOMATIONS] Execution complete. Matched automations:', matchedCount);
+        console.log('[AUTOMATIONS] Execution complete. Matched:', matchedCount, '| Skipped by conditions:', skippedByConditions, '| Skipped by idempotency:', skippedByIdempotency);
     };
 
     const isActivityInScope = (activityPath, scope) => {
@@ -8294,6 +9069,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         fetchClients();
+        initBilling();
     };
 
     // Cleanup when user logs out
@@ -8315,6 +9091,9 @@ document.addEventListener('DOMContentLoaded', () => {
         calendarItems = [];
         calendarState = { view: 'month', date: new Date() };
         renderCalendar();
+        // Reset billing state
+        billingData = null;
+        billingFiltersInitialized = false;
         noClientsMessage.textContent = "Por favor, inicie sesión.";
         noClientsMessage.classList.remove('hidden');
         resetProjectDetail();
