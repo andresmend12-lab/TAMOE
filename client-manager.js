@@ -18,7 +18,9 @@ import {
     formatCurrency,
     formatDuration,
     minutesToHours,
-    DEFAULT_DEPARTMENTS
+    DEFAULT_DEPARTMENTS,
+    saveInvoiceSnapshot,
+    loadSavedInvoices
 } from './billing-engine.js';
 
 /**
@@ -4286,9 +4288,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn) btn.addEventListener('click', closeInvoiceModal);
         });
 
-        // Invoice download button
-        if (billingInvoiceDownloadBtn) {
-            billingInvoiceDownloadBtn.addEventListener('click', downloadInvoice);
+        // Invoice wizard navigation
+        const invoiceNextBtn = document.getElementById('invoice-next-btn');
+        const invoiceBackBtn = document.getElementById('invoice-back-btn');
+        const invoiceGenerateBtn = document.getElementById('invoice-generate-btn');
+        const invoiceCloseBtn = document.getElementById('invoice-close-btn');
+        const invoiceDownloadCsvBtn = document.getElementById('invoice-download-csv-btn');
+
+        if (invoiceNextBtn) {
+            invoiceNextBtn.addEventListener('click', invoiceWizardNext);
+        }
+        if (invoiceBackBtn) {
+            invoiceBackBtn.addEventListener('click', invoiceWizardBack);
+        }
+        if (invoiceGenerateBtn) {
+            invoiceGenerateBtn.addEventListener('click', generateAndSaveInvoice);
+        }
+        if (invoiceCloseBtn) {
+            invoiceCloseBtn.addEventListener('click', closeInvoiceModal);
+        }
+        if (invoiceDownloadCsvBtn) {
+            invoiceDownloadCsvBtn.addEventListener('click', downloadCurrentInvoice);
         }
 
         // Invoice form changes - update preview
@@ -4438,13 +4458,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Invoice Modal Functions
+    // ========== Invoice Wizard State & Functions ==========
+    let invoiceWizardStep = 1;
+    let currentInvoiceData = null;
+    let lastSavedInvoiceId = null;
+
     const openInvoiceModal = () => {
         if (!billingInvoiceModal) return;
 
+        // Reset wizard state
+        invoiceWizardStep = 1;
+        currentInvoiceData = null;
+        lastSavedInvoiceId = null;
+
         // Populate client selector
         if (invoiceClientSelect) {
-            invoiceClientSelect.innerHTML = '<option value="">Todos los clientes</option>';
+            invoiceClientSelect.innerHTML = '<option value="">Selecciona un cliente</option>';
             allClients.forEach(client => {
                 const opt = document.createElement('option');
                 opt.value = client.id;
@@ -4458,12 +4487,274 @@ document.addEventListener('DOMContentLoaded', () => {
         if (invoiceDateTo) invoiceDateTo.value = '';
         if (invoiceOnlyCompleted) invoiceOnlyCompleted.checked = false;
 
+        // Clear errors
+        document.getElementById('invoice-client-error')?.classList.add('hidden');
+        document.getElementById('invoice-date-error')?.classList.add('hidden');
+
         updateInvoicePreview();
+        updateInvoiceWizardUI();
         billingInvoiceModal.classList.remove('hidden');
     };
 
     const closeInvoiceModal = () => {
         if (billingInvoiceModal) billingInvoiceModal.classList.add('hidden');
+        invoiceWizardStep = 1;
+        currentInvoiceData = null;
+    };
+
+    const updateInvoiceWizardUI = () => {
+        const step1 = document.getElementById('invoice-step-1');
+        const step2 = document.getElementById('invoice-step-2');
+        const step3 = document.getElementById('invoice-step-3');
+        const stepLabel = document.getElementById('invoice-step-label');
+        const backBtn = document.getElementById('invoice-back-btn');
+        const nextBtn = document.getElementById('invoice-next-btn');
+        const generateBtn = document.getElementById('invoice-generate-btn');
+        const cancelBtn = document.getElementById('billing-invoice-cancel-btn');
+        const closeBtn = document.getElementById('invoice-close-btn');
+
+        // Update step indicators
+        [1, 2, 3].forEach(i => {
+            const indicator = document.getElementById(`invoice-step-${i}-indicator`);
+            if (indicator) {
+                const circle = indicator.querySelector('div');
+                const label = indicator.querySelector('span');
+                if (i <= invoiceWizardStep) {
+                    indicator.classList.remove('opacity-50');
+                    if (circle) {
+                        circle.classList.remove('bg-border-dark', 'text-text-muted');
+                        circle.classList.add('bg-primary', 'text-white');
+                    }
+                    if (label) {
+                        label.classList.remove('text-text-muted');
+                        label.classList.add('text-gray-900', 'dark:text-white');
+                    }
+                } else {
+                    indicator.classList.add('opacity-50');
+                    if (circle) {
+                        circle.classList.add('bg-border-dark', 'text-text-muted');
+                        circle.classList.remove('bg-primary', 'text-white');
+                    }
+                    if (label) {
+                        label.classList.add('text-text-muted');
+                        label.classList.remove('text-gray-900', 'dark:text-white');
+                    }
+                }
+            }
+        });
+
+        // Show/hide steps
+        step1?.classList.toggle('hidden', invoiceWizardStep !== 1);
+        step2?.classList.toggle('hidden', invoiceWizardStep !== 2);
+        step3?.classList.toggle('hidden', invoiceWizardStep !== 3);
+
+        // Update step label
+        const labels = {
+            1: 'Paso 1 de 3: Configuración',
+            2: 'Paso 2 de 3: Resumen',
+            3: 'Paso 3 de 3: Resultado'
+        };
+        if (stepLabel) stepLabel.textContent = labels[invoiceWizardStep];
+
+        // Show/hide buttons based on step
+        backBtn?.classList.toggle('hidden', invoiceWizardStep === 1 || invoiceWizardStep === 3);
+        nextBtn?.classList.toggle('hidden', invoiceWizardStep !== 1);
+        generateBtn?.classList.toggle('hidden', invoiceWizardStep !== 2);
+        cancelBtn?.classList.toggle('hidden', invoiceWizardStep === 3);
+        closeBtn?.classList.toggle('hidden', invoiceWizardStep !== 3);
+    };
+
+    const invoiceWizardNext = () => {
+        if (invoiceWizardStep === 1) {
+            // Validate step 1
+            const clientId = invoiceClientSelect?.value || '';
+            const dateFrom = invoiceDateFrom?.value || '';
+            const dateTo = invoiceDateTo?.value || '';
+            const clientError = document.getElementById('invoice-client-error');
+            const dateError = document.getElementById('invoice-date-error');
+
+            let hasError = false;
+
+            if (!clientId) {
+                clientError?.classList.remove('hidden');
+                hasError = true;
+            } else {
+                clientError?.classList.add('hidden');
+            }
+
+            if (!dateFrom || !dateTo || dateFrom > dateTo) {
+                dateError?.classList.remove('hidden');
+                hasError = true;
+            } else {
+                dateError?.classList.add('hidden');
+            }
+
+            if (hasError) return;
+
+            // Generate invoice data for step 2
+            const onlyCompleted = invoiceOnlyCompleted?.checked || false;
+            const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
+
+            currentInvoiceData = generateInvoiceData(
+                { clientId, dateFrom, dateTo, useActual, onlyCompleted },
+                allClients,
+                usersByUid,
+                billingRates,
+                billingSettings
+            );
+
+            // Populate step 2 summary
+            renderInvoiceSummary();
+
+            invoiceWizardStep = 2;
+            updateInvoiceWizardUI();
+        }
+    };
+
+    const invoiceWizardBack = () => {
+        if (invoiceWizardStep > 1) {
+            invoiceWizardStep--;
+            updateInvoiceWizardUI();
+        }
+    };
+
+    const renderInvoiceSummary = () => {
+        if (!currentInvoiceData) return;
+
+        const { totals, byDepartment, lines, client } = currentInvoiceData;
+
+        // KPIs
+        const estHours = document.getElementById('invoice-summary-est-hours');
+        const realHours = document.getElementById('invoice-summary-real-hours');
+        const estCost = document.getElementById('invoice-summary-est-cost');
+        const realCost = document.getElementById('invoice-summary-real-cost');
+        const summaryCount = document.getElementById('invoice-summary-count');
+
+        if (estHours) estHours.textContent = formatDuration(totals.estimatedMinutes || 0, 'decimal') + 'h';
+        if (realHours) realHours.textContent = formatDuration(totals.spentMinutes || 0, 'decimal') + 'h';
+        if (estCost) estCost.textContent = formatCurrency(totals.estimatedCost || 0, billingSettings.currency);
+        if (realCost) realCost.textContent = formatCurrency(totals.actualCost || totals.amount || 0, billingSettings.currency);
+        if (summaryCount) summaryCount.textContent = lines.length;
+
+        // By Department
+        const byDeptContainer = document.getElementById('invoice-summary-by-dept');
+        if (byDeptContainer) {
+            if (byDepartment && byDepartment.length > 0) {
+                byDeptContainer.innerHTML = byDepartment.map(d => `
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-surface-dark/30">
+                        <span class="text-sm text-gray-900 dark:text-white">${d.department || 'Sin departamento'}</span>
+                        <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">${formatCurrency(d.actualCost || d.cost || 0, billingSettings.currency)}</span>
+                    </div>
+                `).join('');
+            } else {
+                byDeptContainer.innerHTML = '<p class="text-text-muted text-sm">Sin datos por departamento</p>';
+            }
+        }
+
+        // Items list
+        const itemsContainer = document.getElementById('invoice-summary-items');
+        if (itemsContainer) {
+            if (lines && lines.length > 0) {
+                itemsContainer.innerHTML = lines.slice(0, 50).map(line => `
+                    <div class="flex items-center justify-between py-1 border-b border-border-dark/30">
+                        <span class="text-gray-900 dark:text-white truncate flex-1">${line.name || line.taskName || '-'}</span>
+                        <span class="text-text-muted ml-2">${formatCurrency(line.cost || 0, billingSettings.currency)}</span>
+                    </div>
+                `).join('') + (lines.length > 50 ? `<p class="text-text-muted text-xs mt-2">... y ${lines.length - 50} más</p>` : '');
+            } else {
+                itemsContainer.innerHTML = '<p class="text-text-muted">Sin actividades que facturar</p>';
+            }
+        }
+    };
+
+    const generateAndSaveInvoice = async () => {
+        if (!currentInvoiceData) return;
+
+        const generateBtn = document.getElementById('invoice-generate-btn');
+        if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Generando...';
+        }
+
+        try {
+            // Prepare invoice data for saving
+            const clientId = invoiceClientSelect?.value || '';
+            const dateFrom = invoiceDateFrom?.value || '';
+            const dateTo = invoiceDateTo?.value || '';
+            const onlyCompleted = invoiceOnlyCompleted?.checked || false;
+            const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
+
+            const invoiceToSave = {
+                clientId,
+                clientName: allClients.find(c => c.id === clientId)?.name || clientId,
+                from: dateFrom,
+                to: dateTo,
+                currency: billingSettings.currency || 'EUR',
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser?.uid || 'unknown',
+                useActual,
+                onlyCompleted,
+                totals: {
+                    estimatedMinutes: currentInvoiceData.totals.estimatedMinutes || 0,
+                    realMinutes: currentInvoiceData.totals.spentMinutes || 0,
+                    estimatedCost: currentInvoiceData.totals.estimatedCost || 0,
+                    realCost: currentInvoiceData.totals.actualCost || currentInvoiceData.totals.amount || 0
+                },
+                byDepartment: (currentInvoiceData.byDepartment || []).reduce((acc, d) => {
+                    acc[d.department || 'Default'] = {
+                        estMinutes: d.estimatedMinutes || 0,
+                        realMinutes: d.spentMinutes || 0,
+                        estCost: d.estimatedCost || 0,
+                        realCost: d.actualCost || d.cost || 0
+                    };
+                    return acc;
+                }, {}),
+                items: (currentInvoiceData.lines || []).map(line => ({
+                    type: line.type || 'task',
+                    id: line.id || line.taskId || '',
+                    name: line.name || line.taskName || '',
+                    department: line.department || 'Default',
+                    estimatedMinutes: line.estimatedMinutes || 0,
+                    realMinutes: line.spentMinutes || 0,
+                    estimatedCost: line.estimatedCost || 0,
+                    realCost: line.cost || 0,
+                    path: line.path || ''
+                })),
+                filtersSnapshot: { clientId, dateFrom, dateTo, onlyCompleted, useActual }
+            };
+
+            // Save to Firebase
+            lastSavedInvoiceId = await saveInvoiceSnapshot(invoiceToSave);
+            console.log('[BILLING] Invoice saved with ID:', lastSavedInvoiceId);
+
+            // Update result display
+            const resultId = document.getElementById('invoice-result-id');
+            if (resultId) resultId.textContent = lastSavedInvoiceId;
+
+            // Move to step 3
+            invoiceWizardStep = 3;
+            updateInvoiceWizardUI();
+
+        } catch (error) {
+            console.error('[BILLING] Error saving invoice:', error);
+            alert('Error al guardar la factura: ' + error.message);
+        } finally {
+            if (generateBtn) {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">receipt_long</span> Generar Factura';
+            }
+        }
+    };
+
+    const downloadCurrentInvoice = () => {
+        if (!currentInvoiceData) return;
+
+        const csv = generateInvoiceCSV(currentInvoiceData);
+        const clientName = currentInvoiceData.client?.name || 'Cliente';
+        const dateStr = new Date().toISOString().split('T')[0];
+        const filename = `Factura_${clientName.replace(/\s+/g, '_')}_${dateStr}.csv`;
+
+        downloadCSV(csv, filename);
     };
 
     const updateInvoicePreview = () => {
@@ -4472,6 +4763,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const dateTo = invoiceDateTo?.value || '';
         const onlyCompleted = invoiceOnlyCompleted?.checked || false;
         const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
+
+        // Clear errors on change
+        document.getElementById('invoice-client-error')?.classList.add('hidden');
+        document.getElementById('invoice-date-error')?.classList.add('hidden');
 
         const invoiceData = generateInvoiceData(
             { clientId, dateFrom, dateTo, useActual, onlyCompleted },
@@ -4482,35 +4777,11 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         if (invoicePreviewTotal) {
-            invoicePreviewTotal.textContent = formatCurrency(invoiceData.totals.amount, billingSettings.currency);
+            invoicePreviewTotal.textContent = formatCurrency(invoiceData.totals.amount || 0, billingSettings.currency);
         }
         if (invoicePreviewCount) {
-            invoicePreviewCount.textContent = invoiceData.lines.length;
+            invoicePreviewCount.textContent = invoiceData.lines?.length || 0;
         }
-    };
-
-    const downloadInvoice = () => {
-        const clientId = invoiceClientSelect?.value || '';
-        const dateFrom = invoiceDateFrom?.value || '';
-        const dateTo = invoiceDateTo?.value || '';
-        const onlyCompleted = invoiceOnlyCompleted?.checked || false;
-        const useActual = document.querySelector('input[name="invoice-cost-type"]:checked')?.value === 'actual';
-
-        const invoiceData = generateInvoiceData(
-            { clientId, dateFrom, dateTo, useActual, onlyCompleted },
-            allClients,
-            usersByUid,
-            billingRates,
-            billingSettings
-        );
-
-        const csv = generateInvoiceCSV(invoiceData);
-        const clientName = allClients.find(c => c.id === clientId)?.name || 'Todos';
-        const dateStr = new Date().toISOString().split('T')[0];
-        const filename = `Factura_${clientName}_${dateStr}.csv`;
-
-        downloadCSV(csv, filename);
-        closeInvoiceModal();
     };
 
     const exportBillingReport = () => {

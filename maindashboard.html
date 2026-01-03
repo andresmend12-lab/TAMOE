@@ -1375,78 +1375,177 @@
     </div>
 </div>
 
-<!-- Generate Invoice Modal -->
+<!-- Generate Invoice Modal (Wizard 3 pasos) -->
 <div id="billing-invoice-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-lg bg-white dark:bg-surface-darker rounded-2xl shadow-2xl m-4">
-        <div class="flex justify-between items-center p-6 border-b border-border-dark">
+    <div class="w-full max-w-2xl bg-white dark:bg-surface-darker rounded-2xl shadow-2xl m-4 max-h-[90vh] flex flex-col">
+        <!-- Header -->
+        <div class="flex justify-between items-center p-6 border-b border-border-dark shrink-0">
             <div>
                 <h2 class="text-gray-900 dark:text-white text-xl font-bold">Generar Factura</h2>
-                <p class="text-text-muted text-sm">Configura los parámetros de la factura</p>
+                <p id="invoice-step-label" class="text-text-muted text-sm">Paso 1 de 3: Configuración</p>
             </div>
             <button id="close-invoice-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                 <span class="material-symbols-outlined text-text-muted">close</span>
             </button>
         </div>
-        <div class="p-6 flex flex-col gap-5">
-            <div>
-                <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Cliente</label>
-                <select id="invoice-client-select" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
-                    <option value="">Todos los clientes</option>
-                </select>
-            </div>
 
-            <div class="grid grid-cols-2 gap-4">
+        <!-- Step indicators -->
+        <div class="flex items-center justify-center gap-2 p-4 bg-surface-dark/30 shrink-0">
+            <div id="invoice-step-1-indicator" class="flex items-center gap-2">
+                <div class="size-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">1</div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white hidden md:inline">Configuración</span>
+            </div>
+            <div class="w-8 h-0.5 bg-border-dark"></div>
+            <div id="invoice-step-2-indicator" class="flex items-center gap-2 opacity-50">
+                <div class="size-8 rounded-full bg-border-dark text-text-muted flex items-center justify-center text-sm font-bold">2</div>
+                <span class="text-sm font-medium text-text-muted hidden md:inline">Resumen</span>
+            </div>
+            <div class="w-8 h-0.5 bg-border-dark"></div>
+            <div id="invoice-step-3-indicator" class="flex items-center gap-2 opacity-50">
+                <div class="size-8 rounded-full bg-border-dark text-text-muted flex items-center justify-center text-sm font-bold">3</div>
+                <span class="text-sm font-medium text-text-muted hidden md:inline">Resultado</span>
+            </div>
+        </div>
+
+        <!-- Content area -->
+        <div class="flex-1 overflow-y-auto p-6">
+            <!-- Step 1: Configuración -->
+            <div id="invoice-step-1" class="flex flex-col gap-5">
                 <div>
-                    <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Fecha desde</label>
-                    <input type="date" id="invoice-date-from" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                    <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Cliente <span class="text-red-500">*</span></label>
+                    <select id="invoice-client-select" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
+                        <option value="">Selecciona un cliente</option>
+                    </select>
+                    <p id="invoice-client-error" class="text-xs text-red-500 mt-1 hidden">Debes seleccionar un cliente</p>
                 </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Fecha desde <span class="text-red-500">*</span></label>
+                        <input type="date" id="invoice-date-from" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Fecha hasta <span class="text-red-500">*</span></label>
+                        <input type="date" id="invoice-date-to" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                    </div>
+                </div>
+                <p id="invoice-date-error" class="text-xs text-red-500 -mt-3 hidden">Debes seleccionar un rango de fechas válido</p>
+
                 <div>
-                    <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Fecha hasta</label>
-                    <input type="date" id="invoice-date-to" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                    <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Tipo de coste</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="invoice-cost-type" value="actual" checked class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                            <span class="text-sm text-gray-900 dark:text-white">Tiempo real</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="invoice-cost-type" value="estimated" class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                            <span class="text-sm text-gray-900 dark:text-white">Tiempo estimado</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
 
-            <div>
-                <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Tipo de coste</label>
-                <div class="flex gap-4">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="invoice-cost-type" value="actual" checked class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
-                        <span class="text-sm text-gray-900 dark:text-white">Tiempo real</span>
+                <div>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="invoice-only-completed" class="w-4 h-4 rounded text-primary border-border-dark focus:ring-primary">
+                        <span class="text-sm text-gray-900 dark:text-white">Solo tareas finalizadas</span>
                     </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="invoice-cost-type" value="estimated" class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
-                        <span class="text-sm text-gray-900 dark:text-white">Tiempo estimado</span>
-                    </label>
+                </div>
+
+                <!-- Quick preview -->
+                <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">Vista previa</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-text-muted text-sm">Total:</span>
+                        <span id="invoice-preview-total" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">€0.00</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-text-muted text-sm">Actividades:</span>
+                        <span id="invoice-preview-count" class="text-sm font-medium text-gray-900 dark:text-white">0</span>
+                    </div>
                 </div>
             </div>
 
-            <div>
-                <label class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" id="invoice-only-completed" class="w-4 h-4 rounded text-primary border-border-dark focus:ring-primary">
-                    <span class="text-sm text-gray-900 dark:text-white">Solo tareas finalizadas</span>
-                </label>
+            <!-- Step 2: Resumen -->
+            <div id="invoice-step-2" class="hidden flex flex-col gap-5">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                        <p class="text-xs text-text-muted mb-1">Horas Estimadas</p>
+                        <p id="invoice-summary-est-hours" class="text-xl font-bold text-blue-600 dark:text-blue-400">0h</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                        <p class="text-xs text-text-muted mb-1">Horas Reales</p>
+                        <p id="invoice-summary-real-hours" class="text-xl font-bold text-purple-600 dark:text-purple-400">0h</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                        <p class="text-xs text-text-muted mb-1">Coste Estimado</p>
+                        <p id="invoice-summary-est-cost" class="text-xl font-bold text-emerald-600 dark:text-emerald-400">€0.00</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                        <p class="text-xs text-text-muted mb-1">Coste Real</p>
+                        <p id="invoice-summary-real-cost" class="text-xl font-bold text-amber-600 dark:text-amber-400">€0.00</p>
+                    </div>
+                </div>
+
+                <!-- Por Departamento -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Desglose por Departamento</h4>
+                    <div id="invoice-summary-by-dept" class="space-y-2 max-h-40 overflow-y-auto">
+                        <p class="text-text-muted text-sm">Sin datos</p>
+                    </div>
+                </div>
+
+                <!-- Lista de actividades -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Actividades incluidas (<span id="invoice-summary-count">0</span>)</h4>
+                    <div id="invoice-summary-items" class="space-y-1 max-h-48 overflow-y-auto text-sm">
+                        <p class="text-text-muted">Sin actividades</p>
+                    </div>
+                </div>
             </div>
 
-            <!-- Invoice preview -->
-            <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">Vista previa</span>
+            <!-- Step 3: Resultado -->
+            <div id="invoice-step-3" class="hidden flex flex-col items-center justify-center gap-6 py-8">
+                <div class="size-20 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-4xl text-emerald-500">check_circle</span>
                 </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-text-muted text-sm">Total estimado:</span>
-                    <span id="invoice-preview-total" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">€0.00</span>
+                <div class="text-center">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Factura Generada</h3>
+                    <p class="text-text-muted">La factura ha sido creada y guardada correctamente.</p>
                 </div>
-                <div class="flex items-center justify-between mt-1">
-                    <span class="text-text-muted text-sm">Actividades:</span>
-                    <span id="invoice-preview-count" class="text-sm font-medium text-gray-900 dark:text-white">0</span>
+                <div class="p-4 rounded-xl bg-surface-dark/50 border border-border-dark text-center">
+                    <p class="text-xs text-text-muted mb-1">ID de Factura</p>
+                    <p id="invoice-result-id" class="text-lg font-mono font-bold text-gray-900 dark:text-white">-</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="invoice-download-csv-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">download</span>
+                        Descargar CSV
+                    </button>
                 </div>
             </div>
         </div>
-        <div class="p-6 border-t border-border-dark flex justify-end gap-3">
+
+        <!-- Footer -->
+        <div class="p-6 border-t border-border-dark flex justify-between gap-3 shrink-0">
+            <button id="invoice-back-btn" type="button" class="hidden px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                <span class="material-symbols-outlined text-[18px] align-middle mr-1">arrow_back</span>
+                Atrás
+            </button>
+            <div class="flex-1"></div>
             <button id="billing-invoice-cancel-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-            <button id="billing-invoice-download-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2">
-                <span class="material-symbols-outlined text-[18px]">download</span>
-                Descargar CSV
+            <button id="invoice-next-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg shadow-lg shadow-primary/30 transition-all flex items-center gap-2">
+                Continuar
+                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </button>
+            <button id="invoice-generate-btn" type="button" class="hidden px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">receipt_long</span>
+                Generar Factura
+            </button>
+            <button id="invoice-close-btn" type="button" class="hidden px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-all">
+                Cerrar
             </button>
         </div>
     </div>
