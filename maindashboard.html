@@ -143,6 +143,30 @@
         .dark #timeline-right-scroll > div > div:hover {
             background-color: rgba(230, 25, 161, 0.1);
         }
+        /* Print styles for invoice preview */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #invoice-preview-modal,
+            #invoice-preview-modal * {
+                visibility: visible;
+            }
+            #invoice-preview-modal {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: auto;
+                background: white !important;
+            }
+            .print\\:hidden {
+                display: none !important;
+            }
+            .print\\:block {
+                display: block !important;
+            }
+        }
     </style>
     <script src="auth-guard.js" type="module"></script>
 </head>
@@ -1295,11 +1319,11 @@
 
 <!-- Billing Rates Modal -->
 <div id="billing-rates-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-2xl bg-white dark:bg-surface-darker rounded-2xl shadow-2xl m-4 max-h-[90vh] flex flex-col">
+    <div class="w-full max-w-3xl bg-white dark:bg-surface-darker rounded-2xl shadow-2xl m-4 max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center p-6 border-b border-border-dark">
             <div>
-                <h2 class="text-gray-900 dark:text-white text-xl font-bold">Gestión de Tarifas</h2>
-                <p class="text-text-muted text-sm">Configura las tarifas por departamento (€/hora)</p>
+                <h2 class="text-gray-900 dark:text-white text-xl font-bold">Tarifas por Departamento</h2>
+                <p class="text-text-muted text-sm">Configura coste interno y precio cliente (€/hora)</p>
             </div>
             <button id="close-rates-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                 <span class="material-symbols-outlined text-text-muted">close</span>
@@ -1308,11 +1332,20 @@
         <div class="flex-1 overflow-y-auto p-6">
             <!-- Default rate setting -->
             <div class="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
-                <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Tarifa por defecto (cuando no hay departamento asignado)</label>
-                <div class="flex items-center gap-3">
-                    <input type="number" id="billing-default-rate" min="0" step="0.01" value="50"
-                           class="w-32 h-10 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                    <span class="text-text-muted text-sm">€/hora</span>
+                <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Tarifas por defecto (cuando no hay departamento asignado)</label>
+                <div class="flex items-center gap-4 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-text-muted">Coste interno:</label>
+                        <input type="number" id="billing-default-internal-rate" min="0" step="0.01" value="50"
+                               class="w-24 h-10 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                        <span class="text-text-muted text-sm">€/h</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-text-muted">Precio cliente:</label>
+                        <input type="number" id="billing-default-client-rate" min="0" step="0.01" value="100"
+                               class="w-24 h-10 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                        <span class="text-text-muted text-sm">€/h</span>
+                    </div>
                 </div>
             </div>
 
@@ -1322,7 +1355,8 @@
                     <thead class="bg-gray-50 dark:bg-surface-dark">
                         <tr>
                             <th class="text-left px-4 py-3 font-semibold text-text-muted">Departamento</th>
-                            <th class="text-right px-4 py-3 font-semibold text-text-muted">Tarifa (€/h)</th>
+                            <th class="text-right px-4 py-3 font-semibold text-text-muted">Coste Interno (€/h)</th>
+                            <th class="text-right px-4 py-3 font-semibold text-text-muted">Precio Cliente (€/h)</th>
                             <th class="text-center px-4 py-3 font-semibold text-text-muted w-20">Acciones</th>
                         </tr>
                     </thead>
@@ -1335,15 +1369,20 @@
             <!-- Add new rate -->
             <div class="mt-4 p-4 rounded-xl border border-dashed border-border-dark">
                 <p class="text-sm font-medium text-gray-900 dark:text-white mb-3">Agregar nueva tarifa</p>
-                <div class="flex items-end gap-3">
-                    <div class="flex-1">
+                <div class="flex items-end gap-3 flex-wrap">
+                    <div class="flex-1 min-w-[150px]">
                         <label class="text-xs text-text-muted mb-1 block">Departamento</label>
                         <input type="text" id="billing-new-dept" placeholder="Ej: Consultoría"
                                class="w-full h-10 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
                     </div>
-                    <div class="w-32">
-                        <label class="text-xs text-text-muted mb-1 block">Tarifa €/h</label>
-                        <input type="number" id="billing-new-rate" min="0" step="0.01" placeholder="0.00"
+                    <div class="w-28">
+                        <label class="text-xs text-text-muted mb-1 block">Coste Interno €/h</label>
+                        <input type="number" id="billing-new-internal-rate" min="0" step="0.01" placeholder="0.00"
+                               class="w-full h-10 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                    </div>
+                    <div class="w-28">
+                        <label class="text-xs text-text-muted mb-1 block">Precio Cliente €/h</label>
+                        <input type="number" id="billing-new-client-rate" min="0" step="0.01" placeholder="0.00"
                                class="w-full h-10 bg-white dark:bg-surface-input border border-border-dark rounded-lg px-3 text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
                     </div>
                     <button id="billing-add-rate-btn" type="button" class="h-10 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold transition-colors flex items-center gap-2">
@@ -1355,19 +1394,116 @@
         </div>
         <div class="p-6 border-t border-border-dark flex justify-end gap-3">
             <button id="billing-rates-cancel-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-            <button id="billing-rates-save-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">Guardar Cambios</button>
+            <button id="billing-rates-save-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all flex items-center gap-2">
+                <span id="rates-save-spinner" class="material-symbols-outlined text-[18px] animate-spin hidden">progress_activity</span>
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Billing Export Modal -->
+<div id="billing-export-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-lg bg-white dark:bg-surface-darker rounded-2xl shadow-2xl m-4">
+        <div class="flex justify-between items-center p-6 border-b border-border-dark">
+            <div>
+                <h2 class="text-gray-900 dark:text-white text-xl font-bold">Exportar Datos</h2>
+                <p class="text-text-muted text-sm">Descarga los datos de facturación</p>
+            </div>
+            <button id="close-export-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+                <span class="material-symbols-outlined text-text-muted">close</span>
+            </button>
+        </div>
+        <div class="p-6 space-y-5">
+            <!-- Format -->
+            <div>
+                <label class="text-sm font-medium text-gray-900 dark:text-white mb-3 block">Formato</label>
+                <div class="flex gap-3">
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-xl border border-border-dark cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                        <input type="radio" name="export-format" value="csv" checked class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">CSV</span>
+                            <p class="text-xs text-text-muted">Compatible con Excel</p>
+                        </div>
+                    </label>
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-xl border border-border-dark cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                        <input type="radio" name="export-format" value="json" class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">JSON</span>
+                            <p class="text-xs text-text-muted">Datos estructurados</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Scope -->
+            <div>
+                <label class="text-sm font-medium text-gray-900 dark:text-white mb-3 block">Alcance</label>
+                <div class="flex gap-3">
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-xl border border-border-dark cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                        <input type="radio" name="export-scope" value="filtered" checked class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">Filtros actuales</span>
+                            <p class="text-xs text-text-muted">Solo lo que ves</p>
+                        </div>
+                    </label>
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-xl border border-border-dark cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                        <input type="radio" name="export-scope" value="all" class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">Todo</span>
+                            <p class="text-xs text-text-muted">Ignora filtros</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Structure -->
+            <div>
+                <label class="text-sm font-medium text-gray-900 dark:text-white mb-3 block">Estructura</label>
+                <div class="flex gap-3">
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-xl border border-border-dark cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                        <input type="radio" name="export-structure" value="flat" checked class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">Lista plana</span>
+                            <p class="text-xs text-text-muted">Una fila por actividad</p>
+                        </div>
+                    </label>
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-xl border border-border-dark cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                        <input type="radio" name="export-structure" value="hierarchy" class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">Jerárquico</span>
+                            <p class="text-xs text-text-muted">Cliente > Proyecto > ...</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Preview info -->
+            <div class="p-4 rounded-xl bg-surface-dark/30 border border-border-dark">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-text-muted">Actividades a exportar:</span>
+                    <span id="export-preview-count" class="text-sm font-bold text-gray-900 dark:text-white">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-border-dark flex justify-end gap-3">
+            <button id="billing-export-cancel-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
+            <button id="billing-export-download-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">download</span>
+                Descargar
+            </button>
         </div>
     </div>
 </div>
 
 <!-- Generate Invoice Modal (Wizard 3 pasos) -->
 <div id="billing-invoice-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="w-full max-w-2xl bg-white dark:bg-surface-darker rounded-2xl shadow-2xl m-4 max-h-[90vh] flex flex-col">
+    <div class="w-full max-w-3xl bg-white dark:bg-surface-darker rounded-2xl shadow-2xl m-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
         <div class="flex justify-between items-center p-6 border-b border-border-dark shrink-0">
             <div>
                 <h2 class="text-gray-900 dark:text-white text-xl font-bold">Generar Factura</h2>
-                <p id="invoice-step-label" class="text-text-muted text-sm">Paso 1 de 3: Configuración</p>
+                <p id="invoice-step-label" class="text-text-muted text-sm">Paso 1 de 3: Datos de Factura</p>
             </div>
             <button id="close-invoice-modal-btn" class="size-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
                 <span class="material-symbols-outlined text-text-muted">close</span>
@@ -1378,12 +1514,12 @@
         <div class="flex items-center justify-center gap-2 p-4 bg-surface-dark/30 shrink-0">
             <div id="invoice-step-1-indicator" class="flex items-center gap-2">
                 <div class="size-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">1</div>
-                <span class="text-sm font-medium text-gray-900 dark:text-white hidden md:inline">Configuración</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-white hidden md:inline">Datos</span>
             </div>
             <div class="w-8 h-0.5 bg-border-dark"></div>
             <div id="invoice-step-2-indicator" class="flex items-center gap-2 opacity-50">
                 <div class="size-8 rounded-full bg-border-dark text-text-muted flex items-center justify-center text-sm font-bold">2</div>
-                <span class="text-sm font-medium text-text-muted hidden md:inline">Resumen</span>
+                <span class="text-sm font-medium text-text-muted hidden md:inline">Líneas</span>
             </div>
             <div class="w-8 h-0.5 bg-border-dark"></div>
             <div id="invoice-step-3-indicator" class="flex items-center gap-2 opacity-50">
@@ -1394,8 +1530,22 @@
 
         <!-- Content area -->
         <div class="flex-1 overflow-y-auto p-6">
-            <!-- Step 1: Configuración -->
+            <!-- Step 1: Datos de Factura -->
             <div id="invoice-step-1" class="flex flex-col gap-5">
+                <!-- Invoice Number & Date -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Número de Factura</label>
+                        <input type="text" id="invoice-number" placeholder="TAMOE-2024-0001"
+                               class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary font-mono">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Fecha de Emisión</label>
+                        <input type="date" id="invoice-issue-date"
+                               class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                    </div>
+                </div>
+
                 <div>
                     <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Cliente <span class="text-red-500">*</span></label>
                     <select id="invoice-client-select" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
@@ -1406,27 +1556,37 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Fecha desde <span class="text-red-500">*</span></label>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Periodo desde <span class="text-red-500">*</span></label>
                         <input type="date" id="invoice-date-from" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
                     </div>
                     <div>
-                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Fecha hasta <span class="text-red-500">*</span></label>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Periodo hasta <span class="text-red-500">*</span></label>
                         <input type="date" id="invoice-date-to" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary">
                     </div>
                 </div>
                 <p id="invoice-date-error" class="text-xs text-red-500 -mt-3 hidden">Debes seleccionar un rango de fechas válido</p>
 
-                <div>
-                    <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Tipo de coste</label>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="invoice-cost-type" value="actual" checked class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
-                            <span class="text-sm text-gray-900 dark:text-white">Tiempo real</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="invoice-cost-type" value="estimated" class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
-                            <span class="text-sm text-gray-900 dark:text-white">Tiempo estimado</span>
-                        </label>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Tipo de coste</label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="invoice-cost-type" value="actual" checked class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                                <span class="text-sm text-gray-900 dark:text-white">Tiempo real</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="invoice-cost-type" value="estimated" class="w-4 h-4 text-primary border-border-dark focus:ring-primary">
+                                <span class="text-sm text-gray-900 dark:text-white">Tiempo estimado</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Moneda</label>
+                        <select id="invoice-currency" class="w-full h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
+                            <option value="EUR" selected>EUR - Euro</option>
+                            <option value="USD">USD - Dólar</option>
+                            <option value="GBP">GBP - Libra</option>
+                        </select>
                     </div>
                 </div>
 
@@ -1435,6 +1595,12 @@
                         <input type="checkbox" id="invoice-only-completed" class="w-4 h-4 rounded text-primary border-border-dark focus:ring-primary">
                         <span class="text-sm text-gray-900 dark:text-white">Solo tareas finalizadas</span>
                     </label>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-900 dark:text-white mb-2 block">Notas</label>
+                    <textarea id="invoice-notes" rows="2" placeholder="Notas adicionales para la factura..."
+                              class="w-full px-4 py-3 rounded-lg border border-border-dark bg-white dark:bg-surface-input text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary resize-none"></textarea>
                 </div>
 
                 <!-- Quick preview -->
@@ -1453,42 +1619,82 @@
                 </div>
             </div>
 
-            <!-- Step 2: Resumen -->
+            <!-- Step 2: Líneas de Factura -->
             <div id="invoice-step-2" class="hidden flex flex-col gap-5">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
-                        <p class="text-xs text-text-muted mb-1">Horas Estimadas</p>
-                        <p id="invoice-summary-est-hours" class="text-xl font-bold text-blue-600 dark:text-blue-400">0h</p>
+                <!-- Agrupación -->
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-900 dark:text-white">Agrupar por:</label>
+                    <div class="flex gap-2">
+                        <button type="button" data-group="project" class="invoice-group-btn h-8 px-3 text-xs font-medium rounded-lg border border-primary bg-primary/10 text-primary">Proyecto</button>
+                        <button type="button" data-group="product" class="invoice-group-btn h-8 px-3 text-xs font-medium rounded-lg border border-border-dark text-text-muted hover:border-primary hover:text-primary transition-colors">Producto</button>
+                        <button type="button" data-group="activity" class="invoice-group-btn h-8 px-3 text-xs font-medium rounded-lg border border-border-dark text-text-muted hover:border-primary hover:text-primary transition-colors">Actividad</button>
                     </div>
-                    <div class="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                </div>
+
+                <!-- KPIs -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                        <p class="text-xs text-text-muted mb-1">Horas Est.</p>
+                        <p id="invoice-summary-est-hours" class="text-lg font-bold text-blue-600 dark:text-blue-400">0h</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-purple-500/5 border border-purple-500/20">
                         <p class="text-xs text-text-muted mb-1">Horas Reales</p>
-                        <p id="invoice-summary-real-hours" class="text-xl font-bold text-purple-600 dark:text-purple-400">0h</p>
+                        <p id="invoice-summary-real-hours" class="text-lg font-bold text-purple-600 dark:text-purple-400">0h</p>
                     </div>
-                    <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                        <p class="text-xs text-text-muted mb-1">Coste Estimado</p>
-                        <p id="invoice-summary-est-cost" class="text-xl font-bold text-emerald-600 dark:text-emerald-400">€0.00</p>
+                    <div class="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                        <p class="text-xs text-text-muted mb-1">Coste Interno</p>
+                        <p id="invoice-summary-internal-cost" class="text-lg font-bold text-amber-600 dark:text-amber-400">€0.00</p>
                     </div>
-                    <div class="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                        <p class="text-xs text-text-muted mb-1">Coste Real</p>
-                        <p id="invoice-summary-real-cost" class="text-xl font-bold text-amber-600 dark:text-amber-400">€0.00</p>
-                    </div>
-                </div>
-
-                <!-- Por Departamento -->
-                <div>
-                    <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Desglose por Departamento</h4>
-                    <div id="invoice-summary-by-dept" class="space-y-2 max-h-40 overflow-y-auto">
-                        <p class="text-text-muted text-sm">Sin datos</p>
+                    <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                        <p class="text-xs text-text-muted mb-1">Precio Cliente</p>
+                        <p id="invoice-summary-client-cost" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">€0.00</p>
                     </div>
                 </div>
 
-                <!-- Lista de actividades -->
+                <!-- Líneas de factura -->
                 <div>
-                    <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Actividades incluidas (<span id="invoice-summary-count">0</span>)</h4>
-                    <div id="invoice-summary-items" class="space-y-1 max-h-48 overflow-y-auto text-sm">
-                        <p class="text-text-muted">Sin actividades</p>
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-medium text-gray-900 dark:text-white">Líneas de Factura</h4>
+                        <label class="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="invoice-select-all" checked class="w-4 h-4 rounded text-primary border-border-dark focus:ring-primary">
+                            <span class="text-text-muted">Seleccionar todas</span>
+                        </label>
+                    </div>
+                    <div id="invoice-lines-container" class="rounded-xl border border-border-dark overflow-hidden max-h-64 overflow-y-auto">
+                        <table class="w-full text-xs">
+                            <thead class="bg-gray-50 dark:bg-surface-dark sticky top-0">
+                                <tr>
+                                    <th class="w-8 p-2"></th>
+                                    <th class="text-left p-2 font-semibold text-text-muted">Descripción</th>
+                                    <th class="text-right p-2 font-semibold text-text-muted w-20">Horas</th>
+                                    <th class="text-right p-2 font-semibold text-text-muted w-20">Tarifa</th>
+                                    <th class="text-right p-2 font-semibold text-text-muted w-24">Importe</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-lines-body" class="divide-y divide-border-dark">
+                                <!-- Lines will be populated here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+
+                <!-- Totales -->
+                <div class="p-4 rounded-xl bg-surface-dark/50 border border-border-dark">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-900 dark:text-white">TOTAL FACTURA</span>
+                        <span id="invoice-total-amount" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">€0.00</span>
+                    </div>
+                    <p id="invoice-total-warning" class="text-xs text-amber-500 mt-2 hidden">
+                        <span class="material-symbols-outlined text-[14px] align-middle mr-1">warning</span>
+                        La factura tiene total 0€
+                    </p>
+                </div>
+
+                <!-- Previsualización -->
+                <button id="invoice-preview-btn" type="button" class="w-full py-3 rounded-lg border border-border-dark text-sm font-medium text-gray-900 dark:text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-[18px]">visibility</span>
+                    Previsualizar Factura
+                </button>
             </div>
 
             <!-- Step 3: Resultado -->
@@ -1500,11 +1706,17 @@
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Factura Generada</h3>
                     <p class="text-text-muted">La factura ha sido creada y guardada correctamente.</p>
                 </div>
-                <div class="p-4 rounded-xl bg-surface-dark/50 border border-border-dark text-center">
-                    <p class="text-xs text-text-muted mb-1">ID de Factura</p>
-                    <p id="invoice-result-id" class="text-lg font-mono font-bold text-gray-900 dark:text-white">-</p>
+                <div class="p-4 rounded-xl bg-surface-dark/50 border border-border-dark text-center w-full max-w-sm">
+                    <p class="text-xs text-text-muted mb-1">Número de Factura</p>
+                    <p id="invoice-result-number" class="text-lg font-mono font-bold text-gray-900 dark:text-white mb-2">-</p>
+                    <p class="text-xs text-text-muted mb-1">ID en Firebase</p>
+                    <p id="invoice-result-id" class="text-sm font-mono text-text-muted">-</p>
                 </div>
                 <div class="flex gap-3">
+                    <button id="invoice-preview-final-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">visibility</span>
+                        Ver Factura
+                    </button>
                     <button id="invoice-download-csv-btn" type="button" class="px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">download</span>
                         Descargar CSV
@@ -1526,12 +1738,107 @@
                 <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
             </button>
             <button id="invoice-generate-btn" type="button" class="hidden px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2">
-                <span class="material-symbols-outlined text-[18px]">receipt_long</span>
-                Generar Factura
+                <span id="invoice-generate-spinner" class="material-symbols-outlined text-[18px] animate-spin hidden">progress_activity</span>
+                <span class="material-symbols-outlined text-[18px]" id="invoice-generate-icon">receipt_long</span>
+                Crear Factura
             </button>
             <button id="invoice-close-btn" type="button" class="hidden px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-all">
                 Cerrar
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Invoice Preview Modal -->
+<div id="invoice-preview-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity print:bg-white print:backdrop-blur-none">
+    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl m-4 max-h-[95vh] flex flex-col print:max-w-none print:m-0 print:rounded-none print:shadow-none print:max-h-none">
+        <!-- Print Header (hidden on screen) -->
+        <div class="hidden print:block p-8 border-b-2 border-gray-200">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">FACTURA</h1>
+                    <p id="preview-invoice-number-print" class="text-xl font-mono text-gray-600 mt-1">-</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-bold text-primary">TAMOE</p>
+                    <p class="text-sm text-gray-500">Sistema de Gestión</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen Header -->
+        <div class="flex justify-between items-center p-6 border-b border-gray-200 print:hidden">
+            <div>
+                <h2 class="text-gray-900 text-xl font-bold">Vista Previa de Factura</h2>
+                <p id="preview-invoice-number" class="text-gray-500 text-sm font-mono">-</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="invoice-print-btn" type="button" class="h-9 px-4 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 text-xs font-semibold transition-colors flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">print</span>
+                    Imprimir
+                </button>
+                <button id="close-preview-modal-btn" class="size-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-gray-500">close</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Invoice Content -->
+        <div class="flex-1 overflow-y-auto p-8 bg-white print:overflow-visible">
+            <!-- Header Info -->
+            <div class="grid grid-cols-2 gap-8 mb-8 print:mb-6">
+                <div>
+                    <h3 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Facturar a:</h3>
+                    <p id="preview-client-name" class="text-lg font-semibold text-gray-900">-</p>
+                </div>
+                <div class="text-right">
+                    <div class="mb-2">
+                        <span class="text-xs uppercase tracking-wider text-gray-500">Fecha emisión:</span>
+                        <p id="preview-issue-date" class="font-medium text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <span class="text-xs uppercase tracking-wider text-gray-500">Periodo:</span>
+                        <p id="preview-period" class="font-medium text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lines Table -->
+            <div class="rounded-lg border border-gray-200 overflow-hidden mb-6 print:break-inside-avoid">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-semibold text-gray-600">Descripción</th>
+                            <th class="text-right px-4 py-3 font-semibold text-gray-600 w-24">Horas</th>
+                            <th class="text-right px-4 py-3 font-semibold text-gray-600 w-24">Tarifa</th>
+                            <th class="text-right px-4 py-3 font-semibold text-gray-600 w-28">Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-lines-body" class="divide-y divide-gray-100">
+                        <!-- Lines will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals -->
+            <div class="flex justify-end print:break-inside-avoid">
+                <div class="w-64">
+                    <div class="flex justify-between py-2 border-b border-gray-200">
+                        <span class="text-gray-600">Subtotal:</span>
+                        <span id="preview-subtotal" class="font-medium text-gray-900">€0.00</span>
+                    </div>
+                    <div class="flex justify-between py-3 text-lg font-bold">
+                        <span class="text-gray-900">TOTAL:</span>
+                        <span id="preview-total" class="text-primary">€0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div id="preview-notes-section" class="mt-8 pt-6 border-t border-gray-200 hidden print:break-inside-avoid">
+                <h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Notas:</h4>
+                <p id="preview-notes" class="text-sm text-gray-600"></p>
+            </div>
         </div>
     </div>
 </div>
