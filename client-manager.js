@@ -79,6 +79,101 @@ function hoursToMinutes(hours) {
     return Math.round(parseFloat(hours) * 60);
 }
 
+// ========== FUNCIONES DE PARSEO DE DURACIÓN ==========
+/**
+ * Parsea una cadena de duración a minutos.
+ * Soporta: "1h 30m", "1h30m", "90m", "1.5h", "1:30", "90"
+ * @param {string} input - La cadena a parsear
+ * @returns {number|null} - Minutos o null si inválido
+ */
+function parseDurationToMinutes(input) {
+    if (input === null || input === undefined) return null;
+    const str = String(input).trim().toLowerCase();
+    if (!str) return 0; // Vacío = 0 minutos
+
+    let totalMinutes = 0;
+    let matched = false;
+
+    // Patrón 1: "1h 30m", "2h", "45m", "1h30m"
+    const hPattern = /(\d+(?:\.\d+)?)\s*h/g;
+    const mPattern = /(\d+(?:\.\d+)?)\s*m/g;
+
+    let hMatch;
+    while ((hMatch = hPattern.exec(str)) !== null) {
+        totalMinutes += parseFloat(hMatch[1]) * 60;
+        matched = true;
+    }
+
+    let mMatch;
+    while ((mMatch = mPattern.exec(str)) !== null) {
+        totalMinutes += parseFloat(mMatch[1]);
+        matched = true;
+    }
+
+    if (matched) {
+        return Math.round(totalMinutes);
+    }
+
+    // Patrón 2: "1:30" (hh:mm)
+    const colonMatch = str.match(/^(\d+):(\d{1,2})$/);
+    if (colonMatch) {
+        const hours = parseInt(colonMatch[1], 10);
+        const mins = parseInt(colonMatch[2], 10);
+        if (mins < 60) {
+            return hours * 60 + mins;
+        }
+    }
+
+    // Patrón 3: Número solo (interpretar como minutos)
+    const numMatch = str.match(/^(\d+(?:\.\d+)?)$/);
+    if (numMatch) {
+        return Math.round(parseFloat(numMatch[1]));
+    }
+
+    // No se pudo parsear
+    return null;
+}
+
+/**
+ * Formatea minutos a una cadena legible.
+ * @param {number} mins - Minutos totales
+ * @returns {string} - Cadena formateada (ej: "1h 30m")
+ */
+function formatMinutesToDurationStr(mins) {
+    if (mins === null || mins === undefined || isNaN(mins)) return '';
+    const total = Math.round(mins);
+    if (total <= 0) return '';
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+}
+
+/**
+ * Pobla un select con la lista de usuarios
+ * @param {HTMLSelectElement} selectEl - Elemento select a poblar
+ * @param {Object} usersMap - Mapa de usuarios por UID
+ */
+function populateUserSelect(selectEl, usersMap) {
+    if (!selectEl) return;
+
+    // Limpiar opciones excepto la primera (Sin asignar)
+    selectEl.innerHTML = '<option value="">Sin asignar</option>';
+
+    // Agregar usuarios
+    if (usersMap && typeof usersMap === 'object') {
+        Object.entries(usersMap).forEach(([uid, user]) => {
+            const displayName = user?.username || user?.email || uid;
+            const department = user?.department ? ` (${user.department})` : '';
+            const option = document.createElement('option');
+            option.value = uid;
+            option.textContent = `${displayName}${department}`;
+            selectEl.appendChild(option);
+        });
+    }
+}
+
 /**
  * Agregación recursiva de tiempos SOLO desde tareas hoja (sin subtareas) y subtareas
  * Para niveles superiores (cliente/proyecto/producto) y tareas con subtareas
@@ -6512,6 +6607,16 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Selecciona un producto para crear tareas.');
             return;
         }
+        // Poblar selector de usuarios
+        const taskAssigneeSelect = document.getElementById('task-assignee');
+        populateUserSelect(taskAssigneeSelect, usersByUid);
+        // Limpiar campos adicionales
+        const taskEstimatedInput = document.getElementById('task-estimated');
+        const taskEstimatedError = document.getElementById('task-estimated-error');
+        if (taskEstimatedInput) taskEstimatedInput.value = '';
+        if (taskEstimatedError) taskEstimatedError.classList.add('hidden');
+        if (taskAssigneeSelect) taskAssigneeSelect.value = '';
+
         addTaskModal.classList.remove('hidden');
         setTimeout(() => taskNameInput?.focus(), 50);
     };
@@ -6519,6 +6624,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeTaskModal = () => {
         addTaskModal.classList.add('hidden');
         addTaskForm?.reset();
+        // Limpiar campos adicionales
+        const taskEstimatedInput = document.getElementById('task-estimated');
+        const taskEstimatedError = document.getElementById('task-estimated-error');
+        const taskAssigneeSelect = document.getElementById('task-assignee');
+        if (taskEstimatedInput) taskEstimatedInput.value = '';
+        if (taskEstimatedError) taskEstimatedError.classList.add('hidden');
+        if (taskAssigneeSelect) taskAssigneeSelect.value = '';
         taskCreationContext = null;
     };
 
@@ -6527,6 +6639,16 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Selecciona una tarea primero.');
             return;
         }
+        // Poblar selector de usuarios
+        const subtaskAssigneeSelect = document.getElementById('subtask-assignee');
+        populateUserSelect(subtaskAssigneeSelect, usersByUid);
+        // Limpiar campos adicionales
+        const subtaskEstimatedInput = document.getElementById('subtask-estimated');
+        const subtaskEstimatedError = document.getElementById('subtask-estimated-error');
+        if (subtaskEstimatedInput) subtaskEstimatedInput.value = '';
+        if (subtaskEstimatedError) subtaskEstimatedError.classList.add('hidden');
+        if (subtaskAssigneeSelect) subtaskAssigneeSelect.value = '';
+
         addSubtaskModal.classList.remove('hidden');
         setTimeout(() => subtaskNameInput?.focus(), 50);
     };
@@ -6534,6 +6656,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeSubtaskModal = () => {
         addSubtaskModal.classList.add('hidden');
         addSubtaskForm?.reset();
+        // Limpiar campos adicionales
+        const subtaskEstimatedInput = document.getElementById('subtask-estimated');
+        const subtaskEstimatedError = document.getElementById('subtask-estimated-error');
+        const subtaskAssigneeSelect = document.getElementById('subtask-assignee');
+        if (subtaskEstimatedInput) subtaskEstimatedInput.value = '';
+        if (subtaskEstimatedError) subtaskEstimatedError.classList.add('hidden');
+        if (subtaskAssigneeSelect) subtaskAssigneeSelect.value = '';
     };
 
     // Render projects of selected client
@@ -8220,6 +8349,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Obtener campos adicionales
+        const taskEstimatedInput = document.getElementById('task-estimated');
+        const taskEstimatedError = document.getElementById('task-estimated-error');
+        const taskAssigneeSelect = document.getElementById('task-assignee');
+
+        // Validar tiempo estimado si hay valor
+        let estimatedMinutes = 0;
+        const estimatedValue = taskEstimatedInput?.value?.trim() || '';
+        if (estimatedValue) {
+            const parsed = parseDurationToMinutes(estimatedValue);
+            if (parsed === null) {
+                // Error de parseo
+                if (taskEstimatedError) {
+                    taskEstimatedError.classList.remove('hidden');
+                }
+                taskEstimatedInput?.focus();
+                return; // No continuar
+            }
+            estimatedMinutes = parsed;
+        }
+
+        // Ocultar error si había
+        if (taskEstimatedError) {
+            taskEstimatedError.classList.add('hidden');
+        }
+
+        // Obtener asignación
+        const assigneeUid = taskAssigneeSelect?.value || '';
+
         try {
             if (saveTaskBtn) {
                 saveTaskBtn.disabled = true;
@@ -8235,13 +8393,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const taskData = {
                 name: taskName,
                 status: 'Pendiente',
-                assigneeUid: '',
+                assigneeUid: assigneeUid,
                 createdAt: timestamp,
                 updatedAt: timestamp,
                 taskId: newTaskRef.key,
                 manageId
             };
 
+            // Agregar tiempo estimado si es mayor a 0
+            if (estimatedMinutes > 0) {
+                taskData.estimatedMinutes = estimatedMinutes;
+            }
+
+            console.log('[CREATE TASK] Guardando en Firebase:', { path: taskPath, data: taskData });
             await set(newTaskRef, taskData);
 
             const projectAutomationIds = getProjectAutomationIds(target.clientId, target.projectId);
@@ -8274,6 +8438,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Obtener campos adicionales
+        const subtaskEstimatedInput = document.getElementById('subtask-estimated');
+        const subtaskEstimatedError = document.getElementById('subtask-estimated-error');
+        const subtaskAssigneeSelect = document.getElementById('subtask-assignee');
+
+        // Validar tiempo estimado si hay valor
+        let estimatedMinutes = 0;
+        const estimatedValue = subtaskEstimatedInput?.value?.trim() || '';
+        if (estimatedValue) {
+            const parsed = parseDurationToMinutes(estimatedValue);
+            if (parsed === null) {
+                // Error de parseo
+                if (subtaskEstimatedError) {
+                    subtaskEstimatedError.classList.remove('hidden');
+                }
+                subtaskEstimatedInput?.focus();
+                return; // No continuar
+            }
+            estimatedMinutes = parsed;
+        }
+
+        // Ocultar error si había
+        if (subtaskEstimatedError) {
+            subtaskEstimatedError.classList.add('hidden');
+        }
+
+        // Obtener asignación
+        const assigneeUid = subtaskAssigneeSelect?.value || '';
+
         try {
             if (saveSubtaskBtn) {
                 saveSubtaskBtn.disabled = true;
@@ -8290,13 +8483,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const subtaskData = {
                 name: subtaskName,
                 status: 'Pendiente',
-                assigneeUid: '',
+                assigneeUid: assigneeUid,
                 createdAt: timestamp,
                 updatedAt: timestamp,
                 subtaskId: newSubtaskRef.key,
                 manageId
             };
 
+            // Agregar tiempo estimado si es mayor a 0
+            if (estimatedMinutes > 0) {
+                subtaskData.estimatedMinutes = estimatedMinutes;
+            }
+
+            console.log('[CREATE SUBTASK] Guardando en Firebase:', { path: subtaskPath, data: subtaskData });
             await set(newSubtaskRef, subtaskData);
 
             const projectAutomationIds = getProjectAutomationIds(selectedClientId, selectedProjectId);
@@ -9010,6 +9209,20 @@ document.addEventListener('DOMContentLoaded', () => {
         addProductModal?.addEventListener('click', e => { if (e.target === addProductModal) closeProductModal(); });
         addTaskModal?.addEventListener('click', e => { if (e.target === addTaskModal) closeTaskModal(); });
         addSubtaskModal?.addEventListener('click', e => { if (e.target === addSubtaskModal) closeSubtaskModal(); });
+
+        // Limpiar errores de tiempo estimado al escribir
+        const taskEstimatedInput = document.getElementById('task-estimated');
+        const taskEstimatedError = document.getElementById('task-estimated-error');
+        const subtaskEstimatedInput = document.getElementById('subtask-estimated');
+        const subtaskEstimatedError = document.getElementById('subtask-estimated-error');
+
+        taskEstimatedInput?.addEventListener('input', () => {
+            taskEstimatedError?.classList.add('hidden');
+        });
+
+        subtaskEstimatedInput?.addEventListener('input', () => {
+            subtaskEstimatedError?.classList.add('hidden');
+        });
 
         backToClientsBtn?.addEventListener('click', () => {
             resetProjectDetail();

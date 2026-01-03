@@ -1190,14 +1190,31 @@
         </div>
         <form id="add-task-form">
             <div class="flex flex-col gap-4">
+                <!-- Nombre (obligatorio) -->
                 <div>
                     <label for="task-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Tarea</label>
                     <input type="text" id="task-name" name="task-name" required
                            class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
                 </div>
+                <!-- Tiempo estimado (opcional) -->
+                <div>
+                    <label for="task-estimated" class="text-sm font-medium text-text-muted mb-2 block">Tiempo estimado</label>
+                    <input type="text" id="task-estimated" name="task-estimated" autocomplete="off"
+                           class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                           placeholder="Ej: 1h 30m, 2h, 45m">
+                    <p id="task-estimated-error" class="text-xs text-red-500 mt-1 hidden">Formato inválido. Usa formatos como: 1h 30m, 2h, 45m, 90</p>
+                </div>
+                <!-- Asignación (opcional) -->
+                <div>
+                    <label for="task-assignee" class="text-sm font-medium text-text-muted mb-2 block">Asignar a</label>
+                    <select id="task-assignee" name="task-assignee"
+                            class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                        <option value="">Sin asignar</option>
+                    </select>
+                </div>
                 <div class="flex justify-end gap-4 mt-4">
                      <button type="button" id="cancel-add-task" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-                    <button type="submit"
+                    <button type="submit" id="save-task-btn"
                             class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
                         Guardar Tarea
                     </button>
@@ -1257,14 +1274,31 @@
         </div>
         <form id="add-subtask-form">
             <div class="flex flex-col gap-4">
+                <!-- Nombre (obligatorio) -->
                 <div>
                     <label for="subtask-name" class="text-sm font-medium text-text-muted mb-2 block">Nombre de la Subtarea</label>
                     <input type="text" id="subtask-name" name="subtask-name" required
                            class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
                 </div>
+                <!-- Tiempo estimado (opcional) -->
+                <div>
+                    <label for="subtask-estimated" class="text-sm font-medium text-text-muted mb-2 block">Tiempo estimado</label>
+                    <input type="text" id="subtask-estimated" name="subtask-estimated" autocomplete="off"
+                           class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                           placeholder="Ej: 1h 30m, 2h, 45m">
+                    <p id="subtask-estimated-error" class="text-xs text-red-500 mt-1 hidden">Formato inválido. Usa formatos como: 1h 30m, 2h, 45m, 90</p>
+                </div>
+                <!-- Asignación (opcional) -->
+                <div>
+                    <label for="subtask-assignee" class="text-sm font-medium text-text-muted mb-2 block">Asignar a</label>
+                    <select id="subtask-assignee" name="subtask-assignee"
+                            class="block w-full bg-white dark:bg-surface-dark border border-border-dark rounded-lg py-2.5 px-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                        <option value="">Sin asignar</option>
+                    </select>
+                </div>
                 <div class="flex justify-end gap-4 mt-4">
                      <button type="button" id="cancel-add-subtask" class="px-5 py-2.5 text-sm font-medium text-text-muted bg-white/5 rounded-lg hover:bg-white/10 transition-colors">Cancelar</button>
-                    <button type="submit"
+                    <button type="submit" id="save-subtask-btn"
                             class="px-5 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg shadow-lg shadow-primary/30 transition-all">
                         Guardar Subtarea
                     </button>
