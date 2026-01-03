@@ -173,162 +173,184 @@
                         </section>
                     </div>
 
-                    <aside id="detail-side-panel" class="flex flex-col gap-6">
-                        <section id="assignee-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                            <div class="flex items-center justify-between gap-2 mb-3">
-                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-primary">person</span>
-                                    Asignaci&#xF3;n
-                                </h3>
-                                <span id="assignee-save" class="text-xs text-text-muted"></span>
-                            </div>
-
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-3 min-w-0">
-                                    <div id="assignee-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
-                                    <div class="min-w-0">
-                                        <p class="text-xs font-bold uppercase tracking-wide text-text-muted">Asignado a</p>
-                                        <p id="assignee-name" class="text-gray-900 dark:text-white font-semibold truncate">Sin asignar</p>
-                                        <p id="assignee-dept" class="text-text-muted text-xs truncate"></p>
-                                    </div>
-                                </div>
-
-                                <div class="relative flex-shrink-0">
-                                    <button id="assignee-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
-                                        <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
-                                        Cambiar
-                                    </button>
-                                    <div id="assignee-menu" class="action-menu hidden absolute right-0 top-full mt-2 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-y-auto max-h-80 z-50"></div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section id="status-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                            <div class="flex items-center justify-between gap-2 mb-4">
-                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-primary">timeline</span>
-                                    Estado
-                                </h3>
-                                <div class="flex items-center gap-2">
-                                    <span id="status-save" class="text-xs text-text-muted"></span>
-                                    <span id="status-chip" class="text-xs font-bold px-2.5 py-1 rounded-md border uppercase tracking-wide">-</span>
-                                </div>
-                            </div>
-
-                            <div class="w-full overflow-x-auto pb-1">
-                                <div class="min-w-[260px] flex items-center justify-between gap-2 relative px-1">
-                                    <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-surface-dark -z-10 rounded-full transform -translate-y-1/2"></div>
-                                    <div id="status-progress" class="absolute top-1/2 left-0 h-1 -z-0 rounded-full transform -translate-y-1/2"></div>
-
-                                    <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="Pendiente">
-                                        <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
-                                            <span data-status-icon class="material-symbols-outlined text-[11px]">schedule</span>
-                                        </div>
-                                        <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">Pendiente</span>
-                                    </button>
-
-                                    <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="En proceso">
-                                        <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
-                                            <span data-status-icon class="material-symbols-outlined text-[11px]">autorenew</span>
-                                        </div>
-                                        <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">En proceso</span>
-                                    </button>
-
-                                    <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="Finalizado">
-                                        <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
-                                            <span data-status-icon class="material-symbols-outlined text-[11px]">check_circle</span>
-                                        </div>
-                                        <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">Finalizado</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <p id="status-helper" class="text-xs text-text-muted mt-2"></p>
-                        </section>
-
-                        <!-- Sección Prioridad -->
-                        <section id="priority-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                            <div class="flex items-center justify-between gap-2 mb-4">
-                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-primary">flag</span>
-                                    Prioridad
-                                </h3>
-                                <span id="priority-save" class="text-xs text-text-muted"></span>
-                            </div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <button type="button" id="priority-btn-none" data-priority="none" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
-                                    Sin prioridad
-                                </button>
-                                <button type="button" id="priority-btn-low" data-priority="low" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
-                                    Baja
-                                </button>
-                                <button type="button" id="priority-btn-medium" data-priority="medium" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
-                                    Media
-                                </button>
-                                <button type="button" id="priority-btn-high" data-priority="high" class="priority-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors">
-                                    Alta
-                                </button>
-                            </div>
-                            <p id="priority-helper" class="text-xs text-text-muted mt-2">Haz clic para cambiar la prioridad.</p>
-                        </section>
-
-                        <!-- Sección Fecha de ejecución -->
-                        <section id="date-section" class="hidden bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                            <div class="flex items-center justify-between gap-2 mb-4">
-                                <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-primary">event</span>
-                                    Fecha de ejecución
-                                </h3>
-                                <span id="date-save-status" class="text-xs text-text-muted"></span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <input type="date" id="detail-date-input" class="flex-1 bg-background dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                                <button type="button" id="clear-date-btn" class="p-2 text-text-muted hover:text-red-500 transition-colors hidden" title="Limpiar fecha">
-                                    <span class="material-symbols-outlined text-lg">close</span>
-                                </button>
-                            </div>
-                            <p id="date-helper" class="text-xs text-text-muted mt-2">Selecciona la fecha de ejecución.</p>
-                        </section>
-
-                        <section class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl p-5 shadow-xl">
-                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2 mb-4">
+                    <!-- Panel Unificado de Detalles -->
+                    <aside id="detail-side-panel" class="bg-white dark:bg-surface-darker border border-border-dark rounded-xl shadow-xl overflow-hidden">
+                        <!-- Header del panel -->
+                        <div class="px-5 py-4 border-b border-border-dark bg-gray-50 dark:bg-surface-dark">
+                            <h3 class="text-gray-900 dark:text-white text-lg font-bold flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">tune</span>
                                 Detalles
                             </h3>
-                            <div class="flex flex-col gap-4">
-                                <!-- Tiempo estimado -->
-                                <div>
-                                    <label class="text-xs font-bold uppercase tracking-wide text-text-muted mb-2 block">
-                                        ⏱️ Tiempo estimado
-                                    </label>
-                                    <div id="estimated-time-container"></div>
-                                    <p class="text-xs text-text-muted mt-1">Ej: 1h 30m, 2h, 45m</p>
+                        </div>
+
+                        <div class="flex flex-col divide-y divide-border-dark">
+                            <!-- Sección: Asignación -->
+                            <div id="assignee-section" class="hidden p-5">
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px]">person</span>
+                                        Asignación
+                                    </span>
+                                    <span id="assignee-save" class="text-xs text-text-muted"></span>
                                 </div>
 
-                                <!-- Tiempo empleado -->
-                                <div>
-                                    <label class="text-xs font-bold uppercase tracking-wide text-text-muted mb-2 block">
-                                        📊 Tiempo empleado
-                                    </label>
-                                    <div id="time-spent-container"></div>
-                                    <p class="text-xs text-text-muted mt-1">Ej: 1h 30m, 2h, 45m</p>
-
-                                    <!-- Barra de progreso -->
-                                    <div id="time-progress-container" class="hidden mt-2">
-                                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                            <div id="time-progress-bar" class="h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div id="assignee-avatar" class="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-sm overflow-hidden bg-center bg-cover bg-no-repeat"></div>
+                                        <div class="min-w-0">
+                                            <p id="assignee-name" class="text-gray-900 dark:text-white font-semibold truncate">Sin asignar</p>
+                                            <p id="assignee-dept" class="text-text-muted text-xs truncate"></p>
                                         </div>
-                                        <p id="time-progress-text" class="text-xs text-text-muted mt-1"></p>
+                                    </div>
+
+                                    <div class="relative flex-shrink-0">
+                                        <button id="assignee-toggle" type="button" class="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-semibold">
+                                            <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+                                            Cambiar
+                                        </button>
+                                        <div id="assignee-menu" class="action-menu hidden absolute right-0 top-full mt-2 w-72 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-y-auto max-h-80 z-50"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección: Estado -->
+                            <div id="status-section" class="hidden p-5">
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px]">timeline</span>
+                                        Estado
+                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <span id="status-save" class="text-xs text-text-muted"></span>
+                                        <span id="status-chip" class="text-xs font-bold px-2.5 py-1 rounded-md border uppercase tracking-wide">-</span>
                                     </div>
                                 </div>
 
-                                <!-- Fecha -->
-                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted">Fecha</span>
-                                    <input id="work-date-input" type="date" class="w-full h-10 rounded-lg border border-border-dark bg-white dark:bg-background-dark text-gray-900 dark:text-white px-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary/50"/>
-                                </label>
-                                <span id="detail-fields-status" class="text-xs text-text-muted"></span>
+                                <div class="w-full overflow-x-auto pb-1">
+                                    <div class="min-w-[260px] flex items-center justify-between gap-2 relative px-1">
+                                        <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-surface-dark -z-10 rounded-full transform -translate-y-1/2"></div>
+                                        <div id="status-progress" class="absolute top-1/2 left-0 h-1 -z-0 rounded-full transform -translate-y-1/2"></div>
+
+                                        <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="Pendiente">
+                                            <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                                <span data-status-icon class="material-symbols-outlined text-[11px]">schedule</span>
+                                            </div>
+                                            <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">Pendiente</span>
+                                        </button>
+
+                                        <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="En proceso">
+                                            <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                                <span data-status-icon class="material-symbols-outlined text-[11px]">autorenew</span>
+                                            </div>
+                                            <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">En proceso</span>
+                                        </button>
+
+                                        <button type="button" class="flex flex-col items-center gap-1 group cursor-pointer" data-status-step="Finalizado">
+                                            <div data-status-circle class="size-7 rounded-full bg-white dark:bg-surface-dark border-2 border-border-dark text-text-muted flex items-center justify-center z-10">
+                                                <span data-status-icon class="material-symbols-outlined text-[11px]">check_circle</span>
+                                            </div>
+                                            <span data-status-label class="text-text-muted text-[10px] font-bold uppercase tracking-wider">Finalizado</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <p id="status-helper" class="text-xs text-text-muted mt-2"></p>
                             </div>
-                        </section>
+
+                            <!-- Sección: Prioridad (Dropdown) -->
+                            <div id="priority-section" class="hidden p-5">
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px]">flag</span>
+                                        Prioridad
+                                    </span>
+                                    <span id="priority-save" class="text-xs text-text-muted"></span>
+                                </div>
+
+                                <!-- Dropdown de Prioridad (reemplaza botones) -->
+                                <div id="priority-dropdown-wrapper" class="relative">
+                                    <button type="button" id="priority-dropdown-trigger" class="w-full flex items-center justify-between gap-2 h-11 px-4 rounded-lg border border-border-dark bg-white dark:bg-surface-dark text-gray-900 dark:text-white text-sm font-medium transition-all hover:border-primary/50 focus:border-primary focus:ring-1 focus:ring-primary">
+                                        <span class="flex items-center gap-2">
+                                            <span id="priority-dropdown-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                                            <span id="priority-dropdown-label">Sin prioridad</span>
+                                        </span>
+                                        <span class="material-symbols-outlined text-[18px] text-text-muted">expand_more</span>
+                                    </button>
+                                    <div id="priority-dropdown-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white dark:bg-surface-dark border border-border-dark rounded-lg shadow-xl overflow-hidden z-50">
+                                        <button type="button" data-priority-option="none" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                                            <span class="flex-1">Sin prioridad</span>
+                                            <span class="material-symbols-outlined text-[16px] text-primary priority-check hidden">check</span>
+                                        </button>
+                                        <button type="button" data-priority-option="low" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                                            <span class="flex-1">Baja</span>
+                                            <span class="material-symbols-outlined text-[16px] text-primary priority-check hidden">check</span>
+                                        </button>
+                                        <button type="button" data-priority-option="medium" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                                            <span class="flex-1">Media</span>
+                                            <span class="material-symbols-outlined text-[16px] text-primary priority-check hidden">check</span>
+                                        </button>
+                                        <button type="button" data-priority-option="high" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                                            <span class="flex-1">Alta</span>
+                                            <span class="material-symbols-outlined text-[16px] text-primary priority-check hidden">check</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección: Fecha de ejecución -->
+                            <div id="date-section" class="hidden p-5">
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px]">event</span>
+                                        Fecha de ejecución
+                                    </span>
+                                    <span id="date-save-status" class="text-xs text-text-muted"></span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="date" id="detail-date-input" class="flex-1 h-11 bg-white dark:bg-surface-dark border border-border-dark rounded-lg px-3 text-sm text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary">
+                                    <button type="button" id="clear-date-btn" class="p-2 text-text-muted hover:text-red-500 transition-colors hidden" title="Limpiar fecha">
+                                        <span class="material-symbols-outlined text-lg">close</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Sección: Tiempos -->
+                            <div id="times-section" class="p-5">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <span class="text-xs font-bold uppercase tracking-wide text-text-muted flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px]">timer</span>
+                                        Tiempos
+                                    </span>
+                                    <span id="detail-fields-status" class="text-xs text-text-muted ml-auto"></span>
+                                </div>
+
+                                <div class="flex flex-col gap-4">
+                                    <!-- Tiempo estimado -->
+                                    <div>
+                                        <label class="text-xs font-medium text-text-muted mb-1.5 block">Tiempo estimado</label>
+                                        <div id="estimated-time-container"></div>
+                                    </div>
+
+                                    <!-- Tiempo empleado -->
+                                    <div>
+                                        <label class="text-xs font-medium text-text-muted mb-1.5 block">Tiempo empleado</label>
+                                        <div id="time-spent-container"></div>
+
+                                        <!-- Barra de progreso -->
+                                        <div id="time-progress-container" class="hidden mt-3">
+                                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                                <div id="time-progress-bar" class="h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                            </div>
+                                            <p id="time-progress-text" class="text-xs text-text-muted mt-1"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </aside>
                 </div>
 
@@ -653,21 +675,23 @@
         const assigneeDept = qs('assignee-dept');
         const assigneeToggle = qs('assignee-toggle');
         const assigneeMenu = qs('assignee-menu');
-        const workDateInput = qs('work-date-input');
         const detailFieldsStatus = qs('detail-fields-status');
 
-        // Priority section elements
+        // Priority section elements (dropdown)
         const prioritySection = qs('priority-section');
         const prioritySave = qs('priority-save');
-        const priorityHelper = qs('priority-helper');
-        const priorityButtons = Array.from(document.querySelectorAll('.priority-btn'));
+        const priorityDropdownWrapper = qs('priority-dropdown-wrapper');
+        const priorityDropdownTrigger = qs('priority-dropdown-trigger');
+        const priorityDropdownMenu = qs('priority-dropdown-menu');
+        const priorityDropdownDot = qs('priority-dropdown-dot');
+        const priorityDropdownLabel = qs('priority-dropdown-label');
+        const priorityOptions = Array.from(document.querySelectorAll('[data-priority-option]'));
 
         // Date section elements
         const dateSection = qs('date-section');
         const dateSaveStatus = qs('date-save-status');
         const detailDateInput = qs('detail-date-input');
         const clearDateBtn = qs('clear-date-btn');
-        const dateHelper = qs('date-helper');
 
         // Priority constants
         const PRIORITY_VALUES = ['none', 'low', 'medium', 'high'];
@@ -677,11 +701,11 @@
             'medium': 'Media',
             'high': 'Alta'
         };
-        const PRIORITY_BUTTON_COLORS = {
-            'none': { active: 'bg-gray-500 text-white border-gray-500', inactive: 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' },
-            'low': { active: 'bg-blue-500 text-white border-blue-500', inactive: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' },
-            'medium': { active: 'bg-yellow-500 text-white border-yellow-500', inactive: 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800' },
-            'high': { active: 'bg-red-500 text-white border-red-500', inactive: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' }
+        const PRIORITY_DOT_COLORS = {
+            'none': 'bg-emerald-500',
+            'low': 'bg-yellow-500',
+            'medium': 'bg-orange-500',
+            'high': 'bg-red-500'
         };
 
         let currentPriority = 'none';
@@ -760,7 +784,7 @@
         let usersByUid = {};
         let usersUnsubscribe = null;
         let detailFieldsSaving = false;
-        let detailFieldsSnapshot = { estimatedMinutes: 0, spentMinutes: 0, workDate: '' };
+        let detailFieldsSnapshot = { estimatedMinutes: 0, spentMinutes: 0 };
 
         const getManageIdFromUrl = () => {
             const params = new URLSearchParams(window.location.search);
@@ -894,7 +918,7 @@
             prioritySection.classList.toggle('hidden', !enabledForType);
             if (!enabledForType) return;
 
-            renderPriorityButtons();
+            renderPriorityDropdown();
         };
 
         // Renderizar sección de fecha
@@ -1003,22 +1027,25 @@
             }
         };
 
-        // ===== PRIORIDAD =====
-        const renderPriorityButtons = () => {
-            priorityButtons.forEach(btn => {
-                const prio = btn.dataset.priority;
-                const isActive = prio === currentPriority;
-                const colors = PRIORITY_BUTTON_COLORS[prio] || PRIORITY_BUTTON_COLORS.none;
-
-                // Limpiar todas las clases de color
-                Object.values(PRIORITY_BUTTON_COLORS).forEach(c => {
-                    c.active.split(' ').forEach(cls => btn.classList.remove(cls));
-                    c.inactive.split(' ').forEach(cls => btn.classList.remove(cls));
-                });
-
-                // Añadir clases según estado
-                const classes = isActive ? colors.active : colors.inactive;
-                classes.split(' ').forEach(cls => btn.classList.add(cls));
+        // ===== PRIORIDAD (Dropdown) =====
+        const renderPriorityDropdown = () => {
+            // Actualizar el trigger del dropdown
+            if (priorityDropdownDot) {
+                // Limpiar clases de color anteriores
+                Object.values(PRIORITY_DOT_COLORS).forEach(cls => priorityDropdownDot.classList.remove(cls));
+                // Añadir clase de color actual
+                priorityDropdownDot.classList.add(PRIORITY_DOT_COLORS[currentPriority] || PRIORITY_DOT_COLORS.none);
+            }
+            if (priorityDropdownLabel) {
+                priorityDropdownLabel.textContent = PRIORITY_LABELS[currentPriority] || PRIORITY_LABELS.none;
+            }
+            // Actualizar checks en las opciones del menú
+            priorityOptions.forEach(opt => {
+                const prio = opt.dataset.priorityOption;
+                const check = opt.querySelector('.priority-check');
+                if (check) {
+                    check.classList.toggle('hidden', prio !== currentPriority);
+                }
             });
         };
 
@@ -1036,7 +1063,7 @@
             try {
                 await update(ref(database, currentItemPath), { priority: newPriority });
                 currentPriority = newPriority;
-                renderPriorityButtons();
+                renderPriorityDropdown();
                 if (prioritySave) {
                     prioritySave.textContent = 'Guardado';
                     setTimeout(() => {
@@ -1052,11 +1079,31 @@
             }
         };
 
-        // Inicializar eventos de prioridad
-        priorityButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const prio = btn.dataset.priority;
-                if (prio) savePriority(prio);
+        // Inicializar eventos de prioridad (dropdown)
+        if (priorityDropdownTrigger && priorityDropdownMenu) {
+            priorityDropdownTrigger.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                priorityDropdownMenu.classList.toggle('hidden');
+            });
+
+            // Cerrar al hacer click fuera
+            document.addEventListener('click', (e) => {
+                if (priorityDropdownWrapper && !priorityDropdownWrapper.contains(e.target)) {
+                    priorityDropdownMenu.classList.add('hidden');
+                }
+            });
+        }
+
+        priorityOptions.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const prio = opt.dataset.priorityOption;
+                if (prio) {
+                    savePriority(prio);
+                    priorityDropdownMenu?.classList.add('hidden');
+                }
             });
         });
 
@@ -1491,9 +1538,6 @@
         };
 
         const setDetailFields = (item = {}) => {
-            const workDate = String(item.workDate || '').trim();
-            if (workDateInput) workDateInput.value = workDate;
-
             // Convertir de horas a minutos (compatibilidad con legacy)
             let estimatedMinutes = 0;
             if (item.estimatedMinutes != null) {
@@ -1616,7 +1660,7 @@
                 }
             }
 
-            detailFieldsSnapshot = { estimatedMinutes, spentMinutes, workDate };
+            detailFieldsSnapshot = { estimatedMinutes, spentMinutes };
 
             // Actualizar resúmenes de rollup
             if (isEditable) {
@@ -1635,20 +1679,17 @@
 
         const saveDetailFields = async (newEstimatedMinutes = null, newSpentMinutes = null) => {
             if (!currentUser) {
-                alert('Debes iniciar sesi\u00F3n para guardar estos datos.');
+                alert('Debes iniciar sesión para guardar estos datos.');
                 return;
             }
             if (!currentItemPath) return;
 
-            // Si se pasan nuevos valores, usarlos; sino, leer del input de workDate solamente
             const estimatedMinutes = newEstimatedMinutes ?? detailFieldsSnapshot.estimatedMinutes ?? 0;
             const spentMinutes = newSpentMinutes ?? detailFieldsSnapshot.spentMinutes ?? 0;
-            const workDate = String(workDateInput?.value || '').trim();
 
             const updates = {};
 
             // Guardar en minutos (formato nuevo) y también en horas (compatibilidad legacy)
-            // Solo añadir a updates si realmente cambió el valor
             if (newEstimatedMinutes != null && newEstimatedMinutes !== detailFieldsSnapshot.estimatedMinutes) {
                 updates.estimatedMinutes = estimatedMinutes;
                 updates.estimatedHours = minutesToHours(estimatedMinutes); // Legacy compatibility
@@ -1657,10 +1698,6 @@
             if (newSpentMinutes != null && newSpentMinutes !== detailFieldsSnapshot.spentMinutes) {
                 updates.spentMinutes = spentMinutes;
                 updates.actualHours = minutesToHours(spentMinutes); // Legacy compatibility
-            }
-
-            if (workDate !== detailFieldsSnapshot.workDate) {
-                updates.workDate = workDate;
             }
 
             if (!Object.keys(updates).length) return;
@@ -1675,8 +1712,7 @@
                 // Actualizar snapshot con los nuevos valores guardados
                 detailFieldsSnapshot = {
                     estimatedMinutes: updates.estimatedMinutes ?? detailFieldsSnapshot.estimatedMinutes,
-                    spentMinutes: updates.spentMinutes ?? detailFieldsSnapshot.spentMinutes,
-                    workDate: updates.workDate ?? detailFieldsSnapshot.workDate
+                    spentMinutes: updates.spentMinutes ?? detailFieldsSnapshot.spentMinutes
                 };
 
                 console.log('\u2713 Campos actualizados en detail:', {
@@ -3820,12 +3856,6 @@
                 (currentItemType === 'task' && item && !hasSubtasks(item))
             );
 
-            // Actualizar estado del input de fecha (siempre editable si hay permiso)
-            if (workDateInput) {
-                workDateInput.disabled = !canEditDetails;
-                workDateInput.classList.toggle('opacity-60', !canEditDetails);
-            }
-
             // Actualizar inputs de tiempo según la nueva lógica
             const canEditTime = canEditDetails && isTimeEditable;
 
@@ -4059,7 +4089,6 @@
         // Los event listeners para tiempo estimado y empleado
         // ahora se manejan dentro de createDurationInput (en setDetailFields)
 
-        workDateInput?.addEventListener('change', saveDetailFields);
         commentButton?.addEventListener('click', submitComment);
         qs('open-dashboard')?.addEventListener('click', () => {
             const target = `maindashboard.html?r=${Date.now()}`;
