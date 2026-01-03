@@ -756,8 +756,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 await push(automationsRef, automationData);
             }
             
-            alert('Automatizacion guardada con exito.');
-            window.location.href = 'maindashboard.html';
+            alert('Automatización guardada con éxito.');
+            // Clear dirty state before navigation
+            if (typeof window.clearDirtyState === 'function') {
+                window.clearDirtyState();
+            }
+            window.location.href = 'maindashboard.html?tab=automations';
 
         } catch (error) {
             console.error("Error guardando la automatización: ", error);

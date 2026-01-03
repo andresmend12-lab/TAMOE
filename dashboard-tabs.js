@@ -43,15 +43,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Support for ?tab= query parameter (priority 1)
+    const tabFromQueryParam = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        if (!tabParam) return null;
+        const cleanTab = tabParam.trim();
+        return tabButtons.some(btn => btn.dataset.tab === cleanTab) ? cleanTab : null;
+    };
+
+    // Support for #hash (priority 2)
     const tabFromHash = () => {
         const rawHash = window.location.hash ? window.location.hash.replace('#', '').trim() : '';
         if (!rawHash) return null;
         return tabButtons.some(btn => btn.dataset.tab === rawHash) ? rawHash : null;
     };
 
-    const initial = tabFromHash()
+    // Priority: query param > hash > aria-selected > first tab
+    const initial = tabFromQueryParam()
+        || tabFromHash()
         || tabButtons.find(b => b.getAttribute('aria-selected') === 'true')?.dataset.tab
         || tabButtons[0]?.dataset.tab;
 
     if (initial) setActiveTab(initial);
+
+    // Clean up URL after activating tab from query param
+    if (tabFromQueryParam() && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('tab');
+        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
 });
