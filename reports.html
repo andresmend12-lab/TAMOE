@@ -1,538 +1,645 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reportes - TAMOE</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes - TAMOE</title>
+    <link rel="icon" href="imagotipo_tamoe.png" type="image/png"/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#e619a1",
+                        "primary-hover": "#c9168d",
+                        "background-light": "#f7f3f5",
+                        "background-dark": "#3a2a34",
+                        "surface-light": "#faf8f9",
+                        "surface-dark": "#4a3242",
+                        "surface-darker": "#402a3a",
+                        "border-dark": "#7a4666",
+                        "text-muted": "#e0b9d2",
+                    },
+                    fontFamily: { "display": ["Manrope", "sans-serif"] },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
         }
-      }
-    }
-  </script>
-  <style>
-    @media print {
-      body { background: white !important; }
-      .no-print { display: none !important; }
-      .print-only { display: block !important; }
-      .report-container {
-        box-shadow: none !important;
-        border: none !important;
-        padding: 0 !important;
-      }
-      table { page-break-inside: auto; }
-      tr { page-break-inside: avoid; page-break-after: auto; }
-    }
-    .print-only { display: none; }
-    .progress-bar {
-      transition: width 0.3s ease;
-    }
-  </style>
+    </script>
+    <style>
+        body:not(.dark) .text-text-muted { color: #6a3f59; }
+        body:not(.dark) .placeholder\:text-text-muted::placeholder { color: #6a3f59; }
+        .dark main :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select),
+        .dark header :is(p, span, a, button, div, th, td, h1, h2, h3, h4, h5, h6, label, input, textarea, select) {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        html.dark .material-symbols-outlined,
+        body.dark .material-symbols-outlined,
+        .dark header .material-symbols-outlined,
+        .dark main .material-symbols-outlined {
+            color: #f4b6d2 !important;
+            font-weight: 400 !important;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        @media print {
+            body { background: white !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .report-container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+            }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+        }
+        .print-only { display: none; }
+    </style>
+    <script src="auth-guard.js" type="module"></script>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
-  <!-- Header -->
-  <header class="bg-white dark:bg-gray-800 shadow-sm no-print">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <a href="maindashboard.html" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-          ← Volver al Dashboard
-        </a>
-        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Generador de Reportes</h1>
-      </div>
-      <div class="flex items-center gap-2">
-        <button id="print-btn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-          </svg>
-          Imprimir / PDF
-        </button>
-        <button id="export-csv-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          Exportar CSV
-        </button>
-      </div>
-    </div>
-  </header>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-900 dark:text-white min-h-screen">
 
-  <main class="max-w-7xl mx-auto px-4 py-6">
-    <!-- Report Configuration -->
-    <section class="mb-6 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 no-print">
-      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Configuración del Reporte</h2>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Report Type -->
-        <div>
-          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo de Reporte</label>
-          <select id="report-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-            <option value="general">Resumen General</option>
-            <option value="client">Por Cliente</option>
-            <option value="user">Por Usuario</option>
-            <option value="overdue">Tareas Vencidas</option>
-          </select>
+    <!-- Top Navigation -->
+    <header class="h-16 flex items-center justify-between px-8 border-b border-gray-200 dark:border-border-dark bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50 no-print">
+        <div class="flex items-center gap-4">
+            <a href="maindashboard.html" class="shrink-0 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-surface-dark transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60" aria-label="Ir al inicio">
+                <img src="logotipo_tamoe.png" alt="Tamoe" class="h-9 w-auto"/>
+            </a>
+            <div class="hidden sm:flex items-center gap-2 text-sm">
+                <a href="maindashboard.html" class="text-text-muted hover:text-gray-900 dark:hover:text-white transition-colors">Dashboard</a>
+                <span class="material-symbols-outlined text-text-muted text-[16px]">chevron_right</span>
+                <span class="text-gray-900 dark:text-white font-semibold">Reportes</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="theme-toggle" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors">
+                <span class="material-symbols-outlined text-[20px]">brightness_4</span>
+            </button>
+            <a href="maindashboard.html" class="size-9 rounded-full bg-gray-100 dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-border-dark text-gray-600 dark:text-text-muted hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors" title="Volver al Dashboard">
+                <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+        <!-- Page Header -->
+        <div class="mb-8 no-print">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Generador de Reportes</h1>
+            <p class="text-text-muted text-sm mt-1">Analiza el rendimiento de tus proyectos, clientes y equipo</p>
         </div>
 
-        <!-- Client Filter -->
-        <div>
-          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Cliente</label>
-          <select id="filter-client" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-            <option value="">Todos los clientes</option>
-          </select>
-        </div>
+        <!-- Report Configuration Card -->
+        <section class="mb-6 rounded-2xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/5 no-print">
+            <div class="flex items-center gap-2 mb-5">
+                <span class="material-symbols-outlined text-primary">tune</span>
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white">Configuracion del Reporte</h2>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Report Type -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="report-type" class="text-xs font-semibold text-text-muted uppercase tracking-wide">Tipo de Reporte</label>
+                    <div class="relative">
+                        <select id="report-type" class="w-full h-11 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                            <option value="general">Resumen General</option>
+                            <option value="client">Por Cliente</option>
+                            <option value="user">Por Usuario</option>
+                            <option value="overdue">Tareas Vencidas</option>
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-3 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+                    </div>
+                </div>
 
-        <!-- Status Filter -->
-        <div>
-          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Estado</label>
-          <select id="filter-status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-            <option value="">Todos los estados</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="En proceso">En proceso</option>
-            <option value="Finalizado">Finalizado</option>
-          </select>
-        </div>
+                <!-- Client Filter -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="filter-client" class="text-xs font-semibold text-text-muted uppercase tracking-wide">Cliente</label>
+                    <div class="relative">
+                        <select id="filter-client" class="w-full h-11 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                            <option value="">Todos los clientes</option>
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-3 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+                    </div>
+                </div>
 
-        <!-- Date Range -->
-        <div>
-          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Período</label>
-          <select id="filter-period" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-            <option value="all">Todo el tiempo</option>
-            <option value="7">Últimos 7 días</option>
-            <option value="30">Últimos 30 días</option>
-            <option value="90">Últimos 90 días</option>
-          </select>
-        </div>
-      </div>
+                <!-- Status Filter -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="filter-status" class="text-xs font-semibold text-text-muted uppercase tracking-wide">Estado</label>
+                    <div class="relative">
+                        <select id="filter-status" class="w-full h-11 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                            <option value="">Todos los estados</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En proceso">En proceso</option>
+                            <option value="Finalizado">Finalizado</option>
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-3 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+                    </div>
+                </div>
 
-      <div class="mt-4">
-        <button id="generate-btn" class="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 font-medium">
-          Generar Vista Previa
-        </button>
-      </div>
-    </section>
-
-    <!-- Report Container -->
-    <div id="report-container" class="report-container bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
-      <!-- Print Header -->
-      <div class="print-only mb-6">
-        <h1 class="text-2xl font-bold">TAMOE - Reporte</h1>
-        <p class="text-gray-500">Generado el: <span id="report-date"></span></p>
-      </div>
-
-      <!-- Report Content -->
-      <div id="report-content">
-        <div class="text-center py-20 text-gray-500 dark:text-gray-400">
-          Configura las opciones y haz clic en "Generar Vista Previa"
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <script type="module">
-    import { auth, database } from './firebase.js';
-    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-    import { ref, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
-    import {
-      extractAllTasks,
-      extractAllProjects,
-      calculateGeneralStats,
-      calculateTasksPerClient,
-      calculateTasksPerProject,
-      calculateTasksPerUser,
-      calculateOverdueTasks,
-      calculateUpcomingDeadlines
-    } from './src/analytics/analytics-service.js';
-
-    let clients = [];
-    let usersByUid = {};
-
-    // Initialize on auth
-    onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
-
-      loadData();
-    });
-
-    // Load data
-    function loadData() {
-      const clientsRef = ref(database, 'clients');
-      const usersRef = ref(database, 'users');
-
-      onValue(clientsRef, (snapshot) => {
-        const data = snapshot.val() || {};
-        clients = Object.entries(data).map(([clientId, client]) => ({
-          clientId,
-          ...client
-        }));
-
-        populateClientFilter();
-      });
-
-      onValue(usersRef, (snapshot) => {
-        usersByUid = snapshot.val() || {};
-      });
-    }
-
-    // Populate client filter
-    function populateClientFilter() {
-      const select = document.getElementById('filter-client');
-      select.innerHTML = '<option value="">Todos los clientes</option>';
-      clients.forEach(client => {
-        const option = document.createElement('option');
-        option.value = client.clientId;
-        option.textContent = client.name;
-        select.appendChild(option);
-      });
-    }
-
-    // Generate report
-    function generateReport() {
-      const reportType = document.getElementById('report-type').value;
-      const clientFilter = document.getElementById('filter-client').value;
-      const statusFilter = document.getElementById('filter-status').value;
-      const periodFilter = document.getElementById('filter-period').value;
-
-      // Filter clients if needed
-      let filteredClients = clients;
-      if (clientFilter) {
-        filteredClients = clients.filter(c => c.clientId === clientFilter);
-      }
-
-      // Update report date
-      document.getElementById('report-date').textContent = new Date().toLocaleString('es-ES');
-
-      // Generate report based on type
-      let html = '';
-      switch (reportType) {
-        case 'general':
-          html = generateGeneralReport(filteredClients, statusFilter);
-          break;
-        case 'client':
-          html = generateClientReport(filteredClients, statusFilter);
-          break;
-        case 'user':
-          html = generateUserReport(filteredClients, statusFilter);
-          break;
-        case 'overdue':
-          html = generateOverdueReport(filteredClients);
-          break;
-      }
-
-      document.getElementById('report-content').innerHTML = html;
-    }
-
-    // General report
-    function generateGeneralReport(clientsData, statusFilter) {
-      const stats = calculateGeneralStats(clientsData);
-      const projectStats = calculateTasksPerProject(clientsData);
-
-      return `
-        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Resumen General</h2>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
-            <div class="text-3xl font-bold text-blue-600">${stats.totalClients}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Clientes</div>
-          </div>
-          <div class="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
-            <div class="text-3xl font-bold text-purple-600">${stats.totalProjects}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Proyectos</div>
-          </div>
-          <div class="p-4 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg text-center">
-            <div class="text-3xl font-bold text-cyan-600">${stats.totalTasks}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Tareas</div>
-          </div>
-          <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-            <div class="text-3xl font-bold text-green-600">${stats.completionRate}%</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Completado</div>
-          </div>
-        </div>
-
-        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Desglose por Estado</h3>
-        <div class="grid grid-cols-3 gap-4 mb-8">
-          <div class="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-center">
-            <div class="text-2xl font-bold text-yellow-600">${stats.pendingTasks}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Pendientes</div>
-          </div>
-          <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
-            <div class="text-2xl font-bold text-blue-600">${stats.inProgressTasks}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">En Proceso</div>
-          </div>
-          <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-            <div class="text-2xl font-bold text-green-600">${stats.completedTasks}</div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Finalizados</div>
-          </div>
-        </div>
-
-        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Rendimiento por Proyecto</h3>
-        <table class="w-full text-sm border-collapse">
-          <thead class="bg-gray-100 dark:bg-gray-700">
-            <tr>
-              <th class="p-3 text-left border dark:border-gray-600">Proyecto</th>
-              <th class="p-3 text-left border dark:border-gray-600">Cliente</th>
-              <th class="p-3 text-center border dark:border-gray-600">Tareas</th>
-              <th class="p-3 text-center border dark:border-gray-600">Completado</th>
-              <th class="p-3 border dark:border-gray-600">Progreso</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${projectStats.map(p => `
-              <tr class="border-b dark:border-gray-700">
-                <td class="p-3 border dark:border-gray-600">${escapeHtml(p.projectName)}</td>
-                <td class="p-3 border dark:border-gray-600 text-gray-500">${escapeHtml(p.clientName)}</td>
-                <td class="p-3 text-center border dark:border-gray-600">${p.totalTasks}</td>
-                <td class="p-3 text-center border dark:border-gray-600">${p.completionRate}%</td>
-                <td class="p-3 border dark:border-gray-600">
-                  <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                    <div class="progress-bar bg-green-500 h-2 rounded-full" style="width: ${p.completionRate}%"></div>
-                  </div>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    }
-
-    // Client report
-    function generateClientReport(clientsData, statusFilter) {
-      const clientStats = calculateTasksPerClient(clientsData);
-
-      return `
-        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Reporte por Cliente</h2>
-
-        ${clientStats.map(client => `
-          <div class="mb-8 p-4 border dark:border-gray-700 rounded-lg">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-semibold text-gray-800 dark:text-white">${escapeHtml(client.clientName)}</h3>
-              <span class="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm">
-                ${client.completionRate}% completado
-              </span>
+                <!-- Date Range -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="filter-period" class="text-xs font-semibold text-text-muted uppercase tracking-wide">Periodo</label>
+                    <div class="relative">
+                        <select id="filter-period" class="w-full h-11 rounded-lg bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary pl-4 pr-10 appearance-none cursor-pointer">
+                            <option value="all">Todo el tiempo</option>
+                            <option value="7">Ultimos 7 dias</option>
+                            <option value="30">Ultimos 30 dias</option>
+                            <option value="90">Ultimos 90 dias</option>
+                        </select>
+                        <span class="material-symbols-outlined absolute right-3 top-3 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+                    </div>
+                </div>
             </div>
 
-            <div class="grid grid-cols-4 gap-4 mb-4">
-              <div class="text-center">
-                <div class="text-2xl font-bold text-gray-700 dark:text-gray-300">${client.totalTasks}</div>
-                <div class="text-xs text-gray-500">Total</div>
-              </div>
-              <div class="text-center">
-                <div class="text-2xl font-bold text-yellow-600">${client.pendingTasks}</div>
-                <div class="text-xs text-gray-500">Pendientes</div>
-              </div>
-              <div class="text-center">
-                <div class="text-2xl font-bold text-blue-600">${client.inProgressTasks}</div>
-                <div class="text-xs text-gray-500">En Proceso</div>
-              </div>
-              <div class="text-center">
-                <div class="text-2xl font-bold text-green-600">${client.completedTasks}</div>
-                <div class="text-xs text-gray-500">Finalizados</div>
-              </div>
+            <!-- Action Buttons -->
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+                <button id="generate-btn" class="inline-flex items-center gap-2 px-5 h-11 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/20 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                    Generar Vista Previa
+                </button>
+                <button id="export-csv-btn" class="inline-flex items-center gap-2 px-4 h-11 rounded-lg border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark hover:bg-gray-100 dark:hover:bg-border-dark text-gray-700 dark:text-white text-sm font-semibold transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">download</span>
+                    Exportar CSV
+                </button>
+                <button id="print-btn" class="inline-flex items-center gap-2 px-4 h-11 rounded-lg border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark hover:bg-gray-100 dark:hover:bg-border-dark text-gray-700 dark:text-white text-sm font-semibold transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">print</span>
+                    Imprimir / PDF
+                </button>
+            </div>
+        </section>
+
+        <!-- Report Container -->
+        <div id="report-container" class="report-container rounded-2xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-darker p-6 shadow-lg shadow-black/5">
+            <!-- Print Header -->
+            <div class="print-only mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">TAMOE - Reporte</h1>
+                <p class="text-gray-500">Generado el: <span id="report-date"></span></p>
             </div>
 
-            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3">
-              <div class="progress-bar bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full" style="width: ${client.completionRate}%"></div>
+            <!-- Report Content -->
+            <div id="report-content">
+                <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <span class="material-symbols-outlined text-6xl text-text-muted mb-4">analytics</span>
+                    <p class="text-text-muted text-lg">Configura las opciones y haz clic en "Generar Vista Previa"</p>
+                </div>
             </div>
-          </div>
-        `).join('')}
-      `;
-    }
-
-    // User report
-    function generateUserReport(clientsData, statusFilter) {
-      const userStats = calculateTasksPerUser(clientsData, usersByUid);
-
-      return `
-        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Reporte por Usuario</h2>
-
-        <table class="w-full text-sm border-collapse">
-          <thead class="bg-gray-100 dark:bg-gray-700">
-            <tr>
-              <th class="p-3 text-left border dark:border-gray-600">Usuario</th>
-              <th class="p-3 text-left border dark:border-gray-600">Departamento</th>
-              <th class="p-3 text-center border dark:border-gray-600">Total</th>
-              <th class="p-3 text-center border dark:border-gray-600">Pendiente</th>
-              <th class="p-3 text-center border dark:border-gray-600">En Proceso</th>
-              <th class="p-3 text-center border dark:border-gray-600">Finalizado</th>
-              <th class="p-3 text-center border dark:border-gray-600">% Completado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${userStats.map(u => `
-              <tr class="border-b dark:border-gray-700">
-                <td class="p-3 border dark:border-gray-600 font-medium">${escapeHtml(u.username)}</td>
-                <td class="p-3 border dark:border-gray-600 text-gray-500">${escapeHtml(u.department || '-')}</td>
-                <td class="p-3 text-center border dark:border-gray-600">${u.totalTasks}</td>
-                <td class="p-3 text-center border dark:border-gray-600 text-yellow-600">${u.pendingTasks}</td>
-                <td class="p-3 text-center border dark:border-gray-600 text-blue-600">${u.inProgressTasks}</td>
-                <td class="p-3 text-center border dark:border-gray-600 text-green-600">${u.completedTasks}</td>
-                <td class="p-3 text-center border dark:border-gray-600">
-                  <span class="px-2 py-1 rounded ${u.completionRate >= 70 ? 'bg-green-100 text-green-700' : u.completionRate >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
-                    ${u.completionRate}%
-                  </span>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    }
-
-    // Overdue report
-    function generateOverdueReport(clientsData) {
-      const overdueTasks = calculateOverdueTasks(clientsData);
-      const upcomingTasks = calculateUpcomingDeadlines(clientsData);
-
-      return `
-        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Tareas Vencidas y Próximos Vencimientos</h2>
-
-        <div class="mb-8">
-          <h3 class="text-lg font-semibold text-red-600 mb-4 flex items-center gap-2">
-            <span>⚠️</span> Tareas Vencidas (${overdueTasks.length})
-          </h3>
-          ${overdueTasks.length === 0 ? `
-            <p class="text-gray-500 dark:text-gray-400 italic">¡No hay tareas vencidas!</p>
-          ` : `
-            <table class="w-full text-sm border-collapse">
-              <thead class="bg-red-50 dark:bg-red-900/30">
-                <tr>
-                  <th class="p-3 text-left border dark:border-gray-600">Tarea</th>
-                  <th class="p-3 text-left border dark:border-gray-600">Ruta</th>
-                  <th class="p-3 text-center border dark:border-gray-600">Fecha Venc.</th>
-                  <th class="p-3 text-center border dark:border-gray-600">Días Vencido</th>
-                  <th class="p-3 text-center border dark:border-gray-600">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${overdueTasks.map(t => `
-                  <tr class="border-b dark:border-gray-700">
-                    <td class="p-3 border dark:border-gray-600 font-medium">${escapeHtml(t.name)}</td>
-                    <td class="p-3 border dark:border-gray-600 text-gray-500 text-xs">${escapeHtml(t.path)}</td>
-                    <td class="p-3 text-center border dark:border-gray-600">${t.dueDateFormatted}</td>
-                    <td class="p-3 text-center border dark:border-gray-600">
-                      <span class="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
-                        ${t.daysOverdue} días
-                      </span>
-                    </td>
-                    <td class="p-3 text-center border dark:border-gray-600">${t.status}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          `}
         </div>
+    </main>
 
-        <div>
-          <h3 class="text-lg font-semibold text-blue-600 mb-4 flex items-center gap-2">
-            <span>📅</span> Próximos Vencimientos - 7 días (${upcomingTasks.length})
-          </h3>
-          ${upcomingTasks.length === 0 ? `
-            <p class="text-gray-500 dark:text-gray-400 italic">No hay vencimientos próximos</p>
-          ` : `
-            <table class="w-full text-sm border-collapse">
-              <thead class="bg-blue-50 dark:bg-blue-900/30">
-                <tr>
-                  <th class="p-3 text-left border dark:border-gray-600">Tarea</th>
-                  <th class="p-3 text-left border dark:border-gray-600">Ruta</th>
-                  <th class="p-3 text-center border dark:border-gray-600">Vence</th>
-                  <th class="p-3 text-center border dark:border-gray-600">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${upcomingTasks.map(t => `
-                  <tr class="border-b dark:border-gray-700">
-                    <td class="p-3 border dark:border-gray-600 font-medium">${escapeHtml(t.name)}</td>
-                    <td class="p-3 border dark:border-gray-600 text-gray-500 text-xs">${escapeHtml(t.path)}</td>
-                    <td class="p-3 text-center border dark:border-gray-600">
-                      <span class="px-2 py-1 rounded ${t.isToday ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">
-                        ${t.isToday ? 'Hoy' : t.isTomorrow ? 'Mañana' : t.dueDateFormatted}
-                      </span>
-                    </td>
-                    <td class="p-3 text-center border dark:border-gray-600">${t.status}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          `}
-        </div>
-      `;
-    }
+    <script type="module">
+        import { auth, database } from './firebase.js';
+        import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        import { ref, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import {
+            extractAllTasks,
+            extractAllProjects,
+            calculateGeneralStats,
+            calculateTasksPerClient,
+            calculateTasksPerProject,
+            calculateTasksPerUser,
+            calculateOverdueTasks,
+            calculateUpcomingDeadlines
+        } from './src/analytics/analytics-service.js';
 
-    // Export to CSV
-    function exportCSV() {
-      const reportType = document.getElementById('report-type').value;
-      const clientFilter = document.getElementById('filter-client').value;
+        let clients = [];
+        let usersByUid = {};
 
-      let filteredClients = clients;
-      if (clientFilter) {
-        filteredClients = clients.filter(c => c.clientId === clientFilter);
-      }
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
 
-      let csvContent = '';
-      let filename = '';
+        function initTheme() {
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.documentElement.classList.add('dark');
+            }
+        }
 
-      switch (reportType) {
-        case 'general':
-        case 'client':
-          const clientStats = calculateTasksPerClient(filteredClients);
-          csvContent = 'Cliente,Total Tareas,Pendientes,En Proceso,Finalizadas,% Completado\n';
-          clientStats.forEach(c => {
-            csvContent += `"${c.clientName}",${c.totalTasks},${c.pendingTasks},${c.inProgressTasks},${c.completedTasks},${c.completionRate}%\n`;
-          });
-          filename = 'reporte_clientes.csv';
-          break;
+        themeToggle?.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        });
 
-        case 'user':
-          const userStats = calculateTasksPerUser(filteredClients, usersByUid);
-          csvContent = 'Usuario,Departamento,Total Tareas,Pendientes,En Proceso,Finalizadas,% Completado\n';
-          userStats.forEach(u => {
-            csvContent += `"${u.username}","${u.department || ''}",${u.totalTasks},${u.pendingTasks},${u.inProgressTasks},${u.completedTasks},${u.completionRate}%\n`;
-          });
-          filename = 'reporte_usuarios.csv';
-          break;
+        initTheme();
 
-        case 'overdue':
-          const overdueTasks = calculateOverdueTasks(filteredClients);
-          csvContent = 'Tarea,Ruta,Fecha Vencimiento,Días Vencido,Estado\n';
-          overdueTasks.forEach(t => {
-            csvContent += `"${t.name}","${t.path}","${t.dueDateFormatted}",${t.daysOverdue},"${t.status}"\n`;
-          });
-          filename = 'tareas_vencidas.csv';
-          break;
-      }
+        // Initialize on auth
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            loadData();
+        });
 
-      // Download CSV
-      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      link.click();
-    }
+        // Load data
+        function loadData() {
+            const clientsRef = ref(database, 'clients');
+            const usersRef = ref(database, 'users');
 
-    // Escape HTML
-    function escapeHtml(text) {
-      if (!text) return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
+            onValue(clientsRef, (snapshot) => {
+                const data = snapshot.val() || {};
+                clients = Object.entries(data).map(([clientId, client]) => ({
+                    clientId,
+                    ...client
+                }));
+                populateClientFilter();
+            });
 
-    // Event listeners
-    document.getElementById('generate-btn').addEventListener('click', generateReport);
-    document.getElementById('print-btn').addEventListener('click', () => window.print());
-    document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+            onValue(usersRef, (snapshot) => {
+                usersByUid = snapshot.val() || {};
+            });
+        }
 
-    // Dark mode
-    if (localStorage.getItem('darkMode') === 'true') {
-      document.documentElement.classList.add('dark');
-    }
-  </script>
+        // Populate client filter
+        function populateClientFilter() {
+            const select = document.getElementById('filter-client');
+            select.innerHTML = '<option value="">Todos los clientes</option>';
+            clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.clientId;
+                option.textContent = client.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Generate report
+        function generateReport() {
+            const reportType = document.getElementById('report-type').value;
+            const clientFilter = document.getElementById('filter-client').value;
+            const statusFilter = document.getElementById('filter-status').value;
+            const periodFilter = document.getElementById('filter-period').value;
+
+            // Filter clients if needed
+            let filteredClients = clients;
+            if (clientFilter) {
+                filteredClients = clients.filter(c => c.clientId === clientFilter);
+            }
+
+            // Update report date
+            document.getElementById('report-date').textContent = new Date().toLocaleString('es-ES');
+
+            // Generate report based on type
+            let html = '';
+            switch (reportType) {
+                case 'general':
+                    html = generateGeneralReport(filteredClients, statusFilter);
+                    break;
+                case 'client':
+                    html = generateClientReport(filteredClients, statusFilter);
+                    break;
+                case 'user':
+                    html = generateUserReport(filteredClients, statusFilter);
+                    break;
+                case 'overdue':
+                    html = generateOverdueReport(filteredClients);
+                    break;
+            }
+
+            document.getElementById('report-content').innerHTML = html;
+        }
+
+        // General report
+        function generateGeneralReport(clientsData, statusFilter) {
+            const stats = calculateGeneralStats(clientsData);
+            const projectStats = calculateTasksPerProject(clientsData);
+
+            return `
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">assessment</span>
+                    Resumen General
+                </h2>
+
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="p-5 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 text-center">
+                        <div class="text-3xl font-bold text-primary">${stats.totalClients}</div>
+                        <div class="text-sm text-text-muted mt-1">Clientes</div>
+                    </div>
+                    <div class="p-5 rounded-xl bg-violet-500/5 dark:bg-violet-500/10 border border-violet-500/20 text-center">
+                        <div class="text-3xl font-bold text-violet-600 dark:text-violet-400">${stats.totalProjects}</div>
+                        <div class="text-sm text-text-muted mt-1">Proyectos</div>
+                    </div>
+                    <div class="p-5 rounded-xl bg-cyan-500/5 dark:bg-cyan-500/10 border border-cyan-500/20 text-center">
+                        <div class="text-3xl font-bold text-cyan-600 dark:text-cyan-400">${stats.totalTasks}</div>
+                        <div class="text-sm text-text-muted mt-1">Tareas</div>
+                    </div>
+                    <div class="p-5 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 text-center">
+                        <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400">${stats.completionRate}%</div>
+                        <div class="text-sm text-text-muted mt-1">Completado</div>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-[20px]">pie_chart</span>
+                    Desglose por Estado
+                </h3>
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="p-4 rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 text-center">
+                        <div class="text-2xl font-bold text-amber-600 dark:text-amber-400">${stats.pendingTasks}</div>
+                        <div class="text-sm text-text-muted mt-1">Pendientes</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 text-center">
+                        <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${stats.inProgressTasks}</div>
+                        <div class="text-sm text-text-muted mt-1">En Proceso</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 text-center">
+                        <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${stats.completedTasks}</div>
+                        <div class="text-sm text-text-muted mt-1">Finalizados</div>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-[20px]">folder</span>
+                    Rendimiento por Proyecto
+                </h3>
+                <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-border-dark">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 dark:bg-surface-dark">
+                            <tr>
+                                <th class="p-3 text-left text-xs font-bold text-text-muted uppercase tracking-wide">Proyecto</th>
+                                <th class="p-3 text-left text-xs font-bold text-text-muted uppercase tracking-wide">Cliente</th>
+                                <th class="p-3 text-center text-xs font-bold text-text-muted uppercase tracking-wide">Tareas</th>
+                                <th class="p-3 text-center text-xs font-bold text-text-muted uppercase tracking-wide">Completado</th>
+                                <th class="p-3 text-xs font-bold text-text-muted uppercase tracking-wide">Progreso</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-border-dark">
+                            ${projectStats.map(p => `
+                                <tr class="hover:bg-gray-50 dark:hover:bg-surface-dark/50 transition-colors">
+                                    <td class="p-3 font-medium text-gray-900 dark:text-white">${escapeHtml(p.projectName)}</td>
+                                    <td class="p-3 text-text-muted">${escapeHtml(p.clientName)}</td>
+                                    <td class="p-3 text-center text-gray-900 dark:text-white">${p.totalTasks}</td>
+                                    <td class="p-3 text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${p.completionRate >= 70 ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : p.completionRate >= 40 ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'}">
+                                            ${p.completionRate}%
+                                        </span>
+                                    </td>
+                                    <td class="p-3">
+                                        <div class="w-full bg-gray-200 dark:bg-surface-dark rounded-full h-2 overflow-hidden">
+                                            <div class="progress-bar bg-primary h-2 rounded-full" style="width: ${p.completionRate}%"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Client report
+        function generateClientReport(clientsData, statusFilter) {
+            const clientStats = calculateTasksPerClient(clientsData);
+
+            return `
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">groups</span>
+                    Reporte por Cliente
+                </h2>
+
+                <div class="flex flex-col gap-6">
+                    ${clientStats.map(client => `
+                        <div class="p-5 rounded-xl border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-surface-dark">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">${escapeHtml(client.clientName)}</h3>
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${client.completionRate >= 70 ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : client.completionRate >= 40 ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'}">
+                                    ${client.completionRate}% completado
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-4 gap-4 mb-4">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-gray-700 dark:text-gray-300">${client.totalTasks}</div>
+                                    <div class="text-xs text-text-muted">Total</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-amber-600 dark:text-amber-400">${client.pendingTasks}</div>
+                                    <div class="text-xs text-text-muted">Pendientes</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${client.inProgressTasks}</div>
+                                    <div class="text-xs text-text-muted">En Proceso</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${client.completedTasks}</div>
+                                    <div class="text-xs text-text-muted">Finalizados</div>
+                                </div>
+                            </div>
+
+                            <div class="w-full bg-gray-200 dark:bg-background-dark rounded-full h-3 overflow-hidden">
+                                <div class="progress-bar bg-gradient-to-r from-primary to-violet-500 h-3 rounded-full" style="width: ${client.completionRate}%"></div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // User report
+        function generateUserReport(clientsData, statusFilter) {
+            const userStats = calculateTasksPerUser(clientsData, usersByUid);
+
+            return `
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">person</span>
+                    Reporte por Usuario
+                </h2>
+
+                <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-border-dark">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 dark:bg-surface-dark">
+                            <tr>
+                                <th class="p-3 text-left text-xs font-bold text-text-muted uppercase tracking-wide">Usuario</th>
+                                <th class="p-3 text-left text-xs font-bold text-text-muted uppercase tracking-wide">Departamento</th>
+                                <th class="p-3 text-center text-xs font-bold text-text-muted uppercase tracking-wide">Total</th>
+                                <th class="p-3 text-center text-xs font-bold text-text-muted uppercase tracking-wide">Pendiente</th>
+                                <th class="p-3 text-center text-xs font-bold text-text-muted uppercase tracking-wide">En Proceso</th>
+                                <th class="p-3 text-center text-xs font-bold text-text-muted uppercase tracking-wide">Finalizado</th>
+                                <th class="p-3 text-center text-xs font-bold text-text-muted uppercase tracking-wide">% Completado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-border-dark">
+                            ${userStats.map(u => `
+                                <tr class="hover:bg-gray-50 dark:hover:bg-surface-dark/50 transition-colors">
+                                    <td class="p-3 font-medium text-gray-900 dark:text-white">${escapeHtml(u.username)}</td>
+                                    <td class="p-3 text-text-muted">${escapeHtml(u.department || '-')}</td>
+                                    <td class="p-3 text-center text-gray-900 dark:text-white">${u.totalTasks}</td>
+                                    <td class="p-3 text-center text-amber-600 dark:text-amber-400">${u.pendingTasks}</td>
+                                    <td class="p-3 text-center text-blue-600 dark:text-blue-400">${u.inProgressTasks}</td>
+                                    <td class="p-3 text-center text-emerald-600 dark:text-emerald-400">${u.completedTasks}</td>
+                                    <td class="p-3 text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.completionRate >= 70 ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : u.completionRate >= 40 ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'}">
+                                            ${u.completionRate}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Overdue report
+        function generateOverdueReport(clientsData) {
+            const overdueTasks = calculateOverdueTasks(clientsData);
+            const upcomingTasks = calculateUpcomingDeadlines(clientsData);
+
+            return `
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">schedule</span>
+                    Tareas Vencidas y Proximos Vencimientos
+                </h2>
+
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined">warning</span>
+                        Tareas Vencidas (${overdueTasks.length})
+                    </h3>
+                    ${overdueTasks.length === 0 ? `
+                        <div class="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+                            <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+                            <p class="text-emerald-700 dark:text-emerald-400 font-medium">No hay tareas vencidas</p>
+                        </div>
+                    ` : `
+                        <div class="overflow-x-auto rounded-xl border border-red-200 dark:border-red-500/30">
+                            <table class="w-full text-sm">
+                                <thead class="bg-red-50 dark:bg-red-500/10">
+                                    <tr>
+                                        <th class="p-3 text-left text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">Tarea</th>
+                                        <th class="p-3 text-left text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">Ruta</th>
+                                        <th class="p-3 text-center text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">Fecha Venc.</th>
+                                        <th class="p-3 text-center text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">Dias Vencido</th>
+                                        <th class="p-3 text-center text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-red-200 dark:divide-red-500/20">
+                                    ${overdueTasks.map(t => `
+                                        <tr class="hover:bg-red-50 dark:hover:bg-red-500/5 transition-colors">
+                                            <td class="p-3 font-medium text-gray-900 dark:text-white">${escapeHtml(t.name)}</td>
+                                            <td class="p-3 text-text-muted text-xs">${escapeHtml(t.path)}</td>
+                                            <td class="p-3 text-center text-gray-900 dark:text-white">${t.dueDateFormatted}</td>
+                                            <td class="p-3 text-center">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400">
+                                                    ${t.daysOverdue} dias
+                                                </span>
+                                            </td>
+                                            <td class="p-3 text-center text-gray-900 dark:text-white">${t.status}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold text-blue-600 dark:text-blue-400 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined">event</span>
+                        Proximos Vencimientos - 7 dias (${upcomingTasks.length})
+                    </h3>
+                    ${upcomingTasks.length === 0 ? `
+                        <div class="flex items-center gap-3 p-4 rounded-xl bg-gray-50 dark:bg-surface-dark border border-gray-200 dark:border-border-dark">
+                            <span class="material-symbols-outlined text-text-muted">info</span>
+                            <p class="text-text-muted font-medium">No hay vencimientos proximos</p>
+                        </div>
+                    ` : `
+                        <div class="overflow-x-auto rounded-xl border border-blue-200 dark:border-blue-500/30">
+                            <table class="w-full text-sm">
+                                <thead class="bg-blue-50 dark:bg-blue-500/10">
+                                    <tr>
+                                        <th class="p-3 text-left text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Tarea</th>
+                                        <th class="p-3 text-left text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Ruta</th>
+                                        <th class="p-3 text-center text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Vence</th>
+                                        <th class="p-3 text-center text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-blue-200 dark:divide-blue-500/20">
+                                    ${upcomingTasks.map(t => `
+                                        <tr class="hover:bg-blue-50 dark:hover:bg-blue-500/5 transition-colors">
+                                            <td class="p-3 font-medium text-gray-900 dark:text-white">${escapeHtml(t.name)}</td>
+                                            <td class="p-3 text-text-muted text-xs">${escapeHtml(t.path)}</td>
+                                            <td class="p-3 text-center">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${t.isToday ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'}">
+                                                    ${t.isToday ? 'Hoy' : t.isTomorrow ? 'Manana' : t.dueDateFormatted}
+                                                </span>
+                                            </td>
+                                            <td class="p-3 text-center text-gray-900 dark:text-white">${t.status}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        // Export to CSV
+        function exportCSV() {
+            const reportType = document.getElementById('report-type').value;
+            const clientFilter = document.getElementById('filter-client').value;
+
+            let filteredClients = clients;
+            if (clientFilter) {
+                filteredClients = clients.filter(c => c.clientId === clientFilter);
+            }
+
+            let csvContent = '';
+            let filename = '';
+
+            switch (reportType) {
+                case 'general':
+                case 'client':
+                    const clientStats = calculateTasksPerClient(filteredClients);
+                    csvContent = 'Cliente,Total Tareas,Pendientes,En Proceso,Finalizadas,% Completado\n';
+                    clientStats.forEach(c => {
+                        csvContent += `"${c.clientName}",${c.totalTasks},${c.pendingTasks},${c.inProgressTasks},${c.completedTasks},${c.completionRate}%\n`;
+                    });
+                    filename = 'reporte_clientes.csv';
+                    break;
+
+                case 'user':
+                    const userStats = calculateTasksPerUser(filteredClients, usersByUid);
+                    csvContent = 'Usuario,Departamento,Total Tareas,Pendientes,En Proceso,Finalizadas,% Completado\n';
+                    userStats.forEach(u => {
+                        csvContent += `"${u.username}","${u.department || ''}",${u.totalTasks},${u.pendingTasks},${u.inProgressTasks},${u.completedTasks},${u.completionRate}%\n`;
+                    });
+                    filename = 'reporte_usuarios.csv';
+                    break;
+
+                case 'overdue':
+                    const overdueTasks = calculateOverdueTasks(filteredClients);
+                    csvContent = 'Tarea,Ruta,Fecha Vencimiento,Dias Vencido,Estado\n';
+                    overdueTasks.forEach(t => {
+                        csvContent += `"${t.name}","${t.path}","${t.dueDateFormatted}",${t.daysOverdue},"${t.status}"\n`;
+                    });
+                    filename = 'tareas_vencidas.csv';
+                    break;
+            }
+
+            // Download CSV
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners
+        document.getElementById('generate-btn').addEventListener('click', generateReport);
+        document.getElementById('print-btn').addEventListener('click', () => window.print());
+        document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+    </script>
 </body>
 </html>
